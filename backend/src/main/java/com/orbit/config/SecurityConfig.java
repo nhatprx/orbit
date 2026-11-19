@@ -1,0 +1,76 @@
+package com.orbit.config;
+
+import com.orbit.auth.security.JwtAuthenticationFilter;
+import com.orbit.auth.security.OAuth2FailureHandler;
+import com.orbit.auth.security.OAuth2SuccessHandler;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+@Configuration
+@EnableWebSecurity
+public class SecurityConfig {
+
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final OAuth2SuccessHandler oauth2SuccessHandler;
+    private final OAuth2FailureHandler oauth2FailureHandler;
+
+    public SecurityConfig(
+        JwtAuthenticationFilter jwtAuthenticationFilter,
+        OAuth2SuccessHandler oauth2SuccessHandler,
+        OAuth2FailureHandler oauth2FailureHandler
+    ) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.oauth2SuccessHandler = oauth2SuccessHandler;
+        this.oauth2FailureHandler = oauth2FailureHandler;
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(AbstractHttpConfigurer::disable)
+            .cors(Customizer.withDefaults())
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers(
+                    "/api/v1/health",
+                    "/api/v1/auth/register",
+                    "/api/v1/auth/login",
+                    "/api/v1/auth/oauth/exchange",
+                    "/oauth2/**",
+                    "/login/oauth2/**",
+                    "/actuator/health/**"
+                ).permitAll()
+                .anyRequest().authenticated()
+            )
+            .exceptionHandling(ex -> ex.authenticationEntryPoint((req, res, authEx) -> {
+                res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                res.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                res.getWriter().write("{\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication required.\"}");
+            }))
+            .oauth2Login(oauth2 -> oauth2
+                .successHandler(oauth2SuccessHandler)
+                .failureHandler(oauth2FailureHandler)
+            )
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+}

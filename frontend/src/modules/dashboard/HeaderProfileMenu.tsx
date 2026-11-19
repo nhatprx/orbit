@@ -17,7 +17,7 @@ interface HeaderProfileMenuProps {
 }
 
 const ITEM_CLASS =
-  'flex w-full items-center justify-between px-3.5 py-2.5 text-sm text-[#E6EDF3] transition-colors hover:bg-[#21262D] hover:text-[#22C55E]';
+  'flex w-full items-center justify-between px-3 py-1.5 text-[13px] text-[#E6EDF3] transition-colors hover:bg-[#21262D] hover:text-[#22C55E]';
 
 export function HeaderProfileMenu({
   user,
@@ -78,21 +78,21 @@ export function HeaderProfileMenu({
         type="button"
         title={user.email}
         onClick={() => setOpen((v) => !v)}
-        className="flex h-9 w-9 items-center justify-center border border-[#22C55E] bg-[#052E16] font-mono text-sm font-semibold text-[#22C55E]"
+        className="flex h-7 w-7 items-center justify-center border border-[#22C55E] bg-[#052E16] font-mono text-xs font-semibold text-[#22C55E]"
       >
         {initials}
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-1.5 w-72 border border-[#3B434B] bg-[#161B22] py-1">
-          <div className="flex items-center justify-between px-3.5 py-3">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center border border-[#22C55E] bg-[#052E16] font-mono text-sm font-semibold text-[#22C55E]">
+        <div className="absolute right-0 mt-1.5 w-60 border border-[#30363D] bg-[#161B22] py-1">
+          <div className="flex items-center justify-between px-3 py-2">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center border border-[#22C55E] bg-[#052E16] font-mono text-xs font-semibold text-[#22C55E]">
                 {initials}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-[#E6EDF3]">{handle}</p>
-                <p className="truncate text-xs text-[#BDBDBD]">{user.name}</p>
+                <p className="truncate text-[13px] font-semibold text-[#E6EDF3]">{handle}</p>
+                <p className="truncate text-xs text-[#8B949E]">{user.name}</p>
               </div>
             </div>
             <button
@@ -161,9 +161,9 @@ export function HeaderProfileMenu({
             <button
               type="button"
               onClick={onLogout}
-              className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-sm text-[#EF4444] hover:bg-[#21262D]"
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-[13px] text-[#EF4444] hover:bg-[#21262D]"
             >
-              <LogOut className="h-4 w-4" strokeWidth={1.5} />
+              <LogOut className="h-3.5 w-3.5" strokeWidth={1.5} />
               Sign out
             </button>
           </div>

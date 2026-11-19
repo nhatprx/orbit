@@ -55,22 +55,22 @@ export function GitPage({ workspaceId }: GitPageProps) {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-4 border border-[#30363D] bg-[#161B22] p-5">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="font-mono text-lg font-semibold text-[#E6EDF3]">
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border border-[#30363D] bg-[#161B22] p-4">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <h1 className="font-mono text-base font-semibold text-[#E6EDF3]">
             {repo.slug}
           </h1>
           <Badge tone="neutral">{repo.visibility}</Badge>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center border border-[#3B434B] bg-[#0D1117] px-2.5">
-            <GitBranch className="h-4 w-4 text-[#22C55E]" strokeWidth={1.5} />
+          <div className="flex items-center border border-[#30363D] bg-[#0D1117] px-2">
+            <GitBranch className="h-3.5 w-3.5 text-[#22C55E]" strokeWidth={1.5} />
             <select
               value={branch}
               onChange={(e) => setBranch(e.target.value)}
-              className="h-9 bg-transparent px-2 font-mono text-xs text-[#E6EDF3] focus:outline-none"
+              className="h-7 bg-transparent px-1.5 font-mono text-xs text-[#E6EDF3] focus:outline-none"
             >
               {repo.branches.map((b) => (
                 <option key={b} value={b} className="bg-[#161B22]">

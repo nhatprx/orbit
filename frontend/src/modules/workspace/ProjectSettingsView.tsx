@@ -18,13 +18,13 @@ export function ProjectSettingsView({
   onDeleteProject,
 }: ProjectSettingsViewProps) {
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 border border-[#30363D] bg-[#161B22] p-6">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-4 border border-[#30363D] bg-[#161B22] p-4">
         <div>
-          <h1 className="text-xl font-semibold text-[#E6EDF3]">
+          <h1 className="text-base font-semibold text-[#E6EDF3]">
             {project.name} — Settings & Modules
           </h1>
-          <p className="mt-1 text-sm text-[#BDBDBD]">{project.description}</p>
+          <p className="mt-0.5 text-[13px] text-[#8B949E]">{project.description}</p>
         </div>
         <Badge tone="green" withDot>
           {project.enabledModules.length} MODULES ENABLED
@@ -32,8 +32,8 @@ export function ProjectSettingsView({
       </div>
 
       <section className="border border-[#30363D] bg-[#161B22]">
-        <div className="border-b border-[#30363D] px-5 py-3.5">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-[#BDBDBD]">
+        <div className="border-b border-[#30363D] px-4 py-2.5">
+          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#8B949E]">
             Project Modules (Toggle Independently Per Project)
           </h2>
         </div>
@@ -44,20 +44,20 @@ export function ProjectSettingsView({
             return (
               <div
                 key={mod.id}
-                className="flex items-center justify-between gap-4 px-5 py-4"
+                className="flex items-center justify-between gap-4 px-4 py-3"
               >
                 <div>
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-2">
                     <span
                       className={`h-1.5 w-1.5 ${
-                        enabled ? 'bg-[#22C55E]' : 'bg-[#8A8A8A]'
+                        enabled ? 'bg-[#22C55E]' : 'bg-[#7D8590]'
                       }`}
                     />
-                    <span className="text-sm font-semibold text-[#E6EDF3]">
+                    <span className="text-[13px] font-semibold text-[#E6EDF3]">
                       {mod.label}
                     </span>
                   </div>
-                  <p className="mt-0.5 pl-4 text-xs text-[#8A8A8A]">
+                  <p className="mt-0.5 pl-3.5 text-xs text-[#8B949E]">
                     {mod.summary}
                   </p>
                 </div>
@@ -65,10 +65,10 @@ export function ProjectSettingsView({
                 <button
                   type="button"
                   onClick={() => onToggleModule(project.id, mod.id)}
-                  className={`border px-3 py-1.5 font-mono text-xs uppercase transition-colors ${
+                  className={`border px-2.5 py-1 font-mono text-[11px] uppercase transition-colors ${
                     enabled
                       ? 'border-[#22C55E] bg-[#052E16] text-[#22C55E] hover:bg-[#22C55E] hover:text-[#0D1117]'
-                      : 'border-[#3B434B] bg-[#0D1117] text-[#8A8A8A] hover:border-[#22C55E] hover:text-[#E6EDF3]'
+                      : 'border-[#30363D] bg-[#0D1117] text-[#8B949E] hover:border-[#22C55E] hover:text-[#E6EDF3]'
                   }`}
                 >
                   {enabled ? 'Enabled' : 'Disabled'}

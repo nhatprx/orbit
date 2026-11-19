@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AuthPage } from './modules/auth/AuthPage';
 import { DashboardShell } from './modules/dashboard/DashboardShell';
 import { HomePage } from './modules/home/HomePage';
@@ -14,8 +14,41 @@ export function App() {
   const [route, setRoute] = useState<AppRoute>(() =>
     authService.getSession() ? 'dashboard' : 'home'
   );
+  const [oauthError, setOauthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const oauthCode = params.get('oauth_code');
+    const errorParam = params.get('oauth_error');
+
+    if (!oauthCode && !errorParam) return;
+
+    window.history.replaceState({}, document.title, window.location.pathname);
+
+    if (errorParam) {
+      setOauthError(errorParam);
+      setRoute('auth');
+      return;
+    }
+
+    if (oauthCode) {
+      authService
+        .exchangeOAuthCode(oauthCode)
+        .then((nextSession) => {
+          setSession(nextSession);
+          setRoute('dashboard');
+        })
+        .catch((err) => {
+          setOauthError(
+            err instanceof Error ? err.message : 'OAuth exchange failed.'
+          );
+          setRoute('auth');
+        });
+    }
+  }, []);
 
   function handleAuthSuccess(nextSession: AuthSession) {
+    setOauthError(null);
     setSession(nextSession);
     setRoute('dashboard');
   }
@@ -29,6 +62,7 @@ export function App() {
   if (route === 'auth') {
     return (
       <AuthPage
+        initialError={oauthError}
         onSuccess={handleAuthSuccess}
         onBackHome={() => setRoute('home')}
       />

@@ -8,6 +8,7 @@ import type {
   OrbitWorkspace,
   ProjectModuleId,
 } from '../../types/workspace.types';
+import { AiChatPage } from '../ai/AiChatPage';
 import { CommunityChatPage } from '../chat/CommunityChatPage';
 import { CloudFilesPage } from '../cloud/CloudFilesPage';
 import { GitPage } from '../git/GitPage';
@@ -93,7 +94,8 @@ export function DashboardShell({
     setActive('overview');
   }
 
-  const fullHeight = active === 'mail' || active === 'cloud' || active === 'chat';
+  const fullHeight =
+    active === 'ai' || active === 'mail' || active === 'cloud' || active === 'chat';
 
   return (
     <div className="flex h-screen w-screen flex-col bg-[#0D1117] text-[#E6EDF3]">
@@ -126,15 +128,17 @@ export function DashboardShell({
           onOpenCreateProject={() => setCreateOpen(true)}
         />
 
-        <main className={fullHeight ? 'flex-1 overflow-hidden' : 'flex-1 overflow-y-auto p-6'}>
-          {active === 'mail' ? (
+        <main className={fullHeight ? 'flex-1 overflow-hidden' : 'flex-1 overflow-y-auto p-5'}>
+          {active === 'ai' ? (
+            <AiChatPage workspaceName={activeWorkspace?.name ?? 'Workspace'} />
+          ) : active === 'mail' ? (
             <MailPage user={currentUser} />
           ) : active === 'cloud' ? (
             <CloudFilesPage user={currentUser} />
           ) : active === 'chat' ? (
             <CommunityChatPage user={currentUser} />
           ) : (
-            <div className="mx-auto max-w-5xl">
+            <div className="mx-auto max-w-6xl">
               {active === 'overview' && (
                 <UserOverview
                   user={currentUser}

@@ -53,7 +53,7 @@ export function CloudFilesPage({ user }: CloudFilesPageProps) {
   }
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] w-full overflow-hidden border border-[#30363D] bg-[#0D1117]">
+    <div className="flex h-[calc(100vh-3rem)] w-full overflow-hidden border border-[#30363D] bg-[#0D1117]">
       <CloudSidebar active={category} onSelect={setCategory} />
 
       <div className="flex min-w-0 flex-1 flex-col">

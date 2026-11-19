@@ -32,14 +32,14 @@ export function HeaderCreateMenu({
         type="button"
         title="Create new"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-9 items-center gap-1 border border-[#3B434B] bg-[#161B22] px-2.5 text-[#BDBDBD] transition-colors hover:border-[#22C55E] hover:text-[#E6EDF3]"
+        className="flex h-7 items-center gap-0.5 border border-[#30363D] bg-[#161B22] px-1.5 text-[#8B949E] transition-colors hover:border-[#22C55E] hover:text-[#E6EDF3]"
       >
-        <Plus className="h-4 w-4" strokeWidth={1.5} />
-        <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} />
+        <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
+        <ChevronDown className="h-3 w-3" strokeWidth={1.5} />
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-1.5 w-56 border border-[#3B434B] bg-[#161B22] py-1">
+        <div className="absolute right-0 mt-1.5 w-44 border border-[#30363D] bg-[#161B22] py-1">
           {CREATE_ITEMS.map((item) => (
             <button
               key={item.id}
@@ -48,7 +48,7 @@ export function HeaderCreateMenu({
                 onSelectArea(item.id);
                 setOpen(false);
               }}
-              className="block w-full px-3.5 py-2.5 text-left text-sm text-[#E6EDF3] hover:bg-[#21262D] hover:text-[#22C55E]"
+              className="block w-full px-3 py-1.5 text-left text-[13px] text-[#E6EDF3] hover:bg-[#21262D] hover:text-[#22C55E]"
             >
               {item.label}
             </button>

@@ -25,7 +25,7 @@ const DOT_CLASSES: Record<BadgeTone, string> = {
 export function Badge({ tone = 'neutral', withDot = false, children }: BadgeProps) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 border px-2 py-0.5 font-mono text-[11px] uppercase tracking-wider ${TONE_CLASSES[tone]}`}
+      className={`inline-flex items-center gap-1.5 border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider ${TONE_CLASSES[tone]}`}
     >
       {withDot && <span className={`h-1.5 w-1.5 ${DOT_CLASSES[tone]}`} />}
       {children}

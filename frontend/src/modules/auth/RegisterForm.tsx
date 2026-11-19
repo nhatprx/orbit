@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Lock } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import type { RegisterPayload } from '../../types/auth.types';
+import { evaluatePasswordRules } from './passwordPolicy';
 
 interface RegisterFormProps {
   loading: boolean;
@@ -25,10 +26,13 @@ const INPUT_CLASS =
 
 export function RegisterForm({ loading, error, onSubmit }: RegisterFormProps) {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [country, setCountry] = useState('Vietnam');
   const [emailPreference, setEmailPreference] = useState(false);
+
+  const passwordRules = evaluatePasswordRules(password);
+  const allRulesPassed = passwordRules.every((rule) => rule.passed);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -37,6 +41,22 @@ export function RegisterForm({ loading, error, onSubmit }: RegisterFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <label className="mb-1 block text-xs text-[#A3A3A3]">
+          Username (Unique)
+        </label>
+        <input
+          type="text"
+          required
+          minLength={3}
+          maxLength={50}
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="nhatprx"
+          className={INPUT_CLASS}
+        />
+      </div>
+
       <div>
         <label className="mb-1 block text-xs text-[#A3A3A3]">Email</label>
         <input
@@ -54,24 +74,28 @@ export function RegisterForm({ loading, error, onSubmit }: RegisterFormProps) {
         <input
           type="password"
           required
-          minLength={6}
+          minLength={8}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Minimum 6 characters"
+          placeholder="Min 8 chars, upper, lower, digit, special"
           className={INPUT_CLASS}
         />
-      </div>
-
-      <div>
-        <label className="mb-1 block text-xs text-[#A3A3A3]">Username</label>
-        <input
-          type="text"
-          required
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          placeholder="nhatprx"
-          className={INPUT_CLASS}
-        />
+        <div className="mt-2 space-y-1 border border-[#30363D] bg-[#0D1117] p-2.5">
+          {passwordRules.map((rule) => (
+            <div key={rule.key} className="flex items-center gap-2 text-[11px]">
+              <span
+                className={`h-1.5 w-1.5 ${
+                  rule.passed ? 'bg-[#22C55E]' : 'bg-[#3B434B]'
+                }`}
+              />
+              <span
+                className={rule.passed ? 'text-[#22C55E]' : 'text-[#8A8A8A]'}
+              >
+                {rule.label}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div>
@@ -106,7 +130,12 @@ export function RegisterForm({ loading, error, onSubmit }: RegisterFormProps) {
         </div>
       )}
 
-      <Button type="submit" variant="primary" disabled={loading} className="w-full">
+      <Button
+        type="submit"
+        variant="primary"
+        disabled={loading || !allRulesPassed}
+        className="w-full"
+      >
         <Lock className="h-3.5 w-3.5" strokeWidth={1.5} />
         {loading ? 'Creating Account...' : 'Create Account'}
       </Button>

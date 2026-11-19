@@ -1,25 +1,30 @@
-import { MOCK_USERS } from '../mocks/auth.mock';
+import {
+  validateStrongPassword,
+  validateUsernameFormat,
+} from '../modules/auth/passwordPolicy';
 import type {
   AuthSession,
   LoginPayload,
   OAuthProvider,
   RegisterPayload,
-  UserRole,
 } from '../types/auth.types';
 
-const SESSION_KEY = 'orbit_phase1_session';
+const SESSION_KEY = 'orbit_auth_session';
+const API_BASE_URL =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
+  'http://localhost:8080';
 
 export interface IAuthService {
   getSession(): AuthSession | null;
   login(payload: LoginPayload): Promise<AuthSession>;
   register(payload: RegisterPayload): Promise<AuthSession>;
-  loginWithProvider(provider: OAuthProvider): Promise<AuthSession>;
-  loginAsDemoRole(role: UserRole): Promise<AuthSession>;
+  startOAuthLogin(provider: OAuthProvider): void;
+  exchangeOAuthCode(code: string): Promise<AuthSession>;
   logout(): Promise<void>;
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+interface ApiErrorPayload {
+  message?: string;
 }
 
 function saveSession(session: AuthSession): AuthSession {
@@ -27,7 +32,21 @@ function saveSession(session: AuthSession): AuthSession {
   return session;
 }
 
-class MockAuthService implements IAuthService {
+async function parseJsonOrThrow<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    let message = `Request failed (${response.status}).`;
+    try {
+      const err = (await response.json()) as ApiErrorPayload;
+      if (err.message) message = err.message;
+    } catch {
+      // ignore non-json body
+    }
+    throw new Error(message);
+  }
+  return (await response.json()) as T;
+}
+
+class HttpAuthService implements IAuthService {
   getSession(): AuthSession | null {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
@@ -40,81 +59,73 @@ class MockAuthService implements IAuthService {
   }
 
   async login(payload: LoginPayload): Promise<AuthSession> {
-    await delay(200);
-    const email = payload.email.trim().toLowerCase();
-    const record = MOCK_USERS.find((item) => item.user.email === email);
-
-    if (!record || record.password !== payload.password) {
-      throw new Error('Invalid email or password.');
+    const identifier = payload.identifier.trim();
+    if (!identifier || !payload.password) {
+      throw new Error('Username/email and password are required.');
     }
 
-    return saveSession({
-      user: record.user,
-      accessToken: `mock_jwt_${record.user.role}_${Date.now()}`,
-      expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+    const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier, password: payload.password }),
     });
+
+    const session = await parseJsonOrThrow<AuthSession>(response);
+    return saveSession(session);
   }
 
   async register(payload: RegisterPayload): Promise<AuthSession> {
-    await delay(220);
-    const email = payload.email.trim().toLowerCase();
-    const username = payload.username.trim();
-    if (!email || !username || !payload.country || payload.password.length < 6) {
-      throw new Error(
-        'Email, username, country, and password (min 6 chars) are required.'
-      );
-    }
+    const usernameError = validateUsernameFormat(payload.username);
+    if (usernameError) throw new Error(usernameError);
 
-    return saveSession({
-      user: {
-        id: `usr_${Date.now()}`,
-        name: username,
-        username,
-        email,
+    const passwordError = validateStrongPassword(payload.password);
+    if (passwordError) throw new Error(passwordError);
+
+    const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: payload.email.trim().toLowerCase(),
+        username: payload.username.trim().toLowerCase(),
+        password: payload.password,
         country: payload.country,
         emailPreference: payload.emailPreference,
-        role: 'user',
-        workspaceId: 'ws_orbit_core',
-      },
-      accessToken: `mock_jwt_user_${Date.now()}`,
-      expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      }),
     });
+
+    const session = await parseJsonOrThrow<AuthSession>(response);
+    return saveSession(session);
   }
 
-  async loginWithProvider(provider: OAuthProvider): Promise<AuthSession> {
-    await delay(180);
-    const email = provider === 'github' ? 'nhatprx@github.orbit.dev' : 'nhatprx@gmail.com';
-    const name = provider === 'github' ? 'GitHub Developer' : 'Google Account';
-    return saveSession({
-      user: {
-        id: `usr_${provider}_${Date.now()}`,
-        name,
-        email,
-        role: 'user',
-        workspaceId: 'ws_orbit_core',
-      },
-      accessToken: `mock_jwt_${provider}_${Date.now()}`,
-      expiresAt: new Date(Date.now() + 3600_000).toISOString(),
-    });
+  startOAuthLogin(provider: OAuthProvider): void {
+    window.location.assign(`${API_BASE_URL}/oauth2/authorization/${provider}`);
   }
 
-  async loginAsDemoRole(role: UserRole): Promise<AuthSession> {
-    await delay(150);
-    const record = MOCK_USERS.find((item) => item.user.role === role);
-    if (!record) {
-      throw new Error(`Demo user for role "${role}" not found.`);
-    }
-    return saveSession({
-      user: record.user,
-      accessToken: `mock_jwt_${role}_${Date.now()}`,
-      expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+  async exchangeOAuthCode(code: string): Promise<AuthSession> {
+    const response = await fetch(`${API_BASE_URL}/api/v1/auth/oauth/exchange`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
     });
+
+    const session = await parseJsonOrThrow<AuthSession>(response);
+    return saveSession(session);
   }
 
   async logout(): Promise<void> {
-    await delay(100);
+    const current = this.getSession();
     localStorage.removeItem(SESSION_KEY);
+    if (!current) return;
+
+    try {
+      await fetch(`${API_BASE_URL}/api/v1/auth/logout`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${current.accessToken}` },
+      });
+    } catch {
+      // client session already cleared
+    }
   }
 }
 
-export const authService: IAuthService = new MockAuthService();
+export const authService: IAuthService = new HttpAuthService();

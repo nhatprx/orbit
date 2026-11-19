@@ -96,7 +96,7 @@ export function MailPage({ user }: MailPageProps) {
   }
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] w-full overflow-hidden border border-[#30363D] bg-[#0D1117]">
+    <div className="flex h-[calc(100vh-3rem)] w-full overflow-hidden border border-[#30363D] bg-[#0D1117]">
       <MailFolderNav
         activeFolder={folder}
         counts={counts}

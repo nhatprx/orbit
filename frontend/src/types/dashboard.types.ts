@@ -2,6 +2,7 @@ import type { UserRole } from './auth.types';
 
 export type WorkspaceAreaId =
   | 'overview'
+  | 'ai'
   | 'profile'
   | 'project-settings'
   | 'git'

@@ -47,13 +47,13 @@ export function AdminOverview({ user }: AdminOverviewProps) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 border border-[#22C55E] bg-[#052E16] p-6">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-4 border border-[#22C55E] bg-[#052E16] p-4">
         <div>
-          <h2 className="text-xl font-semibold text-[#E6EDF3]">
+          <h2 className="text-base font-semibold text-[#E6EDF3]">
             Admin Console
           </h2>
-          <p className="mt-1 text-sm text-[#BDBDBD]">
+          <p className="mt-0.5 text-[13px] text-[#8B949E]">
             Platform governance, capacity targets, and workspace user directory.
           </p>
         </div>
@@ -64,12 +64,12 @@ export function AdminOverview({ user }: AdminOverviewProps) {
 
       <div className="grid grid-cols-1 gap-px border border-[#30363D] bg-[#30363D] sm:grid-cols-2 lg:grid-cols-4">
         {metrics.map((metric) => (
-          <div key={metric.id} className="bg-[#161B22] p-5">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm text-[#BDBDBD]">{metric.label}</span>
+          <div key={metric.id} className="bg-[#161B22] p-4">
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-xs text-[#8B949E]">{metric.label}</span>
               <span className="h-1.5 w-1.5 bg-[#22C55E]" />
             </div>
-            <div className="font-mono text-xl font-semibold text-[#E6EDF3]">
+            <div className="font-mono text-lg font-semibold text-[#E6EDF3]">
               {metric.value}
             </div>
           </div>
@@ -77,12 +77,12 @@ export function AdminOverview({ user }: AdminOverviewProps) {
       </div>
 
       <div>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#BDBDBD]">
+        <h3 className="mb-2.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-[#8B949E]">
           Workspace User Directory (Page 1 / Limit 10)
         </h3>
         <div className="overflow-x-auto border border-[#30363D] bg-[#161B22]">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-[#30363D] bg-[#21262D] text-xs uppercase tracking-wider text-[#BDBDBD]">
+          <table className="w-full text-left text-[13px]">
+            <thead className="border-b border-[#30363D] bg-[#21262D] text-[11px] uppercase tracking-wider text-[#8B949E]">
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Email</th>
