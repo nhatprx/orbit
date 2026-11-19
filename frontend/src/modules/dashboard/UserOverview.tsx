@@ -75,7 +75,7 @@ export function UserOverview({ user, onSelectArea }: UserOverviewProps) {
                   <ArrowUpRight className="h-4 w-4 text-[#22C55E]" strokeWidth={1.5} />
                 </div>
                 <p className="mb-3 text-xs text-[#A3A3A3]">{area.summary}</p>
-                <Badge tone="neutral">MOCKUP READY</Badge>
+                <Badge tone="green" withDot>ACTIVE</Badge>
               </button>
             ))}
           </div>

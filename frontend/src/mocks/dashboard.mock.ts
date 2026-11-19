@@ -15,7 +15,7 @@ export const MOCK_WORKSPACE_AREAS: WorkspaceAreaTile[] = [
 ];
 
 export const MOCK_RECENT_ACTIVITY: ActivityRecord[] = [
-  { id: 'act_01', actor: 'Alex Mercer', area: 'Platform', action: 'Initialized Phase 1 UI workspace', timestamp: '2m ago' },
+  { id: 'act_01', actor: 'Alex Mercer', area: 'Platform', action: 'Initialized core workspace environment', timestamp: '2m ago' },
   { id: 'act_02', actor: 'Taylor Lin', area: 'Design', action: 'Verified square border tokens', timestamp: '14m ago' },
   { id: 'act_03', actor: 'Alex Mercer', area: 'Governance', action: 'Passed ponytail LOC compliance check', timestamp: '28m ago' },
   { id: 'act_04', actor: 'Taylor Lin', area: 'Workspace', action: 'Switched active session to ws_orbit_core', timestamp: '1h ago' },

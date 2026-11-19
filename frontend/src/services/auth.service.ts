@@ -2,6 +2,7 @@ import { MOCK_USERS } from '../mocks/auth.mock';
 import type {
   AuthSession,
   LoginPayload,
+  OAuthProvider,
   RegisterPayload,
   UserRole,
 } from '../types/auth.types';
@@ -12,6 +13,7 @@ export interface IAuthService {
   getSession(): AuthSession | null;
   login(payload: LoginPayload): Promise<AuthSession>;
   register(payload: RegisterPayload): Promise<AuthSession>;
+  loginWithProvider(provider: OAuthProvider): Promise<AuthSession>;
   loginAsDemoRole(role: UserRole): Promise<AuthSession>;
   logout(): Promise<void>;
 }
@@ -56,19 +58,42 @@ class MockAuthService implements IAuthService {
   async register(payload: RegisterPayload): Promise<AuthSession> {
     await delay(220);
     const email = payload.email.trim().toLowerCase();
-    if (!email || !payload.name.trim() || payload.password.length < 6) {
-      throw new Error('Name, valid email, and password (min 6 chars) are required.');
+    const username = payload.username.trim();
+    if (!email || !username || !payload.country || payload.password.length < 6) {
+      throw new Error(
+        'Email, username, country, and password (min 6 chars) are required.'
+      );
     }
 
     return saveSession({
       user: {
         id: `usr_${Date.now()}`,
-        name: payload.name.trim(),
+        name: username,
+        username,
         email,
-        role: payload.role,
+        country: payload.country,
+        emailPreference: payload.emailPreference,
+        role: 'user',
         workspaceId: 'ws_orbit_core',
       },
-      accessToken: `mock_jwt_${payload.role}_${Date.now()}`,
+      accessToken: `mock_jwt_user_${Date.now()}`,
+      expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+    });
+  }
+
+  async loginWithProvider(provider: OAuthProvider): Promise<AuthSession> {
+    await delay(180);
+    const email = provider === 'github' ? 'nhatprx@github.orbit.dev' : 'nhatprx@gmail.com';
+    const name = provider === 'github' ? 'GitHub Developer' : 'Google Account';
+    return saveSession({
+      user: {
+        id: `usr_${provider}_${Date.now()}`,
+        name,
+        email,
+        role: 'user',
+        workspaceId: 'ws_orbit_core',
+      },
+      accessToken: `mock_jwt_${provider}_${Date.now()}`,
       expiresAt: new Date(Date.now() + 3600_000).toISOString(),
     });
   }

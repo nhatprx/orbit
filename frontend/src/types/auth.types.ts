@@ -1,9 +1,13 @@
 export type UserRole = 'admin' | 'user';
+export type OAuthProvider = 'google' | 'github';
 
 export interface AuthUser {
   id: string;
   name: string;
+  username?: string;
   email: string;
+  country?: string;
+  emailPreference?: boolean;
   role: UserRole;
   workspaceId: string;
 }
@@ -20,8 +24,9 @@ export interface LoginPayload {
 }
 
 export interface RegisterPayload {
-  name: string;
   email: string;
   password: string;
-  role: UserRole;
+  username: string;
+  country: string;
+  emailPreference: boolean;
 }

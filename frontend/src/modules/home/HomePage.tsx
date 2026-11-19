@@ -38,13 +38,7 @@ export function HomePage({
       <header className="border-b border-[#1F1F1F] bg-[#0A0A0A]">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-7 w-7 items-center justify-center border border-[#22C55E] bg-[#052E16] font-mono text-xs font-semibold text-[#22C55E]">
-              OR
-            </div>
             <span className="text-sm font-semibold tracking-tight">ORBIT</span>
-            <Badge tone="green" withDot>
-              PHASE 1
-            </Badge>
           </div>
 
           <div className="flex items-center gap-2">
@@ -106,7 +100,7 @@ export function HomePage({
               Workspace Areas
             </h2>
             <span className="font-mono text-xs text-[#666666]">
-              UI MOCKUP SCOPE
+              UNIFIED SUITE
             </span>
           </div>
           <div className="grid grid-cols-1 gap-px border border-[#1F1F1F] bg-[#1F1F1F] sm:grid-cols-2 lg:grid-cols-3">
