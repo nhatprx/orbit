@@ -1,12 +1,20 @@
-import { useEffect, useState } from 'react';
-import { dashboardService } from '../../services/dashboard.service';
+import { useCallback, useEffect, useState } from 'react';
+import { workspaceService } from '../../services/workspace.service';
 import type { AuthSession } from '../../types/auth.types';
-import type { UserWorkspace, WorkspaceAreaId } from '../../types/dashboard.types';
+import type { WorkspaceAreaId } from '../../types/dashboard.types';
+import type {
+  CreateProjectPayload,
+  OrbitProject,
+  OrbitWorkspace,
+  ProjectModuleId,
+} from '../../types/workspace.types';
 import { CommunityChatPage } from '../chat/CommunityChatPage';
 import { CloudFilesPage } from '../cloud/CloudFilesPage';
 import { GitPage } from '../git/GitPage';
 import { MailPage } from '../mail/MailPage';
 import { ProfilePage } from '../profile/ProfilePage';
+import { CreateProjectModal } from '../workspace/CreateProjectModal';
+import { ProjectSettingsView } from '../workspace/ProjectSettingsView';
 import { AdminOverview } from './AdminOverview';
 import { DashboardHeader } from './DashboardHeader';
 import { DashboardSidebar } from './DashboardSidebar';
@@ -25,31 +33,74 @@ export function DashboardShell({
 }: DashboardShellProps) {
   const [active, setActive] = useState<WorkspaceAreaId>('overview');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [workspaces, setWorkspaces] = useState<UserWorkspace[]>([]);
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState(
-    session.user.workspaceId
-  );
+  const [workspaces, setWorkspaces] = useState<OrbitWorkspace[]>([]);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState('ws_orbit_core');
+  const [projects, setProjects] = useState<OrbitProject[]>([]);
+  const [activeProjectId, setActiveProjectId] = useState<string>('');
+  const [createOpen, setCreateOpen] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
-    dashboardService.getUserWorkspaces(20).then((items) => {
-      if (!mounted) return;
-      setWorkspaces(items);
-    });
-    return () => {
-      mounted = false;
-    };
+  const loadProjects = useCallback(async (wsId: string) => {
+    const items = await workspaceService.listProjects(wsId);
+    setProjects(items);
+    setActiveProjectId((prev) =>
+      items.some((p) => p.id === prev) ? prev : (items[0]?.id ?? '')
+    );
   }, []);
 
-  const currentUser = {
-    ...session.user,
-    workspaceId: activeWorkspaceId,
-  };
+  useEffect(() => {
+    workspaceService.listWorkspaces().then(setWorkspaces);
+  }, []);
+
+  useEffect(() => {
+    void loadProjects(activeWorkspaceId);
+  }, [activeWorkspaceId, loadProjects]);
+
+  const activeWorkspace =
+    workspaces.find((w) => w.id === activeWorkspaceId) ?? null;
+  const activeProject =
+    projects.find((p) => p.id === activeProjectId) ?? projects[0] ?? null;
+
+  const currentUser = { ...session.user, workspaceId: activeWorkspaceId };
+
+  function handleSelectProject(projectId: string) {
+    setActiveProjectId(projectId);
+    const next = projects.find((p) => p.id === projectId);
+    if (next && next.enabledModules.length > 0) {
+      setActive(next.enabledModules[0]!);
+    } else {
+      setActive('project-settings');
+    }
+  }
+
+  async function handleCreateProject(payload: CreateProjectPayload) {
+    const created = await workspaceService.createProject(payload);
+    await loadProjects(activeWorkspaceId);
+    setActiveProjectId(created.id);
+    setActive(created.enabledModules[0] ?? 'project-settings');
+  }
+
+  async function handleToggleModule(projectId: string, moduleId: ProjectModuleId) {
+    const updated = await workspaceService.toggleProjectModule(projectId, moduleId);
+    await loadProjects(activeWorkspaceId);
+    if (updated && active === moduleId && !updated.enabledModules.includes(moduleId)) {
+      setActive('project-settings');
+    }
+  }
+
+  async function handleDeleteProject(projectId: string) {
+    await workspaceService.deleteProject(projectId);
+    await loadProjects(activeWorkspaceId);
+    setActive('overview');
+  }
+
+  const fullHeight = active === 'mail' || active === 'cloud' || active === 'chat';
 
   return (
     <div className="flex h-screen w-screen flex-col bg-[#0D1117] text-[#E6EDF3]">
       <DashboardHeader
         user={currentUser}
+        workspaceName={activeWorkspace?.name ?? 'Workspace'}
+        projectName={activeProject?.name ?? ''}
         active={active}
         onToggleSidebar={() => setSidebarOpen((open) => !open)}
         onSelectArea={setActive}
@@ -63,18 +114,19 @@ export function DashboardShell({
           active={active}
           workspaces={workspaces}
           activeWorkspaceId={activeWorkspaceId}
+          projects={projects}
+          activeProject={activeProject}
           open={sidebarOpen}
+          onSelectWorkspace={(wsId) => {
+            setActiveWorkspaceId(wsId);
+            setActive('overview');
+          }}
+          onSelectProject={handleSelectProject}
           onSelectArea={setActive}
-          onSelectWorkspace={setActiveWorkspaceId}
+          onOpenCreateProject={() => setCreateOpen(true)}
         />
 
-        <main
-          className={
-            active === 'mail' || active === 'cloud' || active === 'chat'
-              ? 'flex-1 overflow-hidden'
-              : 'flex-1 overflow-y-auto p-6'
-          }
-        >
+        <main className={fullHeight ? 'flex-1 overflow-hidden' : 'flex-1 overflow-y-auto p-6'}>
           {active === 'mail' ? (
             <MailPage user={currentUser} />
           ) : active === 'cloud' ? (
@@ -84,35 +136,56 @@ export function DashboardShell({
           ) : (
             <div className="mx-auto max-w-5xl">
               {active === 'overview' && (
-                <UserOverview user={currentUser} onSelectArea={setActive} />
+                <UserOverview
+                  user={currentUser}
+                  workspace={activeWorkspace}
+                  projects={projects}
+                  onOpenProject={(p) => handleSelectProject(p.id)}
+                  onOpenProjectSettings={(p) => {
+                    setActiveProjectId(p.id);
+                    setActive('project-settings');
+                  }}
+                  onOpenCreateProject={() => setCreateOpen(true)}
+                />
               )}
-              {active === 'git' && <GitPage workspaceId={activeWorkspaceId} />}
+              {active === 'git' && (
+                <GitPage workspaceId={activeProject?.slug ?? activeWorkspaceId} />
+              )}
+              {active === 'project-settings' && activeProject && (
+                <ProjectSettingsView
+                  project={activeProject}
+                  canDelete={projects.length > 1}
+                  onToggleModule={(pid, mid) => void handleToggleModule(pid, mid)}
+                  onDeleteProject={(pid) => void handleDeleteProject(pid)}
+                />
+              )}
               {active === 'profile' && <ProfilePage user={currentUser} />}
               {active === 'admin' && <AdminOverview user={currentUser} />}
-              {active !== 'overview' &&
-                active !== 'git' &&
-                active !== 'profile' &&
-                active !== 'admin' && (
-                  <div className="border border-[#30363D] bg-[#161B22] p-8">
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className="h-1.5 w-1.5 bg-[#22C55E]" />
-                      <h2 className="text-lg font-semibold uppercase text-[#E6EDF3]">
-                        {active} Workspace Area
-                      </h2>
-                    </div>
-                    <p className="text-sm text-[#BDBDBD]">
-                      Workspace environment initialized and ready for{' '}
-                      <span className="font-mono text-[#22C55E]">
-                        {activeWorkspaceId}
-                      </span>
-                      .
-                    </p>
+              {['docs', 'sheets', 'ppt', 'markdown'].includes(active) && (
+                <div className="border border-[#30363D] bg-[#161B22] p-8">
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className="h-1.5 w-1.5 bg-[#22C55E]" />
+                    <h2 className="text-lg font-semibold uppercase text-[#E6EDF3]">
+                      {activeProject?.name} — {active}
+                    </h2>
                   </div>
-                )}
+                  <p className="text-sm text-[#BDBDBD]">
+                    Module enabled for <span className="font-mono text-[#22C55E]">{activeProject?.slug}</span>.
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </main>
       </div>
+
+      <CreateProjectModal
+        open={createOpen}
+        workspaceId={activeWorkspaceId}
+        workspaceName={activeWorkspace?.name ?? 'Workspace'}
+        onClose={() => setCreateOpen(false)}
+        onCreate={handleCreateProject}
+      />
     </div>
   );
 }

@@ -15,6 +15,8 @@ import { HeaderCreateMenu } from './HeaderUserMenu';
 
 interface DashboardHeaderProps {
   user: AuthUser;
+  workspaceName: string;
+  projectName: string;
   active: WorkspaceAreaId;
   onToggleSidebar: () => void;
   onSelectArea: (area: WorkspaceAreaId) => void;
@@ -27,6 +29,8 @@ const ICON_BTN =
 
 export function DashboardHeader({
   user,
+  workspaceName,
+  projectName,
   active,
   onToggleSidebar,
   onSelectArea,
@@ -72,15 +76,25 @@ export function DashboardHeader({
           <span className="text-base font-semibold tracking-tight">ORBIT</span>
         </button>
 
+        <span className="hidden font-mono text-sm text-[#8A8A8A] sm:inline">/</span>
+        <span className="hidden text-sm text-[#BDBDBD] sm:inline">{workspaceName}</span>
+        {projectName && active !== 'overview' && active !== 'admin' && active !== 'profile' && (
+          <>
+            <span className="hidden font-mono text-sm text-[#8A8A8A] md:inline">/</span>
+            <span className="hidden text-sm text-[#BDBDBD] md:inline">{projectName}</span>
+          </>
+        )}
         <span className="font-mono text-sm text-[#8A8A8A]">/</span>
         <span className="text-sm font-medium capitalize text-[#E6EDF3]">
           {active === 'overview'
-            ? 'Dashboard'
+            ? 'Workspace'
             : active === 'cloud'
               ? 'Cloud Files'
               : active === 'chat'
                 ? 'Community Chat'
-                : active}
+                : active === 'project-settings'
+                  ? 'Project Settings'
+                  : active}
         </span>
       </div>
 
