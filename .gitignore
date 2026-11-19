@@ -1,0 +1,16 @@
+# Dependencies & Build Outputs
+node_modules/
+frontend/dist/
+backend/target/
+*.log
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
