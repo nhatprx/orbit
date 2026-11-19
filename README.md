@@ -62,3 +62,4 @@ All contributors (human developers and AI agents) must read and follow these spe
 - [docs/ARCHITECTURE.md](file:///d:/orbit/docs/ARCHITECTURE.md) — Platform architecture for 10k+ CCU and Mock-to-Production adapter boundaries
 - [docs/LIMITS_AND_SLAS.md](file:///d:/orbit/docs/LIMITS_AND_SLAS.md) — Hard technical limits, latency budgets, rate limits, and scalability targets
 - [docs/ROADMAP_AND_WORKSPACE.md](file:///d:/orbit/docs/ROADMAP_AND_WORKSPACE.md) — Workspace directory layout, setup blueprint, and Phase 1 UI mockup milestones
+
