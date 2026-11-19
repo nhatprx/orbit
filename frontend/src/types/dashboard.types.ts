@@ -5,6 +5,8 @@ export type WorkspaceAreaId =
   | 'profile'
   | 'git'
   | 'mail'
+  | 'cloud'
+  | 'chat'
   | 'docs'
   | 'sheets'
   | 'ppt'
@@ -31,6 +33,14 @@ export interface PlatformMetric {
   label: string;
   value: string;
   state: 'healthy' | 'warning';
+}
+
+export interface UserWorkspace {
+  id: string;
+  name: string;
+  slug: string;
+  visibility: 'private' | 'team';
+  updatedAt: string;
 }
 
 export interface DirectoryUser {

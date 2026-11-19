@@ -45,7 +45,7 @@ export function ProfilePage({ user }: ProfilePageProps) {
 
   if (!profile) {
     return (
-      <div className="border border-[#1F1F1F] bg-[#0A0A0A] p-6 text-xs text-[#666666]">
+      <div className="border border-[#30363D] bg-[#161B22] p-6 text-xs text-[#666666]">
         Loading profile...
       </div>
     );
@@ -71,24 +71,24 @@ export function ProfilePage({ user }: ProfilePageProps) {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 gap-px border border-[#1F1F1F] bg-[#1F1F1F] md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-px border border-[#30363D] bg-[#30363D] md:grid-cols-2">
             {profile.pinned.map((item) => (
-              <div key={item.id} className="flex flex-col justify-between bg-[#0A0A0A] p-4">
+              <div key={item.id} className="flex flex-col justify-between bg-[#161B22] p-5">
                 <div>
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-[#F5F5F5]">
-                      <BookMarked className="h-3.5 w-3.5 text-[#22C55E]" strokeWidth={1.5} />
+                    <div className="flex items-center gap-2 text-sm font-semibold text-[#E6EDF3]">
+                      <BookMarked className="h-4 w-4 text-[#22C55E]" strokeWidth={1.5} />
                       <span>{item.name}</span>
                     </div>
                     <Badge tone="neutral">{item.area}</Badge>
                   </div>
-                  <p className="mb-4 text-xs leading-relaxed text-[#A3A3A3]">
+                  <p className="mb-4 text-sm leading-relaxed text-[#BDBDBD]">
                     {item.description}
                   </p>
                 </div>
 
-                <div className="flex items-center justify-between text-[11px] text-[#666666]">
-                  <span className="flex items-center gap-1.5 font-mono text-[#A3A3A3]">
+                <div className="flex items-center justify-between text-xs text-[#8A8A8A]">
+                  <span className="flex items-center gap-1.5 font-mono text-[#BDBDBD]">
                     <span className="h-1.5 w-1.5 bg-[#22C55E]" />
                     {item.tag}
                   </span>
@@ -102,23 +102,23 @@ export function ProfilePage({ user }: ProfilePageProps) {
         <ContributionGrid weeks={profile.contributions} />
 
         <section>
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#A3A3A3]">
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#BDBDBD]">
             Recent Activity
           </h2>
-          <div className="border border-[#1F1F1F] bg-[#0A0A0A]">
+          <div className="border border-[#30363D] bg-[#161B22]">
             {activity.map((item, idx) => (
               <div
                 key={item.id}
-                className={`flex items-center justify-between gap-4 px-4 py-3 text-xs ${
-                  idx > 0 ? 'border-t border-[#1F1F1F]' : ''
+                className={`flex items-center justify-between gap-4 px-5 py-3.5 text-sm ${
+                  idx > 0 ? 'border-t border-[#30363D]' : ''
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <span className="h-1.5 w-1.5 shrink-0 bg-[#22C55E]" />
-                  <span className="font-mono text-[#22C55E]">{item.area}</span>
-                  <span className="text-[#F5F5F5]">{item.action}</span>
+                  <span className="font-mono text-xs text-[#22C55E]">{item.area}</span>
+                  <span className="text-[#E6EDF3]">{item.action}</span>
                 </div>
-                <span className="shrink-0 font-mono text-[#666666]">
+                <span className="shrink-0 font-mono text-xs text-[#8A8A8A]">
                   {item.timestamp}
                 </span>
               </div>

@@ -23,7 +23,7 @@ interface DashboardHeaderProps {
 }
 
 const ICON_BTN =
-  'flex h-8 w-8 items-center justify-center border border-[#2E2E2E] bg-[#0A0A0A] text-[#A3A3A3] transition-colors hover:border-[#22C55E] hover:text-[#F5F5F5]';
+  'flex h-9 w-9 items-center justify-center border border-[#3B434B] bg-[#161B22] text-[#BDBDBD] transition-colors hover:border-[#22C55E] hover:text-[#E6EDF3]';
 
 export function DashboardHeader({
   user,
@@ -52,7 +52,7 @@ export function DashboardHeader({
   }, []);
 
   return (
-    <header className="relative z-20 flex h-14 shrink-0 items-center justify-between border-b border-[#1F1F1F] bg-[#0A0A0A] px-4">
+    <header className="relative z-20 flex h-14 shrink-0 items-center justify-between border-b border-[#30363D] bg-[#161B22] px-4">
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -66,35 +66,41 @@ export function DashboardHeader({
         <button
           type="button"
           onClick={() => onSelectArea('overview')}
-          className="flex items-center gap-2 text-[#F5F5F5] hover:text-[#22C55E]"
+          className="flex items-center gap-2 text-[#E6EDF3] hover:text-[#22C55E]"
         >
           <Orbit className="h-5 w-5 text-[#22C55E]" strokeWidth={1.5} />
-          <span className="text-sm font-semibold tracking-tight">ORBIT</span>
+          <span className="text-base font-semibold tracking-tight">ORBIT</span>
         </button>
 
-        <span className="font-mono text-xs text-[#666666]">/</span>
-        <span className="text-xs font-medium capitalize text-[#F5F5F5]">
-          {active === 'overview' ? 'Dashboard' : active}
+        <span className="font-mono text-sm text-[#8A8A8A]">/</span>
+        <span className="text-sm font-medium capitalize text-[#E6EDF3]">
+          {active === 'overview'
+            ? 'Dashboard'
+            : active === 'cloud'
+              ? 'Cloud Files'
+              : active === 'chat'
+                ? 'Community Chat'
+                : active}
         </span>
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="hidden items-center border border-[#2E2E2E] bg-[#050505] px-2.5 focus-within:border-[#22C55E] md:flex">
-          <Search className="h-3.5 w-3.5 text-[#666666]" strokeWidth={1.5} />
+        <div className="hidden items-center border border-[#3B434B] bg-[#0D1117] px-3 focus-within:border-[#22C55E] md:flex">
+          <Search className="h-4 w-4 text-[#8A8A8A]" strokeWidth={1.5} />
           <input
             ref={searchRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Type / to search"
-            className="h-8 w-44 bg-transparent px-2 text-xs text-[#F5F5F5] placeholder-[#666666] focus:outline-none lg:w-56"
+            className="h-9 w-48 bg-transparent px-2.5 text-sm text-[#E6EDF3] placeholder-[#8A8A8A] focus:outline-none lg:w-64"
           />
-          <kbd className="border border-[#2E2E2E] px-1.5 py-0.5 font-mono text-[10px] text-[#666666]">
+          <kbd className="border border-[#3B434B] px-1.5 py-0.5 font-mono text-xs text-[#8A8A8A]">
             /
           </kbd>
         </div>
 
-        <div className="hidden h-5 w-px bg-[#1F1F1F] sm:block" />
+        <div className="hidden h-5 w-px bg-[#30363D] sm:block" />
 
         <HeaderCreateMenu onSelectArea={onSelectArea} />
 
@@ -118,8 +124,8 @@ export function DashboardHeader({
 
         <button
           type="button"
-          title="Docs"
-          onClick={() => onSelectArea('docs')}
+          title="Cloud Files"
+          onClick={() => onSelectArea('cloud')}
           className={`hidden sm:flex ${ICON_BTN}`}
         >
           <BookMarked className="h-4 w-4" strokeWidth={1.5} />

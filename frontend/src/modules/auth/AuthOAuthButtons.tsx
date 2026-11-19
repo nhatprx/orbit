@@ -64,11 +64,11 @@ export function AuthOAuthButtons({
         Continue with GitHub
       </Button>
       <div className="flex items-center gap-3 pt-3">
-        <div className="h-px flex-1 bg-[#1F1F1F]" />
+        <div className="h-px flex-1 bg-[#30363D]" />
         <span className="font-mono text-[11px] uppercase tracking-wider text-[#666666]">
           OR EMAIL
         </span>
-        <div className="h-px flex-1 bg-[#1F1F1F]" />
+        <div className="h-px flex-1 bg-[#30363D]" />
       </div>
     </div>
   );

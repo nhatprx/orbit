@@ -65,8 +65,8 @@ export function AuthPage({ onSuccess, onBackHome }: AuthPageProps) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#050505] px-4 py-12 text-[#F5F5F5]">
-      <div className="w-full max-w-md border border-[#1F1F1F] bg-[#0A0A0A] p-6">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-[#0D1117] px-4 py-12 text-[#E6EDF3]">
+      <div className="w-full max-w-md border border-[#30363D] bg-[#161B22] p-6">
         <div className="mb-6 flex items-center justify-between">
           <button
             type="button"
@@ -79,7 +79,7 @@ export function AuthPage({ onSuccess, onBackHome }: AuthPageProps) {
         </div>
 
         <div className="mb-6">
-          <h1 className="text-xl font-semibold tracking-tight text-[#F5F5F5]">
+          <h1 className="text-xl font-semibold tracking-tight text-[#E6EDF3]">
             {mode === 'login' ? 'Sign In to Orbit' : 'Create Orbit Account'}
           </h1>
           <p className="mt-1 text-xs text-[#A3A3A3]">
@@ -87,7 +87,7 @@ export function AuthPage({ onSuccess, onBackHome }: AuthPageProps) {
           </p>
         </div>
 
-        <div className="mb-6 grid grid-cols-2 border border-[#1F1F1F]">
+        <div className="mb-6 grid grid-cols-2 border border-[#30363D]">
           <button
             type="button"
             onClick={() => {
@@ -96,7 +96,7 @@ export function AuthPage({ onSuccess, onBackHome }: AuthPageProps) {
             }}
             className={`py-2 text-xs font-medium ${mode === 'login'
               ? 'bg-[#052E16] text-[#22C55E]'
-              : 'bg-[#0A0A0A] text-[#A3A3A3] hover:text-[#F5F5F5]'
+              : 'bg-[#161B22] text-[#A3A3A3] hover:text-[#E6EDF3]'
               }`}
           >
             Sign In
@@ -107,9 +107,9 @@ export function AuthPage({ onSuccess, onBackHome }: AuthPageProps) {
               setMode('register');
               setError(null);
             }}
-            className={`border-l border-[#1F1F1F] py-2 text-xs font-medium ${mode === 'register'
+            className={`border-l border-[#30363D] py-2 text-xs font-medium ${mode === 'register'
               ? 'bg-[#052E16] text-[#22C55E]'
-              : 'bg-[#0A0A0A] text-[#A3A3A3] hover:text-[#F5F5F5]'
+              : 'bg-[#161B22] text-[#A3A3A3] hover:text-[#E6EDF3]'
               }`}
           >
             Register
@@ -127,7 +127,7 @@ export function AuthPage({ onSuccess, onBackHome }: AuthPageProps) {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full border border-[#1F1F1F] bg-[#050505] px-3 py-2 text-sm text-[#F5F5F5] focus:border-[#22C55E] focus:outline-none"
+                className="w-full border border-[#30363D] bg-[#0D1117] px-3 py-2 text-sm text-[#E6EDF3] focus:border-[#22C55E] focus:outline-none"
               />
             </div>
 
@@ -138,12 +138,12 @@ export function AuthPage({ onSuccess, onBackHome }: AuthPageProps) {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full border border-[#1F1F1F] bg-[#050505] px-3 py-2 text-sm text-[#F5F5F5] focus:border-[#22C55E] focus:outline-none"
+                className="w-full border border-[#30363D] bg-[#0D1117] px-3 py-2 text-sm text-[#E6EDF3] focus:border-[#22C55E] focus:outline-none"
               />
             </div>
 
             {error && (
-              <div className="border border-[#EF4444] bg-[#111111] px-3 py-2 text-xs text-[#EF4444]">
+              <div className="border border-[#EF4444] bg-[#21262D] px-3 py-2 text-xs text-[#EF4444]">
                 {error}
               </div>
             )}

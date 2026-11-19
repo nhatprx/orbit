@@ -3,12 +3,9 @@ import { ChevronDown, Plus } from 'lucide-react';
 import type { WorkspaceAreaId } from '../../types/dashboard.types';
 
 const CREATE_ITEMS: { id: WorkspaceAreaId; label: string }[] = [
-  { id: 'git', label: 'New Git workspace' },
+  { id: 'git', label: 'New workspace' },
   { id: 'mail', label: 'New Mail draft' },
-  { id: 'docs', label: 'New Document' },
-  { id: 'sheets', label: 'New Sheet' },
-  { id: 'ppt', label: 'New Presentation' },
-  { id: 'markdown', label: 'New Markdown note' },
+  { id: 'cloud', label: 'New Cloud File' },
 ];
 
 export function HeaderCreateMenu({
@@ -35,14 +32,14 @@ export function HeaderCreateMenu({
         type="button"
         title="Create new"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-8 items-center gap-1 border border-[#2E2E2E] bg-[#0A0A0A] px-2 text-[#A3A3A3] transition-colors hover:border-[#22C55E] hover:text-[#F5F5F5]"
+        className="flex h-9 items-center gap-1 border border-[#3B434B] bg-[#161B22] px-2.5 text-[#BDBDBD] transition-colors hover:border-[#22C55E] hover:text-[#E6EDF3]"
       >
         <Plus className="h-4 w-4" strokeWidth={1.5} />
-        <ChevronDown className="h-3 w-3" strokeWidth={1.5} />
+        <ChevronDown className="h-3.5 w-3.5" strokeWidth={1.5} />
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-1.5 w-48 border border-[#2E2E2E] bg-[#0A0A0A] py-1">
+        <div className="absolute right-0 mt-1.5 w-56 border border-[#3B434B] bg-[#161B22] py-1">
           {CREATE_ITEMS.map((item) => (
             <button
               key={item.id}
@@ -51,7 +48,7 @@ export function HeaderCreateMenu({
                 onSelectArea(item.id);
                 setOpen(false);
               }}
-              className="block w-full px-3 py-2 text-left text-xs text-[#F5F5F5] hover:bg-[#111111] hover:text-[#22C55E]"
+              className="block w-full px-3.5 py-2.5 text-left text-sm text-[#E6EDF3] hover:bg-[#21262D] hover:text-[#22C55E]"
             >
               {item.label}
             </button>

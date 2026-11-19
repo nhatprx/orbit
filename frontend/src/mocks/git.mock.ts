@@ -1,0 +1,67 @@
+import type { GitRepoData } from '../types/git.types';
+
+export const MOCK_GIT_REPO: GitRepoData = {
+  slug: 'nhatprx/orbit-core',
+  visibility: 'private',
+  branches: ['main', 'develop', 'feat/cloud-files'],
+  defaultBranch: 'main',
+  cloneUrl: 'git@github.com-nhatprx:nhatprx/orbit.git',
+  files: [
+    {
+      path: 'AGENTS.md',
+      name: 'AGENTS.md',
+      type: 'file',
+      lastCommit: 'docs: align square border policy',
+      updatedAt: '2h ago',
+      language: 'Markdown',
+      content: `# AGENTS.md\n\n- HARD LIMIT: Every source file MUST be < 200 LOC.\n- Zero emojis in UI, code, comments, logs, and docs.\n- Primary font: Outfit; Monospace: JetBrains Mono.\n- Palette: Dark slate (#0D1117 / #161B22) + Green (#22C55E).\n- Primary DB: PostgreSQL; Cache/Session: Redis.\n- Deploy target: Docker on AWS (10,000+ CCU).`,
+    },
+    {
+      path: 'ponytail/check.mjs',
+      name: 'ponytail/check.mjs',
+      type: 'file',
+      lastCommit: 'chore: harden ponytail compliance check',
+      updatedAt: '3h ago',
+      language: 'JavaScript',
+      content: `import fs from 'node:fs';\nimport path from 'node:path';\n\nconst MAX_LOC = 200;\nconst EMOJI_RE = /\\p{Extended_Pictographic}/u;\n\nconsole.log('ponytail compliance check passed.');`,
+    },
+    {
+      path: 'frontend/src/App.tsx',
+      name: 'frontend/src/App.tsx',
+      type: 'file',
+      lastCommit: 'feat: implement homepage, auth, and dashboard',
+      updatedAt: '4h ago',
+      language: 'TypeScript',
+      content: `import { useState } from 'react';\nimport { AuthPage } from './modules/auth/AuthPage';\nimport { DashboardShell } from './modules/dashboard/DashboardShell';\nimport { HomePage } from './modules/home/HomePage';\n\nexport function App() {\n  // Top-level workspace router\n  return null;\n}`,
+    },
+    {
+      path: 'backend/src/main/java/com/orbit/OrbitApplication.java',
+      name: 'backend/.../OrbitApplication.java',
+      type: 'file',
+      lastCommit: 'chore: scaffold spring boot 3.4 java 21 api',
+      updatedAt: '1d ago',
+      language: 'Java',
+      content: `package com.orbit;\n\nimport org.springframework.boot.SpringApplication;\nimport org.springframework.boot.autoconfigure.SpringBootApplication;\n\n@SpringBootApplication\npublic class OrbitApplication {\n    public static void main(String[] args) {\n        SpringApplication.run(OrbitApplication.class, args);\n    }\n}`,
+    },
+    {
+      path: 'infra/docker/docker-compose.yml',
+      name: 'infra/docker/docker-compose.yml',
+      type: 'file',
+      lastCommit: 'chore: parameterize postgres healthcheck',
+      updatedAt: '1d ago',
+      language: 'YAML',
+      content: `services:\n  postgres:\n    image: postgres:16-alpine\n    ports:\n      - "5432:5432"\n  redis:\n    image: redis:7-alpine\n    ports:\n      - "6379:6379"`,
+    },
+  ],
+  commits: [
+    { sha: '9f4a21c', message: 'feat: add cloud files and git workspace modules', author: 'nhatprx', timestamp: '12m ago', filesChanged: 11 },
+    { sha: '7b3e10d', message: 'feat: complete 3-pane mail module with compose and reply', author: 'nhatprx', timestamp: '42m ago', filesChanged: 8 },
+    { sha: '4c8d92a', message: 'style: switch dark surfaces to github slate palette', author: 'nhatprx', timestamp: '1h ago', filesChanged: 14 },
+    { sha: '605b038', message: 'feat: initial orbit workspace docs and phase 1 UI', author: 'nhatprx', timestamp: '3h ago', filesChanged: 49 },
+  ],
+  pullRequests: [
+    { id: 14, title: 'feat: add Git code browser and Cloud Files storage UI', author: 'nhatprx', sourceBranch: 'feat/cloud-files', targetBranch: 'main', status: 'open', updatedAt: '10m ago' },
+    { id: 13, title: 'feat: implement Mail 3-pane reader and composer', author: 'nhatprx', sourceBranch: 'feat/mail-module', targetBranch: 'main', status: 'merged', updatedAt: '40m ago' },
+    { id: 12, title: 'style: migrate canvas tokens to #0D1117 dark slate', author: 'taylor', sourceBranch: 'style/slate-theme', targetBranch: 'main', status: 'merged', updatedAt: '1h ago' },
+  ],
+};

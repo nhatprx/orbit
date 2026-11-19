@@ -37,13 +37,13 @@ export function UserOverview({ user, onSelectArea }: UserOverviewProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 border border-[#1F1F1F] bg-[#0A0A0A] p-5">
+      <div className="flex flex-wrap items-center justify-between gap-4 border border-[#30363D] bg-[#161B22] p-6">
         <div>
-          <h2 className="text-base font-semibold text-[#F5F5F5]">
+          <h2 className="text-xl font-semibold tracking-tight text-[#E6EDF3]">
             Welcome back, {user.name}
           </h2>
-          <p className="mt-1 text-xs text-[#A3A3A3]">
-            Workspace: <span className="font-mono text-[#F5F5F5]">{user.workspaceId}</span>
+          <p className="mt-1 text-sm text-[#BDBDBD]">
+            Workspace: <span className="font-mono text-[#E6EDF3]">{user.workspaceId}</span>
           </p>
         </div>
         <Badge tone="green" withDot>
@@ -52,29 +52,29 @@ export function UserOverview({ user, onSelectArea }: UserOverviewProps) {
       </div>
 
       <div>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#A3A3A3]">
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#BDBDBD]">
           Workspace Areas
         </h3>
         {loading ? (
-          <div className="border border-[#1F1F1F] bg-[#0A0A0A] p-6 text-xs text-[#666666]">
+          <div className="border border-[#30363D] bg-[#161B22] p-6 text-sm text-[#8A8A8A]">
             Loading workspace areas...
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-px border border-[#1F1F1F] bg-[#1F1F1F] sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-px border border-[#30363D] bg-[#30363D] sm:grid-cols-2 lg:grid-cols-3">
             {areas.map((area) => (
               <button
                 key={area.id}
                 type="button"
                 onClick={() => onSelectArea(area.id)}
-                className="flex flex-col items-start justify-between bg-[#0A0A0A] p-5 text-left transition-colors hover:bg-[#111111]"
+                className="flex flex-col items-start justify-between bg-[#161B22] p-6 text-left transition-colors hover:bg-[#21262D]"
               >
                 <div className="mb-3 flex w-full items-center justify-between">
-                  <span className="text-sm font-semibold text-[#F5F5F5]">
+                  <span className="text-base font-semibold text-[#E6EDF3]">
                     {area.name}
                   </span>
                   <ArrowUpRight className="h-4 w-4 text-[#22C55E]" strokeWidth={1.5} />
                 </div>
-                <p className="mb-3 text-xs text-[#A3A3A3]">{area.summary}</p>
+                <p className="mb-4 text-sm text-[#BDBDBD]">{area.summary}</p>
                 <Badge tone="green" withDot>ACTIVE</Badge>
               </button>
             ))}
@@ -83,23 +83,23 @@ export function UserOverview({ user, onSelectArea }: UserOverviewProps) {
       </div>
 
       <div>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#A3A3A3]">
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#BDBDBD]">
           Recent Workspace Activity
         </h3>
-        <div className="border border-[#1F1F1F] bg-[#0A0A0A]">
+        <div className="border border-[#30363D] bg-[#161B22]">
           {activity.map((item, idx) => (
             <div
               key={item.id}
-              className={`flex items-center justify-between px-4 py-3 text-xs ${
-                idx > 0 ? 'border-t border-[#1F1F1F]' : ''
+              className={`flex items-center justify-between px-5 py-3.5 text-sm ${
+                idx > 0 ? 'border-t border-[#30363D]' : ''
               }`}
             >
               <div className="flex items-center gap-3">
                 <span className="h-1.5 w-1.5 bg-[#22C55E]" />
-                <span className="font-medium text-[#F5F5F5]">{item.actor}</span>
-                <span className="text-[#A3A3A3]">{item.action}</span>
+                <span className="font-medium text-[#E6EDF3]">{item.actor}</span>
+                <span className="text-[#BDBDBD]">{item.action}</span>
               </div>
-              <span className="font-mono text-[#666666]">{item.timestamp}</span>
+              <span className="font-mono text-xs text-[#8A8A8A]">{item.timestamp}</span>
             </div>
           ))}
         </div>

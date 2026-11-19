@@ -2,8 +2,16 @@ import type {
   ActivityRecord,
   DirectoryUser,
   PlatformMetric,
+  UserWorkspace,
   WorkspaceAreaTile,
 } from '../types/dashboard.types';
+
+export const MOCK_USER_WORKSPACES: UserWorkspace[] = [
+  { id: 'ws_orbit_core', name: 'orbit-core', slug: 'nhatprx/orbit-core', visibility: 'team', updatedAt: '2m ago' },
+  { id: 'ws_ponytail', name: 'ponytail-cli', slug: 'nhatprx/ponytail-cli', visibility: 'private', updatedAt: '1h ago' },
+  { id: 'ws_infra_aws', name: 'orbit-infra-aws', slug: 'nhatprx/orbit-infra-aws', visibility: 'team', updatedAt: '4h ago' },
+  { id: 'ws_design_sys', name: 'orbit-design-system', slug: 'nhatprx/orbit-design-system', visibility: 'team', updatedAt: '1d ago' },
+];
 
 export const MOCK_WORKSPACE_AREAS: WorkspaceAreaTile[] = [
   { id: 'git', name: 'Git', status: 'pending', summary: 'Source control workspace area' },

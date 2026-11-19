@@ -21,7 +21,7 @@ const COUNTRIES = [
 ];
 
 const INPUT_CLASS =
-  'w-full border border-[#1F1F1F] bg-[#050505] px-3 py-2 text-sm text-[#F5F5F5] focus:border-[#22C55E] focus:outline-none';
+  'w-full border border-[#30363D] bg-[#0D1117] px-3 py-2 text-sm text-[#E6EDF3] focus:border-[#22C55E] focus:outline-none';
 
 export function RegisterForm({ loading, error, onSubmit }: RegisterFormProps) {
   const [email, setEmail] = useState('');
@@ -83,7 +83,7 @@ export function RegisterForm({ loading, error, onSubmit }: RegisterFormProps) {
           className={INPUT_CLASS}
         >
           {COUNTRIES.map((item) => (
-            <option key={item} value={item} className="bg-[#0A0A0A]">
+            <option key={item} value={item} className="bg-[#161B22]">
               {item}
             </option>
           ))}
@@ -95,13 +95,13 @@ export function RegisterForm({ loading, error, onSubmit }: RegisterFormProps) {
           type="checkbox"
           checked={emailPreference}
           onChange={(e) => setEmailPreference(e.target.checked)}
-          className="mt-0.5 h-3.5 w-3.5 border border-[#2E2E2E] bg-[#050505] accent-[#22C55E]"
+          className="mt-0.5 h-3.5 w-3.5 border border-[#3B434B] bg-[#0D1117] accent-[#22C55E]"
         />
         <span>Receive product updates and announcements via email</span>
       </label>
 
       {error && (
-        <div className="border border-[#EF4444] bg-[#111111] px-3 py-2 text-xs text-[#EF4444]">
+        <div className="border border-[#EF4444] bg-[#21262D] px-3 py-2 text-xs text-[#EF4444]">
           {error}
         </div>
       )}

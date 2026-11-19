@@ -19,18 +19,18 @@ Orbit is **dark-first**. All surfaces are built from pure/near-black neutrals, s
 
 | Token | Hex (Recommended) | Usage |
 | :--- | :--- | :--- |
-| `--bg-canvas` | `#050505` | App root background |
-| `--bg-surface` | `#0A0A0A` | Sidebars, panels, cards, editors |
-| `--bg-elevated` | `#111111` | Hover states, dropdowns, modals, active rows |
-| `--border-subtle` | `#1F1F1F` | Default `1px solid` structural dividers |
-| `--border-strong` | `#2E2E2E` | Focused inputs, active panel borders |
-| `--text-primary` | `#F5F5F5` | Headings, primary body text |
-| `--text-secondary` | `#A3A3A3` | Metadata, timestamps, secondary labels |
-| `--text-muted` | `#666666` | Placeholders, disabled text |
+| `--bg-canvas` | `#0D1117` | App root background (dark slate-tinted black) |
+| `--bg-surface` | `#161B22` | Sidebars, panels, cards, editors |
+| `--bg-elevated` | `#21262D` | Hover states, dropdowns, modals, active rows |
+| `--border-subtle` | `#30363D` | Default `1px solid` structural dividers |
+| `--border-strong` | `#3B434B` | Focused inputs, active panel borders |
+| `--text-primary` | `#E6EDF3` | Headings, primary body text |
+| `--text-secondary` | `#BDBDBD` | Metadata, timestamps, secondary labels |
+| `--text-muted` | `#8A8A8A` | Placeholders, disabled text |
 | `--accent-primary` | `#22C55E` | Primary CTA, active nav indicator, focus ring |
 | `--accent-bright` | `#4ADE80` | Hover on primary CTA, key metrics |
 | `--accent-dim` | `#052E16` | Subtle green tinted backgrounds (selected row, badges) |
-| `--status-danger` | `#EF4444` | Destructive actions, git deletions, errors |
+| `--status-danger` | `#EF4444` | Destructive actions, errors |
 | `--status-warning` | `#EAB308` | Warnings, pending checks |
 
 ### Color Usage Rules

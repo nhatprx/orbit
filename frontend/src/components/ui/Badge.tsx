@@ -9,10 +9,10 @@ interface BadgeProps {
 }
 
 const TONE_CLASSES: Record<BadgeTone, string> = {
-  neutral: 'border-[#1F1F1F] bg-[#111111] text-[#A3A3A3]',
+  neutral: 'border-[#30363D] bg-[#21262D] text-[#A3A3A3]',
   green: 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]',
-  warning: 'border-[#EAB308] bg-[#111111] text-[#EAB308]',
-  danger: 'border-[#EF4444] bg-[#111111] text-[#EF4444]',
+  warning: 'border-[#EAB308] bg-[#21262D] text-[#EAB308]',
+  danger: 'border-[#EF4444] bg-[#21262D] text-[#EF4444]',
 };
 
 const DOT_CLASSES: Record<BadgeTone, string> = {

@@ -3,7 +3,7 @@ interface ContributionGridProps {
 }
 
 const LEVEL_CLASSES: Record<number, string> = {
-  0: 'bg-[#111111] border-[#1F1F1F]',
+  0: 'bg-[#21262D] border-[#30363D]',
   1: 'bg-[#052E16] border-[#14532D]',
   2: 'bg-[#15803D] border-[#16A34A]',
   3: 'bg-[#22C55E] border-[#22C55E]',
@@ -14,7 +14,7 @@ export function ContributionGrid({ weeks }: ContributionGridProps) {
   const total = weeks.flat().reduce((sum, level) => sum + level * 3, 0);
 
   return (
-    <section className="border border-[#1F1F1F] bg-[#0A0A0A] p-5">
+    <section className="border border-[#30363D] bg-[#161B22] p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-[#A3A3A3]">
           Activity Overview

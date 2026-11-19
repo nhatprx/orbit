@@ -34,8 +34,8 @@ export function HomePage({
   onNavigateDashboard,
 }: HomePageProps) {
   return (
-    <div className="min-h-screen bg-[#050505] text-[#F5F5F5]">
-      <header className="border-b border-[#1F1F1F] bg-[#0A0A0A]">
+    <div className="min-h-screen bg-[#0D1117] text-[#E6EDF3]">
+      <header className="border-b border-[#30363D] bg-[#161B22]">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
           <div className="flex items-center gap-3">
             <span className="text-sm font-semibold tracking-tight">ORBIT</span>
@@ -63,14 +63,14 @@ export function HomePage({
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-16">
-        <section className="mb-14 border border-[#1F1F1F] bg-[#0A0A0A] p-8 md:p-12">
+        <section className="mb-14 border border-[#30363D] bg-[#161B22] p-8 md:p-12">
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <Badge tone="green" withDot>
               10,000+ CCU ARCHITECTURE
             </Badge>
             <Badge tone="neutral">REACT + SPRING BOOT + POSTGRESQL + REDIS</Badge>
           </div>
-          <h1 className="mb-4 max-w-2xl text-3xl font-semibold tracking-tight text-[#F5F5F5] md:text-4xl">
+          <h1 className="mb-4 max-w-2xl text-3xl font-semibold tracking-tight text-[#E6EDF3] md:text-4xl">
             Minimal Developer Workspace Platform. Built for Scale.
           </h1>
           <p className="mb-8 max-w-2xl text-sm leading-relaxed text-[#A3A3A3]">
@@ -103,16 +103,16 @@ export function HomePage({
               UNIFIED SUITE
             </span>
           </div>
-          <div className="grid grid-cols-1 gap-px border border-[#1F1F1F] bg-[#1F1F1F] sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-px border border-[#30363D] bg-[#30363D] sm:grid-cols-2 lg:grid-cols-3">
             {WORKSPACE_AREAS.map((area) => {
               const Icon = area.icon;
               return (
-                <div key={area.id} className="bg-[#0A0A0A] p-6">
+                <div key={area.id} className="bg-[#161B22] p-6">
                   <div className="mb-3 flex items-center justify-between">
                     <Icon className="h-4 w-4 text-[#22C55E]" strokeWidth={1.5} />
                     <span className="h-1.5 w-1.5 bg-[#22C55E]" />
                   </div>
-                  <h3 className="mb-1 text-sm font-semibold text-[#F5F5F5]">
+                  <h3 className="mb-1 text-sm font-semibold text-[#E6EDF3]">
                     {area.name}
                   </h3>
                   <p className="text-xs text-[#A3A3A3]">{area.note}</p>
@@ -123,7 +123,7 @@ export function HomePage({
         </section>
 
         <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="border border-[#1F1F1F] bg-[#0A0A0A] p-6">
+          <div className="border border-[#30363D] bg-[#161B22] p-6">
             <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#22C55E]">
               <ShieldCheck className="h-4 w-4" strokeWidth={1.5} />
               Role Separation
@@ -133,7 +133,7 @@ export function HomePage({
               and Redis-backed session governance.
             </p>
           </div>
-          <div className="border border-[#1F1F1F] bg-[#0A0A0A] p-6">
+          <div className="border border-[#30363D] bg-[#161B22] p-6">
             <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#22C55E]">
               <Layers className="h-4 w-4" strokeWidth={1.5} />
               Production Ready Stack

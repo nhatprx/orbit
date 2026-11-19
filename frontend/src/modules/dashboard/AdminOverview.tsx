@@ -33,7 +33,7 @@ export function AdminOverview({ user }: AdminOverviewProps) {
 
   if (user.role !== 'admin') {
     return (
-      <div className="border border-[#EF4444] bg-[#0A0A0A] p-6">
+      <div className="border border-[#EF4444] bg-[#161B22] p-6">
         <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[#EF4444]">
           <ShieldAlert className="h-4 w-4" strokeWidth={1.5} />
           403 — Admin Role Required
@@ -48,12 +48,12 @@ export function AdminOverview({ user }: AdminOverviewProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 border border-[#22C55E] bg-[#052E16] p-5">
+      <div className="flex flex-wrap items-center justify-between gap-4 border border-[#22C55E] bg-[#052E16] p-6">
         <div>
-          <h2 className="text-base font-semibold text-[#F5F5F5]">
+          <h2 className="text-xl font-semibold text-[#E6EDF3]">
             Admin Console
           </h2>
-          <p className="mt-1 text-xs text-[#A3A3A3]">
+          <p className="mt-1 text-sm text-[#BDBDBD]">
             Platform governance, capacity targets, and workspace user directory.
           </p>
         </div>
@@ -62,14 +62,14 @@ export function AdminOverview({ user }: AdminOverviewProps) {
         </Badge>
       </div>
 
-      <div className="grid grid-cols-1 gap-px border border-[#1F1F1F] bg-[#1F1F1F] sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-px border border-[#30363D] bg-[#30363D] sm:grid-cols-2 lg:grid-cols-4">
         {metrics.map((metric) => (
-          <div key={metric.id} className="bg-[#0A0A0A] p-5">
+          <div key={metric.id} className="bg-[#161B22] p-5">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-xs text-[#A3A3A3]">{metric.label}</span>
+              <span className="text-sm text-[#BDBDBD]">{metric.label}</span>
               <span className="h-1.5 w-1.5 bg-[#22C55E]" />
             </div>
-            <div className="font-mono text-lg font-semibold text-[#F5F5F5]">
+            <div className="font-mono text-xl font-semibold text-[#E6EDF3]">
               {metric.value}
             </div>
           </div>
@@ -77,12 +77,12 @@ export function AdminOverview({ user }: AdminOverviewProps) {
       </div>
 
       <div>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#A3A3A3]">
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#BDBDBD]">
           Workspace User Directory (Page 1 / Limit 10)
         </h3>
-        <div className="overflow-x-auto border border-[#1F1F1F] bg-[#0A0A0A]">
-          <table className="w-full text-left text-xs">
-            <thead className="border-b border-[#1F1F1F] bg-[#111111] text-[#A3A3A3]">
+        <div className="overflow-x-auto border border-[#30363D] bg-[#161B22]">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-[#30363D] bg-[#21262D] text-xs uppercase tracking-wider text-[#BDBDBD]">
               <tr>
                 <th className="px-4 py-3 font-medium">Name</th>
                 <th className="px-4 py-3 font-medium">Email</th>
@@ -99,8 +99,8 @@ export function AdminOverview({ user }: AdminOverviewProps) {
                 </tr>
               ) : (
                 users.map((entry) => (
-                  <tr key={entry.id} className="border-t border-[#1F1F1F]">
-                    <td className="px-4 py-3 font-medium text-[#F5F5F5]">
+                  <tr key={entry.id} className="border-t border-[#30363D]">
+                    <td className="px-4 py-3 font-medium text-[#E6EDF3]">
                       {entry.name}
                     </td>
                     <td className="px-4 py-3 font-mono text-[#A3A3A3]">

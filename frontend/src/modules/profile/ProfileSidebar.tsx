@@ -20,7 +20,7 @@ interface ProfileSidebarProps {
 }
 
 const INPUT_CLASS =
-  'w-full border border-[#1F1F1F] bg-[#050505] px-2.5 py-1.5 text-xs text-[#F5F5F5] focus:border-[#22C55E] focus:outline-none';
+  'w-full border border-[#30363D] bg-[#0D1117] px-2.5 py-1.5 text-xs text-[#E6EDF3] focus:border-[#22C55E] focus:outline-none';
 
 export function ProfileSidebar({
   user,
@@ -58,18 +58,18 @@ export function ProfileSidebar({
 
       <div>
         <div className="flex items-center justify-between gap-2">
-          <h1 className="text-xl font-semibold tracking-tight text-[#F5F5F5]">
+          <h1 className="text-2xl font-semibold tracking-tight text-[#E6EDF3]">
             {profile.name}
           </h1>
           <Badge tone={user.role === 'admin' ? 'green' : 'neutral'}>
             {user.role}
           </Badge>
         </div>
-        <p className="font-mono text-xs text-[#A3A3A3]">@{profile.username}</p>
+        <p className="mt-0.5 font-mono text-sm text-[#BDBDBD]">@{profile.username}</p>
       </div>
 
       {editing ? (
-        <form onSubmit={handleSubmit} className="space-y-3 border border-[#1F1F1F] bg-[#0A0A0A] p-4">
+        <form onSubmit={handleSubmit} className="space-y-3 border border-[#30363D] bg-[#161B22] p-4">
           <input
             type="text"
             required
@@ -122,7 +122,7 @@ export function ProfileSidebar({
         </form>
       ) : (
         <>
-          <p className="text-xs leading-relaxed text-[#A3A3A3]">{profile.bio}</p>
+          <p className="text-sm leading-relaxed text-[#BDBDBD]">{profile.bio}</p>
 
           <Button
             type="button"
@@ -142,18 +142,18 @@ export function ProfileSidebar({
             Edit profile
           </Button>
 
-          <div className="flex items-center gap-3 text-xs text-[#A3A3A3]">
-            <Users className="h-3.5 w-3.5 text-[#666666]" strokeWidth={1.5} />
+          <div className="flex items-center gap-3 text-sm text-[#BDBDBD]">
+            <Users className="h-4 w-4 text-[#8A8A8A]" strokeWidth={1.5} />
             <span>
-              <strong className="text-[#F5F5F5]">{profile.followers}</strong> followers
+              <strong className="text-[#E6EDF3]">{profile.followers}</strong> followers
             </span>
-            <span className="text-[#666666]">/</span>
+            <span className="text-[#8A8A8A]">/</span>
             <span>
-              <strong className="text-[#F5F5F5]">{profile.following}</strong> following
+              <strong className="text-[#E6EDF3]">{profile.following}</strong> following
             </span>
           </div>
 
-          <ul className="space-y-2 border-t border-[#1F1F1F] pt-4 text-xs text-[#A3A3A3]">
+          <ul className="space-y-2.5 border-t border-[#30363D] pt-4 text-sm text-[#BDBDBD]">
             <li className="flex items-center gap-2.5">
               <Building2 className="h-3.5 w-3.5 shrink-0 text-[#666666]" strokeWidth={1.5} />
               <span className="truncate font-mono">{profile.organization}</span>
