@@ -121,6 +121,22 @@ public class CloudQuotaService {
         quotaRepo.subtractUsedBytes(scope.type().name(), scope.scopeId(), freedBytes);
     }
 
+    @Transactional
+    public void adjustUsedBytes(CloudScope scope, long deltaBytes) {
+        if (deltaBytes == 0L) {
+            return;
+        }
+        ensureRow(scope);
+        if (deltaBytes > 0L) {
+            int updated = quotaRepo.tryAddUsedBytes(scope.type().name(), scope.scopeId(), deltaBytes);
+            if (updated == 0) {
+                throw ApiException.badRequest("QUOTA_EXCEEDED", "Storage quota exceeded for this scope.");
+            }
+        } else {
+            quotaRepo.subtractUsedBytes(scope.type().name(), scope.scopeId(), -deltaBytes);
+        }
+    }
+
     private CloudStorageQuotaEntity ensureAndLoad(CloudScope scope) {
         ensureRow(scope);
         return quotaRepo.findById(new CloudStorageQuotaId(scope.type(), scope.scopeId()))

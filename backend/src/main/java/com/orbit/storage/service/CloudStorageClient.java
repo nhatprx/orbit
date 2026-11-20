@@ -31,4 +31,8 @@ public interface CloudStorageClient {
     void deleteObject(String key);
 
     void deleteObjects(List<String> keys);
+
+    String putBytes(String key, byte[] data, String contentType);
+
+    byte[] getBytes(String key, long maxBytes);
 }

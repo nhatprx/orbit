@@ -52,6 +52,14 @@ public class CloudAccessGuard {
         return CloudScope.project(workspaceId, projectId);
     }
 
+    public boolean hasWorkspacePermission(UUID userId, UUID workspaceId, String permissionKey) {
+        return evaluator.hasWorkspacePermission(userId, workspaceId, permissionKey);
+    }
+
+    public boolean hasProjectPermission(UUID userId, UUID workspaceId, UUID projectId, String permissionKey) {
+        return evaluator.hasProjectPermission(userId, workspaceId, projectId, permissionKey);
+    }
+
     private static ApiException moduleDisabled() {
         return ApiException.forbidden("MODULE_DISABLED", "The cloud files module is disabled here.");
     }

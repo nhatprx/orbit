@@ -113,6 +113,12 @@ orbit:
     sweeper:
       enabled: ${ORBIT_CLOUD_SWEEPER_ENABLED:true}
       cron: ${ORBIT_CLOUD_SWEEPER_CRON:0 */15 * * * *}
+    onlyoffice:
+      enabled: ${ONLYOFFICE_ENABLED:false}
+      public-url: ${ONLYOFFICE_PUBLIC_URL:http://localhost:8082}
+      internal-url: ${ONLYOFFICE_INTERNAL_URL:http://localhost:8082}
+      jwt-secret: ${ONLYOFFICE_JWT_SECRET:orbit-onlyoffice-dev-jwt-secret-change-in-production-2026}
+      callback-base-url: ${ONLYOFFICE_CALLBACK_BASE_URL:http://host.docker.internal:8080}
   ai:
     provider: ${ORBIT_AI_PROVIDER:BEDROCK}
     web-search-enabled: ${ORBIT_AI_WEB_SEARCH_ENABLED:true}

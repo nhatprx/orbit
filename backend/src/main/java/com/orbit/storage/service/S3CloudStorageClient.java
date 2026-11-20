@@ -139,6 +139,16 @@ public class S3CloudStorageClient implements CloudStorageClient {
         }
     }
 
+    @Override
+    public String putBytes(String key, byte[] data, String contentType) {
+        return S3ByteOps.putBytes(requireClient(), bucket(), key, data, contentType);
+    }
+
+    @Override
+    public byte[] getBytes(String key, long maxBytes) {
+        return S3ByteOps.getBytes(requireClient(), bucket(), key, maxBytes);
+    }
+
     private String bucket() {
         return properties.effectiveCloudFilesBucket();
     }
