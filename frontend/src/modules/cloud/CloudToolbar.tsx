@@ -3,6 +3,7 @@ import {
   ArrowDownAZ,
   ArrowUpAZ,
   ChevronRight,
+  FilePlus2,
   FolderPlus,
   Search,
   Trash2,
@@ -30,6 +31,7 @@ interface CloudToolbarProps {
   onToggleSortDir: () => void;
   onNavigateFolder: (folderId: string | null) => void;
   onUploadFiles: (files: File[]) => void;
+  onOpenNewDocument: () => void;
   onOpenNewFolder: () => void;
   onEmptyTrash: () => void;
 }
@@ -47,6 +49,7 @@ export function CloudToolbar({
   onToggleSortDir,
   onNavigateFolder,
   onUploadFiles,
+  onOpenNewDocument,
   onOpenNewFolder,
   onEmptyTrash,
 }: CloudToolbarProps) {
@@ -111,6 +114,10 @@ export function CloudToolbar({
                   e.target.value = '';
                 }}
               />
+              <Button type="button" variant="secondary" onClick={onOpenNewDocument}>
+                <FilePlus2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                New Document
+              </Button>
               <Button type="button" variant="secondary" onClick={onOpenNewFolder}>
                 <FolderPlus className="h-3.5 w-3.5" strokeWidth={1.5} />
                 New Folder

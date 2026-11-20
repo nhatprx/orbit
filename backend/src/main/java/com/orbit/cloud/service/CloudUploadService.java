@@ -12,6 +12,7 @@ import com.orbit.cloud.entity.CloudUploadSessionEntity;
 import com.orbit.cloud.entity.CloudUploadSessionStatus;
 import com.orbit.cloud.entity.CloudUploadStatus;
 import com.orbit.cloud.entity.CloudUploadStrategy;
+import com.orbit.cloud.event.CloudFileReadyEvent;
 import com.orbit.cloud.repository.CloudNodeRepository;
 import com.orbit.cloud.repository.CloudUploadSessionRepository;
 import com.orbit.common.ApiException;
@@ -25,6 +26,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -42,11 +44,13 @@ public class CloudUploadService {
     private final CloudStorageClient storageClient;
     private final CloudProperties properties;
     private final CloudUploadHelper helper;
+    private final ApplicationEventPublisher eventPublisher;
 
     public CloudUploadService(
         CloudNodeRepository nodeRepo, CloudUploadSessionRepository sessionRepo, CloudNodeService nodeService,
         CloudNodeMapper mapper, CloudQuotaService quotaService, CloudRateLimiter rateLimiter,
-        CloudStorageClient storageClient, CloudProperties properties, CloudUploadHelper helper
+        CloudStorageClient storageClient, CloudProperties properties, CloudUploadHelper helper,
+        ApplicationEventPublisher eventPublisher
     ) {
         this.nodeRepo = nodeRepo;
         this.sessionRepo = sessionRepo;
@@ -57,6 +61,7 @@ public class CloudUploadService {
         this.storageClient = storageClient;
         this.properties = properties;
         this.helper = helper;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -155,7 +160,9 @@ public class CloudUploadService {
         node.setUpdatedBy(actorId);
         session.setStatus(CloudUploadSessionStatus.COMPLETED);
         sessionRepo.save(session);
-        return mapper.toResponse(nodeRepo.save(node));
+        CloudNodeEntity saved = nodeRepo.save(node);
+        eventPublisher.publishEvent(new CloudFileReadyEvent(saved.getId()));
+        return mapper.toResponse(saved);
     }
 
     @Transactional

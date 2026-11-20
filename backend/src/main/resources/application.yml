@@ -140,5 +140,6 @@ orbit:
       url: ${ORBIT_AI_QDRANT_URL:}
       api-key: ${ORBIT_AI_QDRANT_API_KEY:}
       collection: ${ORBIT_AI_QDRANT_COLLECTION:orbit_ai_memories}
+      files-collection: ${ORBIT_AI_QDRANT_FILES_COLLECTION:orbit_file_chunks}
     tavily:
       api-key: ${ORBIT_AI_TAVILY_API_KEY:}

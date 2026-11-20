@@ -52,6 +52,24 @@ function makeMockApi(overrides: Partial<CloudFilesApi> = {}): CloudFilesApi {
     completeUpload: vi.fn(),
     abortUpload: vi.fn(),
     getDownloadUrl: vi.fn(),
+    createDocument: vi.fn().mockResolvedValue(makeNode({ id: 'doc-1', name: 'notes.md', mimeType: 'text/markdown' })),
+    getTextContent: vi.fn().mockResolvedValue({
+      nodeId: 'doc-1',
+      name: 'notes.md',
+      mimeType: 'text/markdown',
+      content: '# Hello',
+      sizeBytes: 7,
+      updatedAt: '2026-11-20T00:00:00Z',
+      etag: 'etag-1',
+    }),
+    saveTextContent: vi.fn().mockResolvedValue(makeNode({ id: 'doc-1', name: 'notes.md', mimeType: 'text/markdown' })),
+    getOnlyOfficeSession: vi.fn().mockResolvedValue({
+      enabled: false,
+      documentServerUrl: null,
+      config: null,
+      token: null,
+      mode: null,
+    }),
     ...overrides,
   };
 }

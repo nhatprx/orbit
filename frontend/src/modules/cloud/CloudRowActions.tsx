@@ -1,5 +1,7 @@
 import {
   Download,
+  Eye,
+  FilePenLine,
   FolderInput,
   Pencil,
   RotateCcw,
@@ -7,11 +9,13 @@ import {
   Trash2,
 } from 'lucide-react';
 import type { CloudNodeDto, CloudPermissions, CloudView } from '../../types/cloud.types';
+import { classifyFileEditor } from './editor/fileEditorRegistry';
 
 interface CloudRowActionsProps {
   node: CloudNodeDto;
   view: CloudView;
   permissions: CloudPermissions;
+  onOpenEditor: (node: CloudNodeDto) => void;
   onToggleStar: (node: CloudNodeDto) => void;
   onDownload: (node: CloudNodeDto) => void;
   onRename: (node: CloudNodeDto) => void;
@@ -28,6 +32,7 @@ export function CloudRowActions({
   node,
   view,
   permissions,
+  onOpenEditor,
   onToggleStar,
   onDownload,
   onRename,
@@ -37,6 +42,7 @@ export function CloudRowActions({
   onPermanentDelete,
 }: CloudRowActionsProps) {
   const isFolder = node.nodeType === 'FOLDER';
+  const canOpenEditor = !isFolder && permissions.canRead && classifyFileEditor(node.name, node.mimeType) !== 'NONE';
 
   if (view === 'TRASH') {
     return (
@@ -69,6 +75,21 @@ export function CloudRowActions({
 
   return (
     <div className="flex items-center justify-end gap-0.5">
+      {canOpenEditor && (
+        <button
+          type="button"
+          title={permissions.canWrite ? 'Edit' : 'Open'}
+          aria-label={`${permissions.canWrite ? 'Edit' : 'Open'} ${node.name}`}
+          onClick={() => onOpenEditor(node)}
+          className={`${ACTION_BTN} hover:text-[#22C55E]`}
+        >
+          {permissions.canWrite ? (
+            <FilePenLine className="h-3.5 w-3.5" strokeWidth={1.5} />
+          ) : (
+            <Eye className="h-3.5 w-3.5" strokeWidth={1.5} />
+          )}
+        </button>
+      )}
       {permissions.canWrite && (
         <button
           type="button"

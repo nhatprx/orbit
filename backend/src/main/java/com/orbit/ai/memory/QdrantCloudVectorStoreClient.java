@@ -13,12 +13,13 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-/** Qdrant Cloud HTTPS REST client (no local container required). */
+/** Qdrant Cloud HTTPS REST client supporting multiple collections (memories & file RAG chunks). */
 @Component
 public class QdrantCloudVectorStoreClient implements VectorStoreClient {
 
@@ -28,7 +29,7 @@ public class QdrantCloudVectorStoreClient implements VectorStoreClient {
     private final AiProperties properties;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
-    private final AtomicBoolean collectionReady = new AtomicBoolean(false);
+    private final Set<String> readyCollections = ConcurrentHashMap.newKeySet();
 
     public QdrantCloudVectorStoreClient(AiProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
@@ -42,24 +43,26 @@ public class QdrantCloudVectorStoreClient implements VectorStoreClient {
     }
 
     @Override
-    public boolean upsert(String pointId, List<Float> vector, Map<String, Object> payload) {
+    public boolean upsert(String collection, String pointId, List<Float> vector, Map<String, Object> payload) {
         if (!isAvailable() || vector == null || vector.size() != VECTOR_SIZE) return false;
-        ensureCollection();
+        String col = resolveCollection(collection);
+        ensureCollection(col);
         try {
             Map<String, Object> point = Map.of("id", pointId, "vector", vector, "payload", payload);
             String body = objectMapper.writeValueAsString(Map.of("points", List.of(point)));
-            HttpResponse<String> resp = send("PUT", "/collections/" + collection() + "/points?wait=true", body);
+            HttpResponse<String> resp = send("PUT", "/collections/" + col + "/points?wait=true", body);
             return resp.statusCode() >= 200 && resp.statusCode() < 300;
         } catch (Exception ex) {
-            log.warn("Qdrant Cloud upsert failed: {}", ex.getMessage());
+            log.warn("Qdrant Cloud upsert failed ({}): {}", col, ex.getMessage());
             return false;
         }
     }
 
     @Override
-    public List<VectorHit> search(List<Float> queryVector, Map<String, String> filters, int limit) {
+    public List<VectorHit> search(String collection, List<Float> queryVector, Map<String, String> filters, int limit) {
         if (!isAvailable() || queryVector == null || queryVector.size() != VECTOR_SIZE) return List.of();
-        ensureCollection();
+        String col = resolveCollection(collection);
+        ensureCollection(col);
         try {
             List<Map<String, Object>> must = new ArrayList<>();
             for (Map.Entry<String, String> entry : filters.entrySet()) {
@@ -73,7 +76,7 @@ public class QdrantCloudVectorStoreClient implements VectorStoreClient {
             body.put("with_payload", true);
             if (!must.isEmpty()) body.put("filter", Map.of("must", must));
 
-            HttpResponse<String> resp = send("POST", "/collections/" + collection() + "/points/search", objectMapper.writeValueAsString(body));
+            HttpResponse<String> resp = send("POST", "/collections/" + col + "/points/search", objectMapper.writeValueAsString(body));
             if (resp.statusCode() < 200 || resp.statusCode() >= 300) return List.of();
             JsonNode results = objectMapper.readTree(resp.body()).path("result");
             List<VectorHit> hits = new ArrayList<>();
@@ -83,39 +86,40 @@ public class QdrantCloudVectorStoreClient implements VectorStoreClient {
             }
             return hits;
         } catch (Exception ex) {
-            log.warn("Qdrant Cloud search failed: {}", ex.getMessage());
+            log.warn("Qdrant Cloud search failed ({}): {}", col, ex.getMessage());
             return List.of();
         }
     }
 
     @Override
-    public void delete(String pointId) {
+    public void delete(String collection, String pointId) {
         if (!isAvailable() || pointId == null || pointId.isBlank()) return;
+        String col = resolveCollection(collection);
         try {
             String body = objectMapper.writeValueAsString(Map.of("points", List.of(pointId)));
-            send("POST", "/collections/" + collection() + "/points/delete?wait=true", body);
+            send("POST", "/collections/" + col + "/points/delete?wait=true", body);
         } catch (Exception ex) {
-            log.warn("Qdrant Cloud delete failed: {}", ex.getMessage());
+            log.warn("Qdrant Cloud delete failed ({}): {}", col, ex.getMessage());
         }
     }
 
-    private void ensureCollection() {
-        if (collectionReady.get()) return;
+    private void ensureCollection(String col) {
+        if (readyCollections.contains(col)) return;
         try {
-            HttpResponse<String> check = send("GET", "/collections/" + collection(), null);
+            HttpResponse<String> check = send("GET", "/collections/" + col, null);
             if (check.statusCode() == 200) {
-                collectionReady.set(true);
+                readyCollections.add(col);
                 return;
             }
             String body = objectMapper.writeValueAsString(Map.of(
                 "vectors", Map.of("size", VECTOR_SIZE, "distance", "Cosine")
             ));
-            HttpResponse<String> created = send("PUT", "/collections/" + collection(), body);
+            HttpResponse<String> created = send("PUT", "/collections/" + col, body);
             if (created.statusCode() >= 200 && created.statusCode() < 300) {
-                collectionReady.set(true);
+                readyCollections.add(col);
             }
         } catch (Exception ex) {
-            log.warn("Qdrant Cloud collection init failed: {}", ex.getMessage());
+            log.warn("Qdrant Cloud collection init failed ({}): {}", col, ex.getMessage());
         }
     }
 
@@ -136,7 +140,9 @@ public class QdrantCloudVectorStoreClient implements VectorStoreClient {
         return httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
     }
 
-    private String collection() {
-        return properties.getQdrant().getCollection();
+    private String resolveCollection(String collection) {
+        return collection != null && !collection.isBlank()
+            ? collection
+            : properties.getQdrant().getCollection();
     }
 }

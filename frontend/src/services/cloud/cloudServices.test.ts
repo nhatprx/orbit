@@ -38,6 +38,10 @@ function makeApiMock(overrides: Partial<CloudFilesApi> = {}): CloudFilesApi {
     completeUpload: vi.fn().mockResolvedValue(SAMPLE_NODE),
     abortUpload: vi.fn().mockResolvedValue(undefined),
     getDownloadUrl: vi.fn(),
+    createDocument: vi.fn(),
+    getTextContent: vi.fn(),
+    saveTextContent: vi.fn(),
+    getOnlyOfficeSession: vi.fn(),
     ...overrides,
   };
 }

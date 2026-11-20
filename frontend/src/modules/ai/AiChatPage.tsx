@@ -151,8 +151,10 @@ export function AiChatPage({ workspaceId, workspaceName, projectId, projectName 
         <AiMemoryDrawer
           scopeType={chat.scopeType}
           memories={chat.memories}
+          indexedFiles={chat.indexedFiles}
           onAdd={chat.addMemory}
           onDelete={chat.deleteMemory}
+          onReindexFile={chat.reindexFile}
           onClose={() => setShowMemory(false)}
         />
       )}

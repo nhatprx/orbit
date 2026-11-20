@@ -51,6 +51,16 @@ export interface AiMemory {
   updatedAt: string;
 }
 
+export interface AiDocumentIndex {
+  nodeId: string;
+  filename: string;
+  status: 'PENDING' | 'INDEXING' | 'READY' | 'UNSUPPORTED' | 'FAILED';
+  chunkCount: number;
+  errorMessage: string | null;
+  indexedAt: string | null;
+  updatedAt: string | null;
+}
+
 export interface AiProviderConfig {
   activeProvider: AiProviderType;
   bedrockRegion: string;

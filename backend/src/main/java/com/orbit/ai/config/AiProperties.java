@@ -75,6 +75,7 @@ public class AiProperties {
         private String url = "";
         private String apiKey = "";
         private String collection = "orbit_ai_memories";
+        private String filesCollection = "orbit_file_chunks";
 
         public String getUrl() { return url; }
         public void setUrl(String url) { this.url = url; }
@@ -82,6 +83,8 @@ public class AiProperties {
         public void setApiKey(String apiKey) { this.apiKey = apiKey; }
         public String getCollection() { return collection; }
         public void setCollection(String collection) { this.collection = collection; }
+        public String getFilesCollection() { return filesCollection; }
+        public void setFilesCollection(String filesCollection) { this.filesCollection = filesCollection; }
     }
 
     public static class Tavily {

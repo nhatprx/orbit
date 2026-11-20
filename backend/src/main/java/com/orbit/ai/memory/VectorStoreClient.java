@@ -10,9 +10,21 @@ public interface VectorStoreClient {
 
     boolean isAvailable();
 
-    boolean upsert(String pointId, List<Float> vector, Map<String, Object> payload);
+    boolean upsert(String collection, String pointId, List<Float> vector, Map<String, Object> payload);
 
-    List<VectorHit> search(List<Float> queryVector, Map<String, String> filters, int limit);
+    List<VectorHit> search(String collection, List<Float> queryVector, Map<String, String> filters, int limit);
 
-    void delete(String pointId);
+    void delete(String collection, String pointId);
+
+    default boolean upsert(String pointId, List<Float> vector, Map<String, Object> payload) {
+        return upsert(null, pointId, vector, payload);
+    }
+
+    default List<VectorHit> search(List<Float> queryVector, Map<String, String> filters, int limit) {
+        return search(null, queryVector, filters, limit);
+    }
+
+    default void delete(String pointId) {
+        delete(null, pointId);
+    }
 }

@@ -1,6 +1,8 @@
 import {
   Download,
+  Eye,
   File,
+  FilePenLine,
   Folder,
   FolderInput,
   Pencil,
@@ -13,12 +15,14 @@ import { Button } from '../../components/ui/Button';
 import type { CloudNodeDto, CloudPermissions, CloudView } from '../../types/cloud.types';
 import { daysUntil, formatDateTime } from '../../utils/format';
 import { formatBytes, nodeTypeLabel, scopeTypeLabel } from './cloudFormat';
+import { classifyFileEditor } from './editor/fileEditorRegistry';
 
 interface CloudPreviewPaneProps {
   node: CloudNodeDto | null;
   view: CloudView;
   permissions: CloudPermissions;
   onClose: () => void;
+  onOpenEditor: (node: CloudNodeDto) => void;
   onDownload: (node: CloudNodeDto) => void;
   onToggleStar: (node: CloudNodeDto) => void;
   onRename: (node: CloudNodeDto) => void;
@@ -42,6 +46,7 @@ export function CloudPreviewPane({
   view,
   permissions,
   onClose,
+  onOpenEditor,
   onDownload,
   onToggleStar,
   onRename,
@@ -53,6 +58,7 @@ export function CloudPreviewPane({
   if (!node) return null;
 
   const isFolder = node.nodeType === 'FOLDER';
+  const canOpenEditor = !isFolder && permissions.canRead && classifyFileEditor(node.name, node.mimeType) !== 'NONE';
   const purgeDays = node.purgeAfter ? daysUntil(node.purgeAfter) : null;
 
   return (
@@ -101,8 +107,18 @@ export function CloudPreviewPane({
         <div className="mt-5 flex flex-col gap-2">
           {view !== 'TRASH' ? (
             <>
+              {canOpenEditor && (
+                <Button type="button" variant="primary" onClick={() => onOpenEditor(node)} className="w-full">
+                  {permissions.canWrite ? (
+                    <FilePenLine className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  ) : (
+                    <Eye className="h-3.5 w-3.5" strokeWidth={1.5} />
+                  )}
+                  {permissions.canWrite ? 'Edit Document' : 'Open Document'}
+                </Button>
+              )}
               {!isFolder && permissions.canRead && (
-                <Button type="button" variant="primary" onClick={() => onDownload(node)} className="w-full">
+                <Button type="button" variant={canOpenEditor ? 'secondary' : 'primary'} onClick={() => onDownload(node)} className="w-full">
                   <Download className="h-3.5 w-3.5" strokeWidth={1.5} />
                   Download
                 </Button>

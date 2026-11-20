@@ -14,6 +14,8 @@ import { CloudPreviewPane } from './CloudPreviewPane';
 import { CloudSidebar } from './CloudSidebar';
 import { CloudToolbar } from './CloudToolbar';
 import { CloudUploadQueue } from './CloudUploadQueue';
+import { CloudEditorModals } from './editor/CloudEditorModals';
+import { useCloudEditor } from './editor/useCloudEditor';
 import { useCloudBrowser } from './useCloudBrowser';
 import { useCloudUploads } from './useCloudUploads';
 
@@ -34,6 +36,7 @@ export function CloudFilesPage({ scope, scopeLabel, apiOverride }: CloudFilesPag
 
   const browser = useCloudBrowser(api, scopeKey, permissions.canRead);
   const uploads = useCloudUploads(api, scopeKey, browser.quota, () => void browser.refresh());
+  const editor = useCloudEditor(() => void browser.refresh());
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [renamingNode, setRenamingNode] = useState<CloudNodeDto | null>(null);
   const [movingNode, setMovingNode] = useState<CloudNodeDto | null>(null);
@@ -52,6 +55,7 @@ export function CloudFilesPage({ scope, scopeLabel, apiOverride }: CloudFilesPag
   const canDropUpload = permissions.canWrite && browser.view !== 'TRASH';
 
   const nodeHandlers = {
+    onOpenEditor: editor.openNode,
     onDownload: (node: CloudNodeDto) => {
       void browser.runMutation(() => api.getDownloadUrl(node.id), false).then((res) => {
         if (res?.url) window.open(res.url, '_blank', 'noopener,noreferrer');
@@ -106,6 +110,7 @@ export function CloudFilesPage({ scope, scopeLabel, apiOverride }: CloudFilesPag
           onToggleSortDir={browser.toggleSortDir}
           onNavigateFolder={browser.openFolder}
           onUploadFiles={(files) => uploads.enqueueFiles(files, activeParentId)}
+          onOpenNewDocument={() => editor.setNewDocOpen(true)}
           onOpenNewFolder={() => setNewFolderOpen(true)}
           onEmptyTrash={() => void browser.runMutation(() => api.emptyTrash())}
         />
@@ -151,28 +156,23 @@ export function CloudFilesPage({ scope, scopeLabel, apiOverride }: CloudFilesPag
         </div>
       )}
 
-      <FolderNameModal
-        open={newFolderOpen}
-        title="Create Folder"
-        submitLabel="Create"
-        onClose={() => setNewFolderOpen(false)}
-        onSubmit={async (name) => { await browser.runMutation(() => api.createFolder({ parentId: activeParentId, name })); }}
-      />
-      <FolderNameModal
-        open={Boolean(renamingNode)}
-        title="Rename Item"
-        submitLabel="Rename"
-        initialValue={renamingNode?.name ?? ''}
-        onClose={() => setRenamingNode(null)}
-        onSubmit={async (name) => { if (renamingNode) await browser.runMutation(() => api.updateNode(renamingNode.id, { name })); }}
-      />
-      <MoveNodeModal
-        node={movingNode}
+      <FolderNameModal open={newFolderOpen} title="Create Folder" submitLabel="Create" onClose={() => setNewFolderOpen(false)} onSubmit={async (name) => { await browser.runMutation(() => api.createFolder({ parentId: activeParentId, name })); }} />
+      <FolderNameModal open={Boolean(renamingNode)} title="Rename Item" submitLabel="Rename" initialValue={renamingNode?.name ?? ''} onClose={() => setRenamingNode(null)} onSubmit={async (name) => { if (renamingNode) await browser.runMutation(() => api.updateNode(renamingNode.id, { name })); }} />
+      <MoveNodeModal node={movingNode} api={api} onClose={() => setMovingNode(null)} onMove={async (nodeId, targetParentId) => { await browser.runMutation(() => api.updateNode(nodeId, targetParentId ? { parentId: targetParentId } : { moveToRoot: true })); }} />
+      <CloudEditorModals
         api={api}
-        onClose={() => setMovingNode(null)}
-        onMove={async (nodeId, targetParentId) => {
-          await browser.runMutation(() => api.updateNode(nodeId, targetParentId ? { parentId: targetParentId } : { moveToRoot: true }));
-        }}
+        activeParentId={activeParentId}
+        canWrite={permissions.canWrite}
+        newDocOpen={editor.newDocOpen}
+        textNode={editor.textNode}
+        officeNode={editor.officeNode}
+        onCloseNewDoc={() => editor.setNewDocOpen(false)}
+        onDocumentCreated={editor.handleDocumentCreated}
+        onCloseText={editor.closeTextEditor}
+        onTextSaved={editor.handleTextSaved}
+        onCloseOffice={editor.closeOfficeEditor}
+        onDownload={nodeHandlers.onDownload}
+        onRefresh={() => void browser.refresh()}
       />
     </div>
   );

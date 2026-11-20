@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { aiChatService } from '../../services/ai.service';
-import type { AiMemory, AiMessage, AiModelId, AiScopeType, AiThread, AiToolTrace } from '../../types/ai.types';
+import type { AiDocumentIndex, AiMemory, AiMessage, AiModelId, AiScopeType, AiThread, AiToolTrace } from '../../types/ai.types';
 
 export function useAiChat(workspaceId?: string | null, projectId?: string | null) {
   const [scopeType, setScopeType] = useState<AiScopeType>(
@@ -10,6 +10,7 @@ export function useAiChat(workspaceId?: string | null, projectId?: string | null
   const [activeId, setActiveId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [memories, setMemories] = useState<AiMemory[]>([]);
+  const [indexedFiles, setIndexedFiles] = useState<AiDocumentIndex[]>([]);
   const [model, setModel] = useState<AiModelId>('orbit-pro');
   const [webSearch, setWebSearch] = useState(false);
   const [sending, setSending] = useState(false);
@@ -24,8 +25,12 @@ export function useAiChat(workspaceId?: string | null, projectId?: string | null
   }, []);
 
   const loadMemories = useCallback(async () => {
-    const list = await aiChatService.listMemories(scopeType, workspaceId, projectId);
-    setMemories(list);
+    const [memList, fileList] = await Promise.all([
+      aiChatService.listMemories(scopeType, workspaceId, projectId),
+      aiChatService.listIndexedFiles(scopeType, workspaceId, projectId).catch(() => []),
+    ]);
+    setMemories(memList);
+    setIndexedFiles(fileList);
   }, [scopeType, workspaceId, projectId]);
 
   useEffect(() => {
@@ -115,13 +120,18 @@ export function useAiChat(workspaceId?: string | null, projectId?: string | null
     await loadMemories();
   }
 
+  async function reindexFile(nodeId: string) {
+    await aiChatService.triggerFileIndex(nodeId, scopeType, workspaceId, projectId);
+    await loadMemories();
+  }
+
   return {
     scopeType, setScopeType,
     threads, activeId, setActiveId,
-    messages, memories,
+    messages, memories, indexedFiles,
     model, setModel,
     webSearch, setWebSearch,
     sending, streamingText, liveTools, error,
-    createNewThread, deleteThread, sendPrompt, addMemory, deleteMemory,
+    createNewThread, deleteThread, sendPrompt, addMemory, deleteMemory, reindexFile,
   };
 }

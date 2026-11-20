@@ -14,6 +14,8 @@ vi.mock('../../services/ai.service', () => ({
     listMemories: vi.fn(),
     createMemory: vi.fn(),
     deleteMemory: vi.fn(),
+    listIndexedFiles: vi.fn(),
+    triggerFileIndex: vi.fn(),
     getAdminConfig: vi.fn(),
     updateAdminConfig: vi.fn(),
   },
@@ -27,6 +29,7 @@ describe('Orbit AI Chat and Admin AI Configuration', () => {
     mockedAi.listThreads.mockResolvedValue([]);
     mockedAi.listMessages.mockResolvedValue([]);
     mockedAi.listMemories.mockResolvedValue([]);
+    mockedAi.listIndexedFiles.mockResolvedValue([]);
   });
 
   afterEach(() => {

@@ -4,6 +4,7 @@ import type { CloudNodeDto, CloudPermissions, CloudView } from '../../types/clou
 import { daysUntil, formatRelative } from '../../utils/format';
 import { formatBytes } from './cloudFormat';
 import { CloudRowActions } from './CloudRowActions';
+import { classifyFileEditor } from './editor/fileEditorRegistry';
 
 interface CloudFileTableProps {
   nodes: CloudNodeDto[];
@@ -15,6 +16,7 @@ interface CloudFileTableProps {
   permissions: CloudPermissions;
   onSelect: (node: CloudNodeDto) => void;
   onOpenFolder: (folderId: string) => void;
+  onOpenEditor: (node: CloudNodeDto) => void;
   onToggleStar: (node: CloudNodeDto) => void;
   onDownload: (node: CloudNodeDto) => void;
   onRename: (node: CloudNodeDto) => void;
@@ -35,6 +37,7 @@ export function CloudFileTable({
   permissions,
   onSelect,
   onOpenFolder,
+  onOpenEditor,
   onToggleStar,
   onDownload,
   onRename,
@@ -91,7 +94,12 @@ export function CloudFileTable({
                 key={node.id}
                 onClick={() => onSelect(node)}
                 onDoubleClick={() => {
-                  if (isFolder && view !== 'TRASH') onOpenFolder(node.id);
+                  if (view === 'TRASH') return;
+                  if (isFolder) {
+                    onOpenFolder(node.id);
+                  } else if (permissions.canRead && classifyFileEditor(node.name, node.mimeType) !== 'NONE') {
+                    onOpenEditor(node);
+                  }
                 }}
                 className={`cursor-pointer transition-colors ${
                   isSelected ? 'bg-[#052E16]/70 text-[#E6EDF3]' : 'hover:bg-[#161B22]'
@@ -118,6 +126,7 @@ export function CloudFileTable({
                     node={node}
                     view={view}
                     permissions={permissions}
+                    onOpenEditor={onOpenEditor}
                     onToggleStar={onToggleStar}
                     onDownload={onDownload}
                     onRename={onRename}

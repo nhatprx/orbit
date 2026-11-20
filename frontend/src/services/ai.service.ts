@@ -1,4 +1,5 @@
 import type {
+  AiDocumentIndex,
   AiMemory,
   AiMessage,
   AiModelId,
@@ -45,6 +46,8 @@ export interface IAiChatService {
     pinned?: boolean;
   }): Promise<AiMemory>;
   deleteMemory(memoryId: string): Promise<void>;
+  listIndexedFiles(scopeType: AiScopeType, workspaceId?: string | null, projectId?: string | null): Promise<AiDocumentIndex[]>;
+  triggerFileIndex(nodeId: string, scopeType: AiScopeType, workspaceId?: string | null, projectId?: string | null): Promise<void>;
   getAdminConfig(): Promise<AiProviderConfig>;
   updateAdminConfig(payload: UpdateAiProviderConfigPayload): Promise<AiProviderConfig>;
 }
@@ -141,6 +144,18 @@ export const aiChatService: IAiChatService = {
 
   deleteMemory(memoryId) {
     return apiRequest<void>('DELETE', `/api/v1/ai/memories/${memoryId}`);
+  },
+
+  listIndexedFiles(scopeType, workspaceId, projectId) {
+    return apiRequest<AiDocumentIndex[]>('GET', '/api/v1/ai/rag/files', {
+      query: { scopeType, workspaceId: workspaceId ?? undefined, projectId: projectId ?? undefined },
+    });
+  },
+
+  async triggerFileIndex(nodeId, scopeType, workspaceId, projectId) {
+    await apiRequest<unknown>('POST', `/api/v1/ai/rag/index/${nodeId}`, {
+      query: { scopeType, workspaceId: workspaceId ?? undefined, projectId: projectId ?? undefined },
+    });
   },
 
   getAdminConfig() {

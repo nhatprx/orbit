@@ -1,6 +1,7 @@
 package com.orbit.ai.tools;
 
 import com.orbit.ai.gateway.LlmModels.LlmToolSpec;
+import com.orbit.ai.rag.AiRagSearchService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -11,15 +12,18 @@ public class AiToolRegistry {
 
     private final OrbitWorkspaceTools workspaceTools;
     private final OrbitCloudFileTools cloudFileTools;
+    private final AiRagSearchService ragSearchService;
     private final ExternalWebSearchTool webSearchTool;
 
     public AiToolRegistry(
         OrbitWorkspaceTools workspaceTools,
         OrbitCloudFileTools cloudFileTools,
+        AiRagSearchService ragSearchService,
         ExternalWebSearchTool webSearchTool
     ) {
         this.workspaceTools = workspaceTools;
         this.cloudFileTools = cloudFileTools;
+        this.ragSearchService = ragSearchService;
         this.webSearchTool = webSearchTool;
     }
 
@@ -53,6 +57,15 @@ public class AiToolRegistry {
             )
         ));
         specs.add(new LlmToolSpec(
+            "search_file_contents",
+            "Semantically and full-text search inside indexed PDF, DOCX, Markdown, and code files in Cloud Files.",
+            Map.of(
+                "type", "object",
+                "properties", Map.of("query", Map.of("type", "string", "description", "Topic or question to find inside uploaded files")),
+                "required", List.of("query")
+            )
+        ));
+        specs.add(new LlmToolSpec(
             "search_chat_history",
             "Read recent team chat messages in the current workspace or project channel.",
             Map.of(
@@ -81,6 +94,7 @@ public class AiToolRegistry {
                 case "list_projects" -> workspaceTools.listUserProjects(ctx);
                 case "search_cloud_files" -> cloudFileTools.searchFiles(ctx, str(args.get("query")));
                 case "read_cloud_file" -> cloudFileTools.readFile(ctx, str(args.get("fileId")));
+                case "search_file_contents" -> ragSearchService.hybridSearch(ctx, str(args.get("query")));
                 case "search_chat_history" -> workspaceTools.getRecentChatContext(ctx, intVal(args.get("limit"), 12));
                 case "web_search" -> ctx.webSearchEnabled()
                     ? webSearchTool.search(str(args.get("query")))
