@@ -146,7 +146,7 @@ Authorization is evaluated strictly by **permission key**, never by role name.
 - **Chat:** `chat.read`, `chat.write`, `chat.manage`
 
 ### Workspace System Roles (Seeded per Workspace)
-- **Owner** (`is_system = true`, immutable): All 19 Workspace permission keys.
+- **Owner** (`is_system = true`, immutable): All 20 Workspace permission keys.
 - **Admin** (`is_system = true`): All Workspace permission keys except `workspace.delete` and `workspace.transfer_owner`.
 - **Member** (`is_system = true`): `workspace.view`, `member.view`, `role.view`, `project.create`, `chat.read`, `chat.write`.
 
@@ -165,3 +165,37 @@ Authorization is evaluated strictly by **permission key**, never by role name.
 ### Workspace-to-Project Access Rule (O-04)
 - A Workspace member whose Workspace role includes `project.view_all` has read access (`project.view`, `pchat.read`) to every Project in that Workspace even without an explicit `project_members` row.
 - Explicit Project mutations (`project.edit`, `project.delete`, `pmember.*`, `prole.*`, `pmodule.select`, `pchat.write`, `pchat.manage`) require the corresponding Project permission, OR Workspace `workspace.edit` for Workspace Owners/Admins acting as fallback administrators (Workspace Owner always passes Project admin checks for their Workspace's Projects).
+
+---
+
+## 7. Implementation Notes (Round 1)
+
+Decisions taken while implementing this specification. Where they go beyond the text above they are recorded here so the contract in [API_WORKSPACE.md](API_WORKSPACE.md) stays the single source of truth for behavior.
+
+### Permissions and roles
+- The catalog holds **20 Workspace keys and 13 Project keys**. Earlier drafts said 19; the seeded Owner roles use the complete lists.
+- **Anti-escalation:** a caller can only grant permission keys they hold themselves, and cannot change or remove a member whose role holds permissions the caller lacks. The baseline system `Member` role is exempt, because every member already has it.
+- **System roles:** `Owner` is fully immutable. `Admin` and `Member` can have their permissions edited, but their names are locked and no system role can be deleted (`SYSTEM_ROLE_IMMUTABLE`). Custom role names are unique per scope, case-insensitively.
+- **Owner-only actions:** deleting a Workspace and transferring ownership require the permission key **and** being the current Owner (BR-08), so a custom role carrying `workspace.delete` never lets a non-owner delete.
+- **Project visibility:** explicit Project members always see the Project (`project.view` is implied). Workspace `project.view_all`, `workspace.edit`, or ownership expose every Project of the Workspace.
+- **Project ownership:** a Project may have several members with the `Owner` role. The last one cannot leave or be demoted (`LAST_PROJECT_OWNER`). No transfer endpoint is needed.
+
+### Invitations
+- Email invitations can only be accepted by the account whose email matches (case-insensitive); otherwise `INVITATION_EMAIL_MISMATCH` (`403`). Invite links can be used by any authenticated user until revoked or expired.
+- A Project invitation adds the invitee to the Workspace as a plain `Member` and to the Project with the invited **Project** role. The `Owner` role can never be granted by invitation.
+- Expiry is evaluated on read: a `PENDING` invitation past `expires_at` is reported as `EXPIRED` without a background job. A role deleted after an invitation was issued falls back to the baseline `Member` role on acceptance.
+- Wizard `inviteEmails` become pending email invitations in the same transaction as the Workspace. Invite **links** are created after creation, in Workspace Settings.
+
+### Chat and realtime
+- Chat honors module gating: a disabled module returns `403 MODULE_DISABLED` while the data is preserved (BR-09). The default channel is named `general` and is seeded eagerly with the scope and lazily as a fallback.
+- REST `POST .../messages` and STOMP `SEND` share one service. Sends are limited to **20 messages per 10 seconds per user** (Redis counter, fails open) and return `429 RATE_LIMITED` beyond that.
+- The STOMP JWT travels **only in the `CONNECT` frame header**. The optional `?token=` query parameter was intentionally not implemented so tokens never reach URLs or access logs.
+- History pages are chronological inside a page; `nextCursor` points at older messages.
+
+### Operations
+- Soft-deleted Workspaces are purged by an hourly job guarded by a Redis lock (`orbit:lock:workspace-purge`), 50 per run. Polymorphic data (`role_permissions`, chat channels) is removed explicitly before the cascading delete.
+- The retention window, invitation lifetime, purge schedule and Redis-backed chat can be tuned with `ORBIT_WORKSPACE_RETENTION_DAYS`, `ORBIT_INVITATION_EXPIRY_DAYS`, `ORBIT_WORKSPACE_PURGE_CRON`, `ORBIT_WORKSPACE_PURGE_ENABLED` and `ORBIT_CHAT_REDIS_ENABLED`.
+
+### Frontend scope decisions
+- Mails and Social Linking run on typed in-memory mocks (`MockMailService`, `MockLinkedAccountService`) behind the `MailService` and `LinkedAccountService` interfaces. Credentials are validated but never stored; disconnecting removes the account and its cached messages (BR-12).
+- Cloud Files and AI Chat remain platform-level areas outside the module catalog. The old `ppt` and `markdown` placeholders were removed because they are not catalog modules.

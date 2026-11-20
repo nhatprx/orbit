@@ -1,33 +1,46 @@
 import { useEffect, useState } from 'react';
-import { BookMarked } from 'lucide-react';
-import { Badge } from '../../components/ui/Badge';
+import { Panel } from '../../components/ui/Panel';
+import { Tabs, type TabItem } from '../../components/ui/Tabs';
 import { dashboardService } from '../../services/dashboard.service';
 import { profileService } from '../../services/profile.service';
 import type { AuthUser } from '../../types/auth.types';
-import type { ActivityRecord } from '../../types/dashboard.types';
+import type { ActivityRecord, ProfileSectionId } from '../../types/dashboard.types';
 import type { ProfileData, ProfileUpdatePayload } from '../../types/profile.types';
-import { ContributionGrid } from './ContributionGrid';
+import type { DashboardNavigation } from '../dashboard/useDashboardNavigation';
+import { SocialAccountsPanel } from '../integrations/SocialAccountsPanel';
+import { ProfileOverview } from './ProfileOverview';
+import { ProfileProjectsSection } from './ProfileProjectsSection';
 import { ProfileSidebar } from './ProfileSidebar';
+import { ProfileWorkspacesSection } from './ProfileWorkspacesSection';
 
 interface ProfilePageProps {
   user: AuthUser;
+  nav: DashboardNavigation;
+  section: ProfileSectionId;
+  onSectionChange: (section: ProfileSectionId) => void;
 }
 
-export function ProfilePage({ user }: ProfilePageProps) {
+const SECTIONS: TabItem<ProfileSectionId>[] = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'workspaces', label: 'Workspaces' },
+  { id: 'projects', label: 'Projects' },
+  { id: 'accounts', label: 'Connected accounts' },
+];
+
+export function ProfilePage({ user, nav, section, onSectionChange }: ProfilePageProps) {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [activity, setActivity] = useState<ActivityRecord[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      profileService.getProfile(user),
-      dashboardService.getRecentActivity(6),
-    ]).then(([profileData, activityData]) => {
-      if (!active) return;
-      setProfile(profileData);
-      setActivity(activityData);
-    });
+    Promise.all([profileService.getProfile(user), dashboardService.getRecentActivity(6)]).then(
+      ([profileData, activityData]) => {
+        if (!active) return;
+        setProfile(profileData);
+        setActivity(activityData);
+      }
+    );
     return () => {
       active = false;
     };
@@ -36,95 +49,30 @@ export function ProfilePage({ user }: ProfilePageProps) {
   async function handleSave(payload: ProfileUpdatePayload) {
     setSaving(true);
     try {
-      const updated = await profileService.updateProfile(user, payload);
-      setProfile(updated);
+      setProfile(await profileService.updateProfile(user, payload));
     } finally {
       setSaving(false);
     }
   }
 
   if (!profile) {
-    return (
-      <div className="border border-[#30363D] bg-[#161B22] p-6 text-xs text-[#666666]">
-        Loading profile...
-      </div>
-    );
+    return <div className="border border-[#30363D] bg-[#161B22] p-6 text-xs text-[#666666]">Loading profile...</div>;
   }
 
   return (
     <div className="flex flex-col gap-8 lg:flex-row">
-      <ProfileSidebar
-        user={user}
-        profile={profile}
-        saving={saving}
-        onSave={handleSave}
-      />
+      <ProfileSidebar user={user} profile={profile} saving={saving} onSave={handleSave} />
 
-      <div className="min-w-0 flex-1 space-y-6">
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-[#A3A3A3]">
-              Pinned
-            </h2>
-            <span className="font-mono text-[11px] text-[#666666]">
-              {profile.pinned.length} ITEMS
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 gap-px border border-[#30363D] bg-[#30363D] md:grid-cols-2">
-            {profile.pinned.map((item) => (
-              <div key={item.id} className="flex flex-col justify-between bg-[#161B22] p-5">
-                <div>
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-[#E6EDF3]">
-                      <BookMarked className="h-4 w-4 text-[#22C55E]" strokeWidth={1.5} />
-                      <span>{item.name}</span>
-                    </div>
-                    <Badge tone="neutral">{item.area}</Badge>
-                  </div>
-                  <p className="mb-4 text-sm leading-relaxed text-[#BDBDBD]">
-                    {item.description}
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-between text-xs text-[#8A8A8A]">
-                  <span className="flex items-center gap-1.5 font-mono text-[#BDBDBD]">
-                    <span className="h-1.5 w-1.5 bg-[#22C55E]" />
-                    {item.tag}
-                  </span>
-                  <span className="font-mono">{item.updatedAt}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <ContributionGrid weeks={profile.contributions} />
-
-        <section>
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#BDBDBD]">
-            Recent Activity
-          </h2>
-          <div className="border border-[#30363D] bg-[#161B22]">
-            {activity.map((item, idx) => (
-              <div
-                key={item.id}
-                className={`flex items-center justify-between gap-4 px-5 py-3.5 text-sm ${
-                  idx > 0 ? 'border-t border-[#30363D]' : ''
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="h-1.5 w-1.5 shrink-0 bg-[#22C55E]" />
-                  <span className="font-mono text-xs text-[#22C55E]">{item.area}</span>
-                  <span className="text-[#E6EDF3]">{item.action}</span>
-                </div>
-                <span className="shrink-0 font-mono text-xs text-[#8A8A8A]">
-                  {item.timestamp}
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
+      <div className="min-w-0 flex-1 space-y-5">
+        <Tabs tabs={SECTIONS} active={section} onChange={onSectionChange} />
+        {section === 'overview' && <ProfileOverview profile={profile} activity={activity} />}
+        {section === 'workspaces' && <ProfileWorkspacesSection user={user} nav={nav} />}
+        {section === 'projects' && <ProfileProjectsSection nav={nav} />}
+        {section === 'accounts' && (
+          <Panel title="Connected accounts" description="Link Google or GitHub to sign in to Orbit.">
+            <SocialAccountsPanel />
+          </Panel>
+        )}
       </div>
     </div>
   );

@@ -15,9 +15,10 @@ export function isAbortError(error: unknown): boolean {
 
 export function useAuthPageState(
   initialError: string | null,
-  onSuccess: (session: AuthSession) => void
+  onSuccess: (session: AuthSession) => void,
+  initialMode: AuthMode = 'login'
 ) {
-  const [mode, setMode] = useState<AuthMode>('login');
+  const [mode, setMode] = useState<AuthMode>(initialMode);
   const [submitting, setSubmitting] = useState(false);
   const [oauthProvider, setOauthProvider] = useState<OAuthProvider | null>(null);
   const [error, setError] = useState<string | null>(initialError);

@@ -44,6 +44,8 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/invitations/*").permitAll()
+                .requestMatchers("/ws/**").permitAll()
                 .requestMatchers(
                     "/api/v1/health",
                     "/api/v1/auth/register",

@@ -18,8 +18,7 @@ export const MOCK_WORKSPACE_AREAS: WorkspaceAreaTile[] = [
   { id: 'mail', name: 'Mail', status: 'pending', summary: 'Developer messaging workspace area' },
   { id: 'docs', name: 'Docs', status: 'pending', summary: 'Structured document workspace area' },
   { id: 'sheets', name: 'Sheets', status: 'pending', summary: 'Grid calculation workspace area' },
-  { id: 'ppt', name: 'Presentations', status: 'pending', summary: 'Slide deck workspace area' },
-  { id: 'markdown', name: 'Markdown', status: 'pending', summary: 'Technical notes workspace area' },
+  { id: 'chat', name: 'Chat', status: 'ready', summary: 'Real-time workspace and project messaging' },
 ];
 
 export const MOCK_RECENT_ACTIVITY: ActivityRecord[] = [

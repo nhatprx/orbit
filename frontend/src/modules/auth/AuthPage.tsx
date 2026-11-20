@@ -8,6 +8,7 @@ import { type AuthMode, useAuthPageState } from './useAuthPageLifecycle';
 
 interface AuthPageProps {
   initialError?: string | null;
+  initialMode?: AuthMode;
   onSuccess: (session: AuthSession) => void;
   onBackHome: () => void;
 }
@@ -29,6 +30,7 @@ const MODE_COPY: Record<AuthMode, { title: string; subtitle: string }> = {
 
 export function AuthPage({
   initialError = null,
+  initialMode = 'login',
   onSuccess,
   onBackHome,
 }: AuthPageProps) {
@@ -45,7 +47,7 @@ export function AuthPage({
     handleOAuth,
     switchMode,
     handleResetSuccess,
-  } = useAuthPageState(initialError, onSuccess);
+  } = useAuthPageState(initialError, onSuccess, initialMode);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#0D1117] px-4 py-12 text-[#E6EDF3]">

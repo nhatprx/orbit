@@ -14,6 +14,7 @@ import com.orbit.auth.repository.OAuthAccountRepository;
 import com.orbit.auth.repository.UserRepository;
 import com.orbit.config.SecurityConfig;
 import com.orbit.config.WebCorsConfig;
+import com.orbit.support.MockRepositoriesRegistrar;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -59,6 +60,7 @@ class AdminSeedCliContextTest {
     private UserRepository userRepository;
 
     @TestConfiguration
+    @Import(MockRepositoriesRegistrar.class)
     static class CliMockBeansConfig {
 
         @Bean

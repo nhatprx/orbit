@@ -5,9 +5,9 @@ import {
   GitBranch,
   Layers,
   Mail,
-  Presentation,
+  MessageSquare,
   ShieldCheck,
-  Terminal,
+  Users,
 } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -20,12 +20,12 @@ interface HomePageProps {
 }
 
 const WORKSPACE_AREAS = [
-  { id: 'git', name: 'Git', icon: GitBranch, note: 'Code & version control workspace' },
-  { id: 'mail', name: 'Mail', icon: Mail, note: 'Unified developer messaging' },
-  { id: 'docs', name: 'Docs', icon: FileText, note: 'Structured engineering docs' },
-  { id: 'sheets', name: 'Sheets', icon: FileSpreadsheet, note: 'High-density data grids' },
-  { id: 'ppt', name: 'Presentations', icon: Presentation, note: 'Technical slide decks' },
-  { id: 'markdown', name: 'Markdown', icon: Terminal, note: 'Fast plain-text knowledge base' },
+  { id: 'git', name: 'Git', icon: GitBranch, note: 'Repositories and pull requests' },
+  { id: 'docs', name: 'Docs', icon: FileText, note: 'Collaborative documents' },
+  { id: 'sheets', name: 'Sheets', icon: FileSpreadsheet, note: 'Structured spreadsheets' },
+  { id: 'chat', name: 'Chat', icon: MessageSquare, note: 'Real-time workspace and project messaging' },
+  { id: 'workspaces', name: 'Workspaces', icon: Users, note: 'Invite teammates and manage custom roles' },
+  { id: 'mail', name: 'Mails', icon: Mail, note: 'Connect your own mailbox from the header' },
 ];
 
 export function HomePage({
@@ -74,9 +74,9 @@ export function HomePage({
             Minimal Developer Workspace Platform. Built for Scale.
           </h1>
           <p className="mb-8 max-w-2xl text-sm leading-relaxed text-[#A3A3A3]">
-            Orbit unifies Git, Mail, Docs, Sheets, Presentations, and Markdown into
-            one distraction-free environment with strict role-based access control
-            for Admin and User workspaces.
+            Orbit organizes work into workspaces and projects. Enable Git, Docs,
+            Sheets, and Chat where you need them, connect your own mailbox, and
+            control access with custom roles.
           </p>
           <div className="flex flex-wrap items-center gap-3">
             <Button
@@ -97,10 +97,10 @@ export function HomePage({
         <section className="mb-14">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-[#A3A3A3]">
-              Workspace Areas
+              Modules
             </h2>
             <span className="font-mono text-xs text-[#666666]">
-              UNIFIED SUITE
+              PER WORKSPACE AND PROJECT
             </span>
           </div>
           <div className="grid grid-cols-1 gap-px border border-[#30363D] bg-[#30363D] sm:grid-cols-2 lg:grid-cols-3">
@@ -129,8 +129,9 @@ export function HomePage({
               Role Separation
             </div>
             <p className="text-xs leading-relaxed text-[#A3A3A3]">
-              Dedicated Admin and User workspace views with strict tenant isolation
-              and Redis-backed session governance.
+              Custom roles at both workspace and project level, checked by permission
+              key on every request, with strict tenant isolation and Redis-backed
+              session governance.
             </p>
           </div>
           <div className="border border-[#30363D] bg-[#161B22] p-6">

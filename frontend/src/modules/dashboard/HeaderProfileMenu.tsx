@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowLeftRight, LogOut, Shield, Smile } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import type { AuthUser } from '../../types/auth.types';
-import type { WorkspaceAreaId } from '../../types/dashboard.types';
+import type { ProfileSectionId, WorkspaceAreaId } from '../../types/dashboard.types';
 import {
   PRIMARY_PROFILE_ITEMS,
   SETTINGS_PROFILE_ITEMS,
@@ -12,6 +12,7 @@ import {
 interface HeaderProfileMenuProps {
   user: AuthUser;
   onSelectArea: (area: WorkspaceAreaId) => void;
+  onOpenProfile: (section: ProfileSectionId) => void;
   onNavigateHome: () => void;
   onLogout: () => void;
 }
@@ -22,6 +23,7 @@ const ITEM_CLASS =
 export function HeaderProfileMenu({
   user,
   onSelectArea,
+  onOpenProfile,
   onNavigateHome,
   onLogout,
 }: HeaderProfileMenuProps) {
@@ -57,7 +59,8 @@ export function HeaderProfileMenu({
           key={item.label}
           type="button"
           onClick={() => {
-            if (item.area) onSelectArea(item.area);
+            if (item.section) onOpenProfile(item.section);
+            else if (item.area) onSelectArea(item.area);
             setOpen(false);
           }}
           className={ITEM_CLASS}

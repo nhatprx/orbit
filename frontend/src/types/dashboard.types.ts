@@ -4,16 +4,18 @@ export type WorkspaceAreaId =
   | 'overview'
   | 'ai'
   | 'profile'
+  | 'workspace-settings'
   | 'project-settings'
   | 'git'
-  | 'mail'
-  | 'cloud'
-  | 'chat'
   | 'docs'
   | 'sheets'
-  | 'ppt'
-  | 'markdown'
+  | 'chat'
+  | 'mail'
+  | 'cloud'
   | 'admin';
+
+/** Tabs inside the Profile area (D-10, O-08). */
+export type ProfileSectionId = 'overview' | 'workspaces' | 'projects' | 'accounts';
 
 export interface WorkspaceAreaTile {
   id: Exclude<WorkspaceAreaId, 'overview' | 'admin'>;

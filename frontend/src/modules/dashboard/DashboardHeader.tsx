@@ -1,25 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  BookMarked,
-  CircleDot,
-  GitPullRequest,
-  Inbox,
-  Menu,
-  Orbit,
-  Search,
-} from 'lucide-react';
+import { BookMarked, Inbox, Menu, Orbit, Search } from 'lucide-react';
 import type { AuthUser } from '../../types/auth.types';
 import type { WorkspaceAreaId } from '../../types/dashboard.types';
+import { HeaderBreadcrumb } from './HeaderBreadcrumb';
 import { HeaderProfileMenu } from './HeaderProfileMenu';
 import { HeaderCreateMenu } from './HeaderUserMenu';
+import type { DashboardNavigation } from './useDashboardNavigation';
 
 interface DashboardHeaderProps {
   user: AuthUser;
-  workspaceName: string;
-  projectName: string;
-  active: WorkspaceAreaId;
+  workspaceName: string | null;
+  projectName: string | null;
+  nav: DashboardNavigation;
+  canCreateProject: boolean;
   onToggleSidebar: () => void;
-  onSelectArea: (area: WorkspaceAreaId) => void;
+  onCreateWorkspace: () => void;
+  onCreateProject: () => void;
   onNavigateHome: () => void;
   onLogout: () => void;
 }
@@ -31,22 +27,22 @@ export function DashboardHeader({
   user,
   workspaceName,
   projectName,
-  active,
+  nav,
+  canCreateProject,
   onToggleSidebar,
-  onSelectArea,
+  onCreateWorkspace,
+  onCreateProject,
   onNavigateHome,
   onLogout,
 }: DashboardHeaderProps) {
   const searchRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
+  const select = (area: WorkspaceAreaId) => nav.go(area);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (
-        event.key === '/' &&
-        document.activeElement?.tagName !== 'INPUT' &&
-        document.activeElement?.tagName !== 'TEXTAREA'
-      ) {
+      const tag = document.activeElement?.tagName;
+      if (event.key === '/' && tag !== 'INPUT' && tag !== 'TEXTAREA') {
         event.preventDefault();
         searchRef.current?.focus();
       }
@@ -57,47 +53,21 @@ export function DashboardHeader({
 
   return (
     <header className="relative z-20 flex h-12 shrink-0 items-center justify-between border-b border-[#30363D] bg-[#161B22] px-3.5">
-      <div className="flex items-center gap-2.5">
-        <button
-          type="button"
-          title="Toggle navigation"
-          onClick={onToggleSidebar}
-          className={ICON_BTN}
-        >
+      <div className="flex min-w-0 items-center gap-2.5">
+        <button type="button" title="Toggle navigation" onClick={onToggleSidebar} className={ICON_BTN}>
           <Menu className="h-3.5 w-3.5" strokeWidth={1.5} />
         </button>
 
         <button
           type="button"
-          onClick={() => onSelectArea('overview')}
+          onClick={() => select('overview')}
           className="flex items-center gap-1.5 text-[#E6EDF3] hover:text-[#22C55E]"
         >
           <Orbit className="h-4 w-4 text-[#22C55E]" strokeWidth={1.5} />
           <span className="text-[13px] font-semibold tracking-tight">ORBIT</span>
         </button>
 
-        <span className="hidden font-mono text-xs text-[#7D8590] sm:inline">/</span>
-        <span className="hidden text-[13px] text-[#8B949E] sm:inline">{workspaceName}</span>
-        {projectName && active !== 'overview' && active !== 'ai' && active !== 'admin' && active !== 'profile' && (
-          <>
-            <span className="hidden font-mono text-xs text-[#7D8590] md:inline">/</span>
-            <span className="hidden text-[13px] text-[#8B949E] md:inline">{projectName}</span>
-          </>
-        )}
-        <span className="font-mono text-xs text-[#7D8590]">/</span>
-        <span className="text-[13px] font-medium capitalize text-[#E6EDF3]">
-          {active === 'overview'
-            ? 'Workspace'
-            : active === 'ai'
-              ? 'AI Chat'
-              : active === 'cloud'
-                ? 'Cloud Files'
-                : active === 'chat'
-                  ? 'Community Chat'
-                  : active === 'project-settings'
-                    ? 'Project Settings'
-                    : active}
-        </span>
+        <HeaderBreadcrumb active={nav.active} workspaceName={workspaceName} projectName={projectName} />
       </div>
 
       <div className="flex items-center gap-1.5">
@@ -111,55 +81,36 @@ export function DashboardHeader({
             placeholder="Type / to search"
             className="h-7 w-40 bg-transparent px-2 text-xs text-[#E6EDF3] placeholder-[#7D8590] focus:outline-none lg:w-52"
           />
-          <kbd className="border border-[#30363D] px-1 py-0.2 font-mono text-[10px] text-[#7D8590]">
-            /
-          </kbd>
+          <kbd className="border border-[#30363D] px-1 font-mono text-[10px] text-[#7D8590]">/</kbd>
         </div>
 
         <div className="hidden h-4 w-px bg-[#30363D] sm:block" />
 
-        <HeaderCreateMenu onSelectArea={onSelectArea} />
+        <HeaderCreateMenu
+          canCreateProject={canCreateProject}
+          onCreateWorkspace={onCreateWorkspace}
+          onCreateProject={onCreateProject}
+          onComposeMail={() => select('mail')}
+        />
 
-        <button
-          type="button"
-          title="Workspace Overview"
-          onClick={() => onSelectArea('overview')}
-          className={`hidden sm:flex ${ICON_BTN}`}
-        >
-          <CircleDot className="h-3.5 w-3.5" strokeWidth={1.5} />
-        </button>
-
-        <button
-          type="button"
-          title="Git"
-          onClick={() => onSelectArea('git')}
-          className={`hidden sm:flex ${ICON_BTN}`}
-        >
-          <GitPullRequest className="h-3.5 w-3.5" strokeWidth={1.5} />
-        </button>
-
-        <button
-          type="button"
-          title="Cloud Files"
-          onClick={() => onSelectArea('cloud')}
-          className={`hidden sm:flex ${ICON_BTN}`}
-        >
+        <button type="button" title="Cloud Files" onClick={() => select('cloud')} className={`hidden sm:flex ${ICON_BTN}`}>
           <BookMarked className="h-3.5 w-3.5" strokeWidth={1.5} />
         </button>
 
         <button
           type="button"
-          title="Mail & Notifications"
-          onClick={() => onSelectArea('mail')}
-          className={`relative ${ICON_BTN}`}
+          title="Mails"
+          aria-label="Open Mails"
+          onClick={() => select('mail')}
+          className={`${ICON_BTN} ${nav.active === 'mail' ? 'border-[#22C55E] text-[#22C55E]' : ''}`}
         >
           <Inbox className="h-3.5 w-3.5" strokeWidth={1.5} />
-          <span className="absolute right-1 top-1 h-1.5 w-1.5 bg-[#22C55E]" />
         </button>
 
         <HeaderProfileMenu
           user={user}
-          onSelectArea={onSelectArea}
+          onSelectArea={select}
+          onOpenProfile={nav.openProfile}
           onNavigateHome={onNavigateHome}
           onLogout={onLogout}
         />

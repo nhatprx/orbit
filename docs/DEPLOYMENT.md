@@ -135,3 +135,16 @@ Configure OAuth2 applications in Google Cloud Console and GitHub Developer Setti
 | Google | Authorized Redirect URI | `http://localhost:8080/login/oauth2/code/google` |
 | GitHub | Homepage URL | `http://localhost:5173` |
 | GitHub | Authorization Callback URL | `http://localhost:8080/login/oauth2/code/github` |
+
+---
+
+## 9. Workspace Platform Runtime Notes
+
+- **Database migrations:** Flyway migrations `V2__workspace_core.sql`, `V3__invitations.sql`, and `V4__chat.sql` run automatically when the backend starts. Hibernate stays on `ddl-auto: validate`, so the schema must match the entities. The RDS user needs DDL privileges for the first deployment of this release.
+- **Deployment order:** Deploy the backend before the frontend. The new frontend calls the workspace, role, invitation, and chat endpoints and shows errors against an older backend.
+- **WebSocket endpoint:** Chat uses STOMP over a native WebSocket at `wss://api.orbit.nhatprx.com/ws`. Caddy `reverse_proxy` upgrades WebSocket connections without extra configuration, so `infra/docker/Caddyfile` does not change. If a load balancer is added later, keep its idle timeout above the 10 second STOMP heartbeat. Sticky sessions are not required because messages are relayed between instances through Redis pub/sub.
+- **Allowed origins:** The `/ws` handshake validates the `Origin` header against `CORS_ALLOWED_ORIGINS`, the same list the REST API uses. Add every frontend origin there.
+- **Token handling:** The JWT is sent only in the STOMP `CONNECT` header and never in the `/ws` URL, so access logs do not contain tokens.
+- **Redis:** Chat fan-out between instances, the chat rate limit (20 messages per 10 seconds per user), and the purge job lock (`orbit:lock:workspace-purge`) use Redis. `ORBIT_CHAT_REDIS_ENABLED=false` is for single-instance development only: it limits delivery to clients connected to the same instance and turns the chat rate limit off.
+- **Soft-deleted workspaces:** A scheduled job purges them after `ORBIT_WORKSPACE_RETENTION_DAYS` (default 30). It runs hourly at minute 15 and takes a Redis lock so that only one instance purges at a time. Disable it with `ORBIT_WORKSPACE_PURGE_ENABLED=false`.
+- **Optional settings:** `ORBIT_WORKSPACE_RETENTION_DAYS`, `ORBIT_WORKSPACE_PURGE_ENABLED`, `ORBIT_WORKSPACE_PURGE_CRON`, `ORBIT_INVITATION_EXPIRY_DAYS`, and `ORBIT_CHAT_REDIS_ENABLED` all have defaults. See `.env.prod.example`.

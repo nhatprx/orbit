@@ -1,29 +1,19 @@
-import {
-  Bot,
-  Building2,
-  FolderGit2,
-  LayoutDashboard,
-  Plus,
-  Settings,
-  Shield,
-} from 'lucide-react';
+import { Bot, LayoutDashboard, Settings, Shield } from 'lucide-react';
+import { useStore } from '../../store/createStore';
+import { useActiveWorkspace, workspaceStore } from '../../store/workspaceStore';
 import type { AuthUser } from '../../types/auth.types';
 import type { WorkspaceAreaId } from '../../types/dashboard.types';
-import type { OrbitProject, OrbitWorkspace } from '../../types/workspace.types';
-import { PROJECT_MODULE_META } from './projectModuleMeta';
+import { MODULE_META, orderModules } from '../workspace/moduleMeta';
+import { WorkspaceSwitcher } from '../workspace/WorkspaceSwitcher';
+import { SidebarProjects } from './SidebarProjects';
+import type { DashboardNavigation } from './useDashboardNavigation';
 
 interface DashboardSidebarProps {
   user: AuthUser;
-  active: WorkspaceAreaId;
-  workspaces: OrbitWorkspace[];
-  activeWorkspaceId: string;
-  projects: OrbitProject[];
-  activeProject: OrbitProject | null;
   open: boolean;
-  onSelectWorkspace: (workspaceId: string) => void;
-  onSelectProject: (projectId: string) => void;
-  onSelectArea: (area: WorkspaceAreaId) => void;
-  onOpenCreateProject: () => void;
+  nav: DashboardNavigation;
+  onCreateWorkspace: () => void;
+  onCreateProject: () => void;
 }
 
 const NAV_BTN =
@@ -31,153 +21,98 @@ const NAV_BTN =
 const NAV_ON = 'border-[#22C55E] bg-[#052E16] text-[#22C55E]';
 const NAV_OFF =
   'border-transparent text-[#8B949E] hover:border-[#30363D] hover:bg-[#21262D] hover:text-[#E6EDF3]';
+const SECTION_LABEL = 'mb-1.5 px-1 font-mono text-[10px] uppercase tracking-widest text-[#7D8590]';
 
-export function DashboardSidebar({
-  user,
-  active,
-  workspaces,
-  activeWorkspaceId,
-  projects,
-  activeProject,
-  open,
-  onSelectWorkspace,
-  onSelectProject,
-  onSelectArea,
-  onOpenCreateProject,
-}: DashboardSidebarProps) {
+function NavItem(props: {
+  area: WorkspaceAreaId;
+  active: WorkspaceAreaId;
+  label: string;
+  icon: typeof Bot;
+  onClick: () => void;
+}) {
+  const Icon = props.icon;
+  return (
+    <button
+      type="button"
+      onClick={props.onClick}
+      className={`${NAV_BTN} ${props.active === props.area ? NAV_ON : NAV_OFF}`}
+    >
+      <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
+      <span>{props.label}</span>
+    </button>
+  );
+}
+
+export function DashboardSidebar({ user, open, nav, onCreateWorkspace, onCreateProject }: DashboardSidebarProps) {
+  const workspaces = useStore(workspaceStore, (s) => s.workspaces);
+  const projects = useStore(workspaceStore, (s) => s.projects);
+  const hasMore = useStore(workspaceStore, (s) => s.projectsHasMore);
+  const activeProjectId = useStore(workspaceStore, (s) => s.activeProjectId);
+  const workspace = useActiveWorkspace();
+
   if (!open) return null;
+
+  const scopedToWorkspace = activeProjectId === null;
+  const modules = workspace ? orderModules(workspace.enabledModules) : [];
+  const canCreateProject = workspace?.myPermissions.includes('project.create') ?? false;
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-[#30363D] bg-[#161B22]">
       <div className="border-b border-[#30363D] p-2.5">
-        <p className="mb-1.5 px-1 font-mono text-[10px] uppercase tracking-widest text-[#7D8590]">
-          Workspace
-        </p>
-        <div className="flex items-center border border-[#30363D] bg-[#0D1117] px-2 focus-within:border-[#22C55E]">
-          <Building2 className="h-3.5 w-3.5 shrink-0 text-[#22C55E]" strokeWidth={1.5} />
-          <select
-            value={activeWorkspaceId}
-            onChange={(e) => onSelectWorkspace(e.target.value)}
-            className="h-8 w-full bg-transparent px-1.5 text-[13px] font-medium text-[#E6EDF3] focus:outline-none"
-          >
-            {workspaces.map((ws) => (
-              <option key={ws.id} value={ws.id} className="bg-[#161B22]">
-                {ws.name}
-              </option>
-            ))}
-          </select>
+        <p className={SECTION_LABEL}>Workspace</p>
+        <WorkspaceSwitcher
+          workspaces={workspaces}
+          activeId={workspace?.id ?? null}
+          onSelect={(id) => void nav.switchWorkspace(id)}
+          onCreate={onCreateWorkspace}
+        />
+        <div className="mt-1.5 space-y-0.5">
+          <NavItem area="overview" active={nav.active} label="Overview" icon={LayoutDashboard} onClick={() => nav.go('overview')} />
+          <NavItem area="ai" active={nav.active} label="AI Chat" icon={Bot} onClick={() => nav.go('ai')} />
         </div>
-
-        <button
-          type="button"
-          onClick={() => onSelectArea('overview')}
-          className={`mt-1.5 ${NAV_BTN} ${active === 'overview' ? NAV_ON : NAV_OFF}`}
-        >
-          <LayoutDashboard className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
-          <span>Overview</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => onSelectArea('ai')}
-          className={`mt-0.5 ${NAV_BTN} ${active === 'ai' ? NAV_ON : NAV_OFF}`}
-        >
-          <Bot className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
-          <span>AI Chat</span>
-        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-2.5 py-3">
-        <div className="mb-2 flex items-center justify-between px-1">
-          <p className="font-mono text-[10px] uppercase tracking-widest text-[#7D8590]">
-            Projects
-          </p>
-          <button
-            type="button"
-            onClick={onOpenCreateProject}
-            className="inline-flex items-center gap-1 border border-[#22C55E] bg-[#052E16] px-1.5 py-0.5 text-[11px] font-medium text-[#22C55E] hover:bg-[#22C55E] hover:text-[#0D1117]"
-          >
-            <Plus className="h-3 w-3" strokeWidth={1.5} />
-            New
-          </button>
-        </div>
-
-        <div className="space-y-0.5">
-          {projects.map((project) => {
-            const isSelected = project.id === activeProject?.id;
-            return (
-              <button
-                key={project.id}
-                type="button"
-                onClick={() => onSelectProject(project.id)}
-                className={`flex w-full items-center justify-between border px-2.5 py-1.5 text-left text-[13px] transition-colors ${
-                  isSelected ? 'border-[#22C55E] bg-[#052E16] text-[#E6EDF3]' : NAV_OFF
-                }`}
-              >
-                <span className="flex min-w-0 items-center gap-2">
-                  <FolderGit2
-                    className={`h-3.5 w-3.5 shrink-0 ${
-                      isSelected ? 'text-[#22C55E]' : 'text-[#7D8590]'
-                    }`}
-                    strokeWidth={1.5}
-                  />
-                  <span className="truncate font-medium">{project.name}</span>
-                </span>
-                <span className="font-mono text-[10px] text-[#7D8590]">
-                  {project.enabledModules.length}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {activeProject && (
-          <div className="mt-4 border-t border-[#30363D] pt-3">
-            <p className="mb-1.5 px-1 font-mono text-[10px] uppercase tracking-widest text-[#7D8590]">
-              {activeProject.name}
-            </p>
-            <nav className="space-y-0.5">
-              {activeProject.enabledModules.map((modId) => {
-                const meta = PROJECT_MODULE_META[modId];
-                const Icon = meta.icon;
-                return (
-                  <button
-                    key={modId}
-                    type="button"
-                    onClick={() => onSelectArea(modId)}
-                    className={`${NAV_BTN} ${active === modId ? NAV_ON : NAV_OFF}`}
-                  >
-                    <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
-                    <span>{meta.label}</span>
-                  </button>
-                );
-              })}
-
-              <button
-                type="button"
-                onClick={() => onSelectArea('project-settings')}
-                className={`${NAV_BTN} ${active === 'project-settings' ? NAV_ON : NAV_OFF}`}
-              >
-                <Settings className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
-                <span>Project Settings</span>
-              </button>
+        {workspace && (
+          <>
+            <p className={SECTION_LABEL}>Workspace modules</p>
+            <nav className="space-y-0.5" aria-label="Workspace modules">
+              {modules.length === 0 && <p className="px-1 text-xs text-[#7D8590]">No modules enabled.</p>}
+              {modules.map((key) => (
+                <NavItem
+                  key={key}
+                  area={key}
+                  active={scopedToWorkspace ? nav.active : 'overview'}
+                  label={MODULE_META[key].label}
+                  icon={MODULE_META[key].icon}
+                  onClick={() => nav.openWorkspaceModule(key)}
+                />
+              ))}
+              <NavItem
+                area="workspace-settings"
+                active={nav.active}
+                label="Workspace Settings"
+                icon={Settings}
+                onClick={() => void nav.openWorkspaceSettings()}
+              />
             </nav>
-          </div>
+
+            <SidebarProjects
+              projects={projects}
+              hasMore={hasMore}
+              activeProjectId={activeProjectId}
+              active={nav.active}
+              canCreate={canCreateProject}
+              nav={nav}
+              onCreateProject={onCreateProject}
+            />
+          </>
         )}
 
         {user.role === 'admin' && (
           <div className="mt-4 border-t border-[#30363D] pt-3">
-            <p className="mb-1.5 px-1 font-mono text-[10px] uppercase tracking-widest text-[#7D8590]">
-              Admin
-            </p>
-            <button
-              type="button"
-              onClick={() => onSelectArea('admin')}
-              className={`${NAV_BTN} ${active === 'admin' ? NAV_ON : NAV_OFF}`}
-            >
-              <Shield className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
-              <span>Admin Console</span>
-            </button>
+            <p className={SECTION_LABEL}>Admin</p>
+            <NavItem area="admin" active={nav.active} label="Admin Console" icon={Shield} onClick={() => nav.go('admin')} />
           </div>
         )}
       </div>

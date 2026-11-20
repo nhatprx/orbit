@@ -36,7 +36,29 @@
 | BR-11 | Delete role currently assigned to >= 1 member | `409` | `ROLE_IN_USE` |
 | BR-11 | Edit or delete immutable `Owner` system role | `403` | `SYSTEM_ROLE_IMMUTABLE` |
 | Authz | Caller lacks required permission key | `403` | `FORBIDDEN` |
+| Authz | Granting or changing something above the caller's own permissions | `403` | `FORBIDDEN` |
 | Missing | Resource not found or user not a member | `404` | `NOT_FOUND` |
+
+**Additional codes used by the implementation:**
+
+| Code | Status | When |
+|---|---|---|
+| `VALIDATION_ERROR` | `400` | Bean validation, malformed JSON, bad UUID, unknown module or permission key, blank name, invalid avatar URL |
+| `TARGET_NOT_MEMBER` | `400` | Ownership transfer to a user who is not a Workspace member |
+| `NOT_WORKSPACE_MEMBER` | `400` | Adding a non-member of the Workspace to a Project |
+| `INVITATION_NOT_DECLINABLE` | `400` | Declining an invite link (only email invites can be declined) |
+| `MODULE_DISABLED` | `403` | Using chat while the module is disabled for the scope (data is preserved) |
+| `SYSTEM_ROLE_IMMUTABLE` | `403` | Editing `Owner`, renaming a system role, or deleting any system role |
+| `INVITATION_EMAIL_MISMATCH` | `403` | Accepting or declining an email invite with a different account email |
+| `ROLE_NOT_FOUND`, `MEMBER_NOT_FOUND`, `MODULE_NOT_FOUND` | `404` | Unknown role, member or module key in the path or body |
+| `WORKSPACE_NOT_DELETED` | `409` | Restoring a Workspace that is not soft-deleted |
+| `ROLE_NAME_TAKEN` | `409` | Role name already used in the same scope (case-insensitive) |
+| `ALREADY_MEMBER` | `409` | Inviting or adding someone who is already a member |
+| `INVITATION_ALREADY_PENDING` | `409` | A pending invitation for this email already exists |
+| `LAST_PROJECT_OWNER` | `409` | Removing or demoting the last Owner of a Project |
+| `INVALID_CURSOR` | `400` | Malformed chat history cursor |
+| `RATE_LIMITED` | `429` | More than 20 chat messages in 10 seconds |
+| `METHOD_NOT_ALLOWED` | `405` | Unsupported HTTP method |
 
 ### Pagination Envelopes (Bounded: `size`/`limit` default `25`, min `1`, max `100`)
 - **Offset-based (`PageResponse<T>`):** used by Workspaces, Projects, Members, Roles, Invitations.
@@ -161,6 +183,8 @@
 
 **`RoleDto`:** `{ "id": "uuid", "scope": "WORKSPACE"|"PROJECT", "name": "Admin", "system": true, "immutable": false, "permissions": ["..."], "memberCount": 2, "createdAt": "..." }`
 
+**Role rules:** `Owner` is immutable; `Admin` and `Member` accept permission edits but keep their names and can never be deleted; custom roles are unique by name per scope. A caller may only add permission keys they hold (anti-escalation). `permissions` is sorted alphabetically.
+
 ### 2.5 Members — Owned by `be-access`
 
 | Method | Path | Permission | Description |
@@ -187,6 +211,11 @@
 | `POST` | `/api/v1/invitations/{token}/accept` | Authenticated | Accept invite and join workspace (and optional project). Returns `AcceptInvitationResponse { workspaceId, projectId, roleName, alreadyMember }`. |
 | `POST` | `/api/v1/invitations/{token}/decline` | Authenticated | Decline email invitation (`status = DECLINED`). Returns `204`. |
 
+**Semantics:**
+- `roleId` on an invitation is a **Workspace** role, or a **Project** role when `projectId` is set. With `projectId`, the invitee joins the Workspace as `Member` and the Project with the given role. The `Owner` role cannot be granted by invitation.
+- Email invitations can only be accepted or declined by the account whose email matches; invite links work for any authenticated user. A link stays `PENDING` after use and is `REVOKED` or `EXPIRED` only by revocation or time.
+- Creating an invitation requires `member.invite` (plus `pmember.invite` on the Project when `projectId` is set) and only roles whose permissions the inviter holds, except the baseline `Member` role.
+
 **Pending Invite Token Flow (O-09):**
 1. Invitee opens `/invite/{token}` in browser. Frontend calls public `GET /api/v1/invitations/{token}` to show invite preview.
 2. If unauthenticated, frontend saves `token` in `sessionStorage` (`orbit_pending_invite_token`) and navigates to Register (or Login / OAuth).
@@ -202,11 +231,12 @@
 | `POST` | `/api/v1/chat/channels/{channelId}/messages` | `chat.write` / `pchat.write` | Send message over REST (also broadcasts to STOMP topic). Body: `{ "content": "Hello" }`. Returns `201`. |
 
 **STOMP / WebSocket Contract:**
-- **Endpoint:** `/ws` (native WebSocket + SockJS fallback disabled or optional; support standard WebSocket at `ws://host/ws` with JWT in STOMP `CONNECT` header `Authorization: Bearer <token>` and optional `?token=<jwt>` query param for browser compatibility).
+- **Endpoint:** `/ws` (native WebSocket, no SockJS fallback; `ws://host/ws`). The JWT is sent **only** in the STOMP `CONNECT` header `Authorization: Bearer <token>`. A `?token=` query parameter is intentionally **not** supported so tokens never appear in URLs or access logs. Allowed origins follow `CORS_ALLOWED_ORIGINS`; heart-beats are 10 s in both directions.
 - **App Prefix:** `/app`; **Broker Prefix:** `/topic`.
 - **Subscribe:** `/topic/chat.{channelId}` (receives `ChatMessageDto` JSON).
 - **Send:** `/app/chat.{channelId}.send` with payload `{ "content": "Hello" }`.
-- **Validation:** Channel interceptor authenticates JWT on `CONNECT`, checks `chat.read`/`pchat.read` on `SUBSCRIBE`, and `chat.write`/`pchat.write` on `SEND`.
+- **Validation:** Channel interceptor authenticates the JWT (and its Redis session) on `CONNECT`, checks `chat.read`/`pchat.read` on `SUBSCRIBE`, and denies every destination outside `/topic/chat.{channelId}`, `/user/queue/errors` and `/app/chat.{channelId}.send`. `chat.write`/`pchat.write` is enforced by the shared message service on `SEND`; failures are returned to the sender only on `/user/queue/errors` as the standard error envelope.
+- **History order:** each page is chronological (oldest first). `nextCursor` points at messages older than the page; `hasMore` is false when the first message is reached.
 - **Redis:** Publish channel messages via Redis Pub/Sub (`orbit:chat:messages`) or relay so multi-instance nodes fan out to local STOMP sessions.
 
 **`ChatChannelDto`:** `{ "id": "uuid", "scopeType": "WORKSPACE"|"PROJECT", "scopeId": "uuid", "name": "general", "description": "Default channel", "createdAt": "..." }`

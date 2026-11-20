@@ -66,6 +66,16 @@ springdoc:
     tags-sorter: alpha
 
 orbit:
+  workspace:
+    retention-days: ${ORBIT_WORKSPACE_RETENTION_DAYS:30}
+    purge:
+      enabled: ${ORBIT_WORKSPACE_PURGE_ENABLED:true}
+      cron: ${ORBIT_WORKSPACE_PURGE_CRON:0 15 * * * *}
+  invitation:
+    expiry-days: ${ORBIT_INVITATION_EXPIRY_DAYS:7}
+  chat:
+    redis:
+      enabled: ${ORBIT_CHAT_REDIS_ENABLED:true}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   frontend:

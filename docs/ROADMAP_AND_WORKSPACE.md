@@ -54,8 +54,9 @@ orbit/
 - Top header bar and collapsible secondary context sidebar.
 
 ### Milestone 1.3 — Module UI Mockups (Scope Pending Sign-Off)
-- Specific features for each workspace area (**Git**, **Mail**, **Docs**, **Sheets**, **PPT**, **Markdown**) are not finalized yet.
-- Each area will be prototyped with interactive UI and typed mock adapters one by one, reviewed with stakeholders, and adjusted before any backend implementation.
+- The workspace structure is signed off in [WORKSPACE_SPEC.md](WORKSPACE_SPEC.md): Workspaces contain Projects, each enabling the **Git**, **Docs**, **Sheets**, and **Chat** modules, while **Mails** is a global module in the Header Bar.
+- Workspaces, Projects, roles, invitations, and Chat already run on the real backend. Mails and social account linking use typed mock adapters.
+- The internal features of Git, Docs, and Sheets are not finalized yet. Each will be prototyped with interactive UI and typed mock adapters, reviewed with stakeholders, and adjusted before any backend implementation.
 
 ### Milestone 1.4 — Feature Freeze & Sign-Off
 - Review finalized UI mockups and lock feature scope.

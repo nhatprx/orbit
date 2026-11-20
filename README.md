@@ -1,21 +1,34 @@
 # Orbit
 
-**Orbit** is a production-grade **Developer Workspace Platform** unifying core engineering and collaboration tools into a single minimal, high-performance environment: **Git**, **Mail**, and a **Document Suite** (Docs, Sheets, Presentations, Markdown).
+**Orbit** is a production-grade **Developer Workspace Platform** unifying core engineering and collaboration tools into a single minimal, high-performance environment: workspaces and projects with **Git**, **Docs**, **Sheets**, and **Chat** modules, plus a global **Mails** client.
 
 Designed from day one to scale to **10,000+ concurrent users (CCU)** and beyond, Orbit enforces strict architectural boundaries, UI consistency, and code maintainability standards for both human engineers and AI agents.
 
 ---
 
-## Core Workspace Areas
+## Workspaces, Projects and Modules
 
-Orbit groups its workspace into six top-level areas. **Specific features within each area are intentionally not finalized yet** and will be defined and locked through Phase 1 UI mockups:
+Orbit is a multi-workspace collaboration platform:
 
-- **Git**
-- **Mail**
-- **Docs**
-- **Sheets**
-- **Presentations (PPT)**
-- **Markdown**
+- A user owns or joins many **Workspaces**; each Workspace contains many **Projects**.
+- **Modules** (`git`, `docs`, `sheets`, `chat`) are enabled per Workspace, and each Project picks from the modules its Workspace enabled. Enabled modules appear in the Sidebar.
+- **Roles** are custom permission sets, defined independently for Workspaces and for Projects. The backend checks permission keys, never role names.
+- **Mails** is a global module in the Header Bar that connects your own mailbox (Gmail, Outlook or IMAP). It does not belong to any Workspace.
+- Members join by email invitation or reusable invite link. Deleting a Workspace is a soft delete, restorable for 30 days.
+
+The full specification is in [docs/WORKSPACE_SPEC.md](docs/WORKSPACE_SPEC.md) and the API contract in [docs/API_WORKSPACE.md](docs/API_WORKSPACE.md). Mails and social account linking run on typed mock services in this round.
+
+---
+
+## Running and Testing
+
+```powershell
+# Backend unit and integration tests (integration tests start PostgreSQL through Docker and skip without it)
+cd backend; mvn test
+
+# Frontend typecheck, tests, production build, and the repository governance check
+cd frontend; npm run typecheck; npm test; npm run build; npm run ponytail
+```
 
 ---
 
@@ -62,4 +75,6 @@ All contributors (human developers and AI agents) must read and follow these spe
 - [docs/ARCHITECTURE.md](file:///d:/orbit/docs/ARCHITECTURE.md) — Platform architecture for 10k+ CCU and Mock-to-Production adapter boundaries
 - [docs/LIMITS_AND_SLAS.md](file:///d:/orbit/docs/LIMITS_AND_SLAS.md) — Hard technical limits, latency budgets, rate limits, and scalability targets
 - [docs/ROADMAP_AND_WORKSPACE.md](file:///d:/orbit/docs/ROADMAP_AND_WORKSPACE.md) — Workspace directory layout, setup blueprint, and Phase 1 UI mockup milestones
+- [docs/WORKSPACE_SPEC.md](docs/WORKSPACE_SPEC.md) — Workspace, Project, module, role, invitation and chat specification with implementation notes
+- [docs/API_WORKSPACE.md](docs/API_WORKSPACE.md) — Binding REST and STOMP contract for the workspace platform
 

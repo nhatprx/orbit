@@ -2,35 +2,35 @@ import {
   Accessibility,
   BookMarked,
   Building2,
-  Code2,
   FlaskConical,
-  Globe,
+  FolderGit2,
+  Link2,
   Paintbrush,
   Settings,
-  Star,
   Upload,
   User,
 } from 'lucide-react';
-import type { WorkspaceAreaId } from '../../types/dashboard.types';
+import type { ProfileSectionId, WorkspaceAreaId } from '../../types/dashboard.types';
 
 export interface ProfileMenuItem {
   label: string;
   icon: typeof User;
   area?: WorkspaceAreaId;
+  /** Opens the Profile area on this tab instead of switching area. */
+  section?: ProfileSectionId;
   badge?: { text: string; tone: 'green' | 'neutral' };
 }
 
 export const PRIMARY_PROFILE_ITEMS: ProfileMenuItem[] = [
-  { label: 'Profile', icon: User, area: 'profile' },
+  { label: 'Profile', icon: User, section: 'overview' },
+  { label: 'Workspaces', icon: Building2, section: 'workspaces' },
+  { label: 'Projects', icon: FolderGit2, section: 'projects' },
+  { label: 'Connected accounts', icon: Link2, section: 'accounts' },
   { label: 'Repositories', icon: BookMarked, area: 'git' },
-  { label: 'Stars', icon: Star, area: 'overview' },
-  { label: 'Snippets', icon: Code2, area: 'markdown' },
-  { label: 'Workspaces', icon: Building2, area: 'overview' },
-  { label: 'Organizations', icon: Globe, area: 'overview' },
 ];
 
 export const SETTINGS_PROFILE_ITEMS: ProfileMenuItem[] = [
-  { label: 'Settings', icon: Settings },
+  { label: 'Settings', icon: Settings, area: 'workspace-settings' },
   { label: 'Feature preview', icon: FlaskConical, badge: { text: 'New', tone: 'green' } },
   { label: 'Appearance', icon: Paintbrush },
   { label: 'Accessibility', icon: Accessibility },
