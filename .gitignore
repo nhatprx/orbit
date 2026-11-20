@@ -14,3 +14,6 @@ backend/target/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Local requirement notes
+TASK.md
