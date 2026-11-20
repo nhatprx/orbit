@@ -24,6 +24,7 @@ spring:
     redis:
       host: ${SPRING_REDIS_HOST:localhost}
       port: ${SPRING_REDIS_PORT:6379}
+      password: ${SPRING_REDIS_PASSWORD:}
   security:
     oauth2:
       client:
@@ -44,12 +45,25 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+  forward-headers-strategy: framework
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
 
 orbit:
   cors:
@@ -59,3 +73,9 @@ orbit:
   jwt:
     secret: ${JWT_SECRET:orbit-local-dev-jwt-secret-key-change-me-in-production-2026-secure}
     expiration-seconds: ${JWT_EXPIRATION_SECONDS:3600}
+  storage:
+    s3:
+      enabled: ${AWS_S3_ENABLED:false}
+      bucket: ${AWS_S3_BUCKET:}
+      region: ${AWS_REGION:ap-southeast-1}
+      presign-duration-minutes: ${AWS_S3_PRESIGN_DURATION_MINUTES:15}

@@ -1,0 +1,108 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/**"
+      - "infra/docker/**"
+      - ".github/workflows/deploy-frontend.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-frontend
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-southeast-1
+  ECR_REPOSITORY: orbit-frontend
+  VITE_API_BASE_URL: https://api.orbit.nhatprx.com
+  DEPLOY_DIR: /opt/orbit
+
+jobs:
+  deploy:
+    name: Build, Push, and Deploy Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Typecheck and build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run typecheck
+          npm run build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push frontend image to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build \
+            --build-arg VITE_API_BASE_URL="$VITE_API_BASE_URL" \
+            -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
+            -t "$ECR_REGISTRY/$ECR_REPOSITORY:latest" \
+            frontend
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+
+      - name: Configure SSH for EC2
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/orbit_deploy_key
+          chmod 600 ~/.ssh/orbit_deploy_key
+
+      - name: Sync Docker Compose and Caddyfile to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          TARGET_USER="${EC2_USER:-ubuntu}"
+          scp -i ~/.ssh/orbit_deploy_key -o StrictHostKeyChecking=accept-new \
+            infra/docker/docker-compose.prod.yml \
+            infra/docker/Caddyfile \
+            "${TARGET_USER}@${EC2_HOST}:${DEPLOY_DIR}/"
+
+      - name: Pull image and restart frontend stack on EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          TARGET_USER="${EC2_USER:-ubuntu}"
+          ssh -i ~/.ssh/orbit_deploy_key -o StrictHostKeyChecking=accept-new "${TARGET_USER}@${EC2_HOST}" \
+            "set -euo pipefail && \
+            aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY} && \
+            cd ${DEPLOY_DIR} && \
+            ECR_REGISTRY=${ECR_REGISTRY} FRONTEND_TAG=${IMAGE_TAG} docker compose -f docker-compose.prod.yml pull frontend caddy && \
+            ECR_REGISTRY=${ECR_REGISTRY} FRONTEND_TAG=${IMAGE_TAG} docker compose -f docker-compose.prod.yml up -d frontend caddy && \
+            docker image prune -f"
+
+      - name: Verify production frontend health
+        run: |
+          curl -fsS --retry 10 --retry-delay 5 --retry-all-errors \
+            https://orbit.nhatprx.com/healthz

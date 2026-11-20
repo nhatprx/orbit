@@ -1,0 +1,9 @@
+orbit.nhatprx.com {
+	encode zstd gzip
+	reverse_proxy frontend:80
+}
+
+api.orbit.nhatprx.com {
+	encode zstd gzip
+	reverse_proxy backend:8080
+}
