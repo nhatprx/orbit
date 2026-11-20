@@ -171,4 +171,28 @@ class CloudFilesApiTest extends AbstractIntegrationTest {
             .anyMatch(item -> item.toString().contains("Assets")));
         assertEquals(403, api(member).delete(projBase + "/trash").status());
     }
+
+    @Test
+    void reuploadAfterPendingSucceedsWhileReadyDuplicateConflicts() {
+        UserEntity user = newUser("retryuser");
+        Result first = api(user).post("/api/v1/cloud/me/uploads/init",
+            "{\"name\":\"retry.txt\",\"mimeType\":\"text/plain\",\"sizeBytes\":1024}");
+        assertEquals(201, first.status());
+
+        Result retry = api(user).post("/api/v1/cloud/me/uploads/init",
+            "{\"name\":\"Retry.txt\",\"mimeType\":\"text/plain\",\"sizeBytes\":1024}");
+        assertEquals(201, retry.status());
+        String retrySession = retry.json("$.sessionId");
+        assertEquals(200, api(user).post("/api/v1/cloud/me/uploads/" + retrySession + "/complete", "{}").status());
+
+        Result dup = api(user).post("/api/v1/cloud/me/uploads/init",
+            "{\"name\":\"retry.txt\",\"mimeType\":\"text/plain\",\"sizeBytes\":1024}");
+        assertEquals(409, dup.status());
+        assertEquals("DUPLICATE_NAME", dup.<String>json("$.code"));
+
+        UUID folderId = Fixtures.idOf(api(user).post("/api/v1/cloud/me/folders", "{\"name\":\"Sub\"}"));
+        String subReq = "{\"parentId\":\"" + folderId + "\",\"name\":\"sub.txt\",\"mimeType\":\"text/plain\",\"sizeBytes\":512}";
+        assertEquals(201, api(user).post("/api/v1/cloud/me/uploads/init", subReq).status());
+        assertEquals(201, api(user).post("/api/v1/cloud/me/uploads/init", subReq).status());
+    }
 }

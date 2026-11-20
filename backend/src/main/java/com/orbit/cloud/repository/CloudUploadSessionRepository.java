@@ -19,6 +19,10 @@ public interface CloudUploadSessionRepository extends JpaRepository<CloudUploadS
         UUID id, CloudScopeType scopeType, UUID scopeId
     );
 
+    List<CloudUploadSessionEntity> findByNodeIdAndStatus(
+        UUID nodeId, CloudUploadSessionStatus status
+    );
+
     List<CloudUploadSessionEntity> findTop100ByStatusAndExpiresAtLessThanEqualOrderByExpiresAtAsc(
         CloudUploadSessionStatus status, Instant now
     );

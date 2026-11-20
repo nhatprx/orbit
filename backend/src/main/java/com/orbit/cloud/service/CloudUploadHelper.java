@@ -69,6 +69,34 @@ public class CloudUploadHelper {
         }
     }
 
+    public void clearStalePendingDuplicate(CloudScope scope, UUID parentId, String nameNormalized) {
+        List<CloudNodeEntity> pending = nodeRepo.findPendingSiblings(
+            scope.type(), scope.scopeId(), parentId, nameNormalized
+        );
+        if (pending.isEmpty()) {
+            return;
+        }
+        for (CloudNodeEntity staleNode : pending) {
+            staleNode.setUploadStatus(CloudUploadStatus.FAILED);
+            List<CloudUploadSessionEntity> sessions = sessionRepo.findByNodeIdAndStatus(
+                staleNode.getId(), CloudUploadSessionStatus.OPEN
+            );
+            for (CloudUploadSessionEntity session : sessions) {
+                quotaService.releaseReservation(scope, session.getExpectedSizeBytes());
+                try {
+                    cleanupStorage(session);
+                } catch (RuntimeException ignored) {
+                    // Best-effort storage cleanup; sweeper handles stragglers.
+                }
+                session.setStatus(CloudUploadSessionStatus.ABORTED);
+            }
+            if (!sessions.isEmpty()) {
+                sessionRepo.saveAll(sessions);
+            }
+        }
+        nodeRepo.saveAllAndFlush(pending);
+    }
+
     @Transactional
     public int expireStaleSessions() {
         List<CloudUploadSessionEntity> stale = sessionRepo

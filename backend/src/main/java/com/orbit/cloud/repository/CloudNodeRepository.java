@@ -18,6 +18,22 @@ public interface CloudNodeRepository extends JpaRepository<CloudNodeEntity, UUID
         UUID id, CloudScopeType scopeType, UUID scopeId
     );
 
+    @Query("""
+        SELECT n FROM CloudNodeEntity n
+        WHERE n.scopeType = :scopeType
+          AND n.scopeId = :scopeId
+          AND ((:parentId IS NULL AND n.parentId IS NULL) OR n.parentId = :parentId)
+          AND n.nameNormalized = :nameNormalized
+          AND n.deletedAt IS NULL
+          AND n.uploadStatus = com.orbit.cloud.entity.CloudUploadStatus.PENDING
+        """)
+    List<CloudNodeEntity> findPendingSiblings(
+        @Param("scopeType") CloudScopeType scopeType,
+        @Param("scopeId") UUID scopeId,
+        @Param("parentId") UUID parentId,
+        @Param("nameNormalized") String nameNormalized
+    );
+
     List<CloudNodeEntity> findByScopeTypeAndScopeIdAndDeletedAtIsNotNull(
         CloudScopeType scopeType, UUID scopeId
     );

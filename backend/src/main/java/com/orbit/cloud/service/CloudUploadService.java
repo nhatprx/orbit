@@ -74,11 +74,11 @@ public class CloudUploadService {
         int depth = resolveParentDepth(scope, req.parentId());
         String mimeType = CloudUploadHelper.normalizeMimeType(req.mimeType());
         quotaService.reserve(scope, req.sizeBytes());
-
         UUID nodeId = UUID.randomUUID();
         String storageKey = CloudUploadHelper.buildStorageKey(scope, nodeId);
         String s3UploadId = null;
         try {
+            helper.clearStalePendingDuplicate(scope, req.parentId(), CloudNameValidator.normalize(name));
             nodeRepo.saveAndFlush(CloudUploadHelper.buildPendingFileNode(
                 scope, actorId, nodeId, req.parentId(), name, mimeType, req.sizeBytes(), storageKey, depth
             ));
