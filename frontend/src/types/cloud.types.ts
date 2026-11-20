@@ -165,3 +165,11 @@ export function cloudScopeKey(scope: CloudScope): string {
   if (scope.type === 'WORKSPACE') return `WORKSPACE:${scope.workspaceId}`;
   return `PROJECT:${scope.workspaceId}:${scope.projectId}`;
 }
+
+export type {
+  CreateDocumentRequest,
+  DocumentTemplateType,
+  OnlyOfficeSessionResponse,
+  SaveTextContentRequest,
+  TextContentResponse,
+} from './cloudEditor.types';

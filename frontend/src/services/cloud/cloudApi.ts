@@ -5,13 +5,17 @@ import type {
   CloudQuotaDto,
   CloudScope,
   CompleteUploadRequest,
+  CreateDocumentRequest,
   CreateFolderRequest,
   EmptyTrashResponse,
   InitUploadRequest,
   InitUploadResponse,
   ListCloudNodesParams,
+  OnlyOfficeSessionResponse,
+  SaveTextContentRequest,
   SignPartsRequest,
   SignPartsResponse,
+  TextContentResponse,
   UpdateCloudNodeRequest,
 } from '../../types/cloud.types';
 import type { CursorPageResponse } from '../../types/workspace.types';
@@ -32,6 +36,10 @@ export interface CloudFilesApi {
   completeUpload(sessionId: string, body: CompleteUploadRequest, signal?: AbortSignal): Promise<CloudNodeDto>;
   abortUpload(sessionId: string): Promise<void>;
   getDownloadUrl(nodeId: string): Promise<CloudDownloadResponse>;
+  createDocument(body: CreateDocumentRequest): Promise<CloudNodeDto>;
+  getTextContent(nodeId: string, signal?: AbortSignal): Promise<TextContentResponse>;
+  saveTextContent(nodeId: string, body: SaveTextContentRequest): Promise<CloudNodeDto>;
+  getOnlyOfficeSession(nodeId: string, signal?: AbortSignal): Promise<OnlyOfficeSessionResponse>;
 }
 
 export function cloudBasePath(scope: CloudScope): string {
@@ -114,6 +122,22 @@ export function createHttpCloudFilesApi(scope: CloudScope): CloudFilesApi {
 
     getDownloadUrl(nodeId) {
       return apiRequest<CloudDownloadResponse>('GET', `${base}/nodes/${seg(nodeId)}/download`);
+    },
+
+    createDocument(body) {
+      return apiRequest<CloudNodeDto>('POST', `${base}/documents`, { body });
+    },
+
+    getTextContent(nodeId, signal) {
+      return apiRequest<TextContentResponse>('GET', `${base}/nodes/${seg(nodeId)}/content`, { signal });
+    },
+
+    saveTextContent(nodeId, body) {
+      return apiRequest<CloudNodeDto>('PUT', `${base}/nodes/${seg(nodeId)}/content`, { body });
+    },
+
+    getOnlyOfficeSession(nodeId, signal) {
+      return apiRequest<OnlyOfficeSessionResponse>('GET', `${base}/nodes/${seg(nodeId)}/onlyoffice-session`, { signal });
     },
   };
 }
