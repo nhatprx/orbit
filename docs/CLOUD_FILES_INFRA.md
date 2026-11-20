@@ -1,6 +1,6 @@
 # Orbit Cloud Files Infrastructure Guide
 
-This guide covers local S3 emulation with MinIO, AWS production provisioning with Terraform (`infra/terraform/cloud-files/`), CloudFront Signed URL setup, and 10k-user scale/lifecycle operations.
+This guide covers local S3 emulation with MinIO, ONLYOFFICE Document Server integration, AWS production provisioning with Terraform (`infra/terraform/cloud-files/`), CloudFront Signed URL setup, and 10k-user scale/lifecycle operations.
 
 ---
 
@@ -127,3 +127,28 @@ If `ec2_role_name` was left empty, attach `terraform output -raw iam_policy_arn`
   - Incomplete multipart uploads are aborted after **2 days** so abandoned browser uploads do not accumulate hidden S3 part storage charges.
   - Objects larger than **128 KB** transition to **S3 Intelligent-Tiering** after **30 days**, automatically lowering storage costs for infrequently accessed files without retrieval penalties.
 - **Least-Privilege IAM:** The EC2 Instance Profile is restricted to object operations under `cloud/*` and prefix-scoped `s3:ListBucket` / `s3:ListBucketMultipartUploads`, with TLS (`aws:SecureTransport`) enforced by the bucket policy.
+
+---
+
+## 4. ONLYOFFICE Document Server (Office Editing)
+
+Orbit uses a hybrid document editing architecture: **CodeMirror 6** edits plain text, Markdown, CSV, JSON, and source code directly in the browser, while **ONLYOFFICE Document Server** handles rich Office formats (`.docx`, `.doc`, `.xlsx`, `.xls`, `.pptx`, `.ppt`).
+
+### Local Docker Startup (Port 8082)
+
+`onlyoffice/documentserver:latest` is included in both `infra/docker/docker-compose.yml` and `infra/docker/docker-compose.local.yml` on port `8082` with JWT enforcement (`JWT_ENABLED=true`, `JWT_HEADER=Authorization`) and healthcheck `GET /healthcheck`.
+
+- **Host-run Spring Boot:** Set `ONLYOFFICE_ENABLED=true` in `.env` (defaults use `ONLYOFFICE_PUBLIC_URL=http://localhost:8082`, `ONLYOFFICE_INTERNAL_URL=http://localhost:8082`, and `ONLYOFFICE_CALLBACK_BASE_URL=http://host.docker.internal:8080`).
+- **Full Docker stack (`docker-compose.local.yml`):** The `backend` container automatically receives `ONLYOFFICE_ENABLED=true`, `ONLYOFFICE_INTERNAL_URL=http://onlyoffice:80`, and `ONLYOFFICE_CALLBACK_BASE_URL=http://backend:8080`.
+- Verify readiness with `curl -sf http://localhost:8082/healthcheck` (returns `true` after initial 20-45s startup).
+
+### Production Deployment & Reverse Proxy
+
+1. Deploy `onlyoffice/documentserver` on a dedicated EC2/ECS service behind HTTPS (Caddy or AWS ALB) at a dedicated origin such as `https://office.orbit.nhatprx.com` with WebSocket upgrade headers (`Upgrade`, `Connection`, `X-Forwarded-Proto`) enabled.
+2. Configure a strong shared `ONLYOFFICE_JWT_SECRET` (32+ random characters) in both the Document Server container (`JWT_SECRET`) and `/opt/orbit/.env`.
+3. Set `ONLYOFFICE_ENABLED=true`, `ONLYOFFICE_PUBLIC_URL=https://office.orbit.nhatprx.com`, `ONLYOFFICE_INTERNAL_URL` (private ALB or public HTTPS URL), and `ONLYOFFICE_CALLBACK_BASE_URL=https://api.orbit.nhatprx.com` so Document Server can POST save callbacks back to Spring Boot.
+
+### 10k-User Scaling Guidance
+
+- **Zero Server Compute for Text/Code:** Plain text, Markdown, and code files are edited client-side with CodeMirror 6 and saved via S3/backend content endpoints, keeping ONLYOFFICE capacity reserved strictly for Office binaries.
+- **Horizontal Scaling:** Run multiple ONLYOFFICE Document Server instances behind an AWS Application Load Balancer (ECS Auto Scaling on CPU/memory) with shared PostgreSQL/Redis cluster backing (or sticky sessions per document key) and keep `ALLOW_PRIVATE_IP_ADDRESS=false` in production so SSRF to internal metadata endpoints is blocked.

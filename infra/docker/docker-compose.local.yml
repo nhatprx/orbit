@@ -75,6 +75,28 @@ services:
     networks:
       - orbit_local
 
+  onlyoffice:
+    image: onlyoffice/documentserver:latest
+    container_name: orbit-onlyoffice
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-orbit-local-onlyoffice-secret-32chars}
+      JWT_HEADER: Authorization
+      ALLOW_PRIVATE_IP_ADDRESS: "true"
+      ALLOW_META_IP_ADDRESS: "true"
+    ports:
+      - "8082:80"
+    volumes:
+      - orbit_onlyoffice_data:/var/www/onlyoffice/Data
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:80/healthcheck"]
+      interval: 15s
+      timeout: 5s
+      start_period: 45s
+      retries: 10
+    networks:
+      - orbit_local
+
   backend:
     build:
       context: ../../backend
@@ -100,6 +122,11 @@ services:
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-orbit_minio}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-orbit_minio_dev}
       AWS_CLOUDFRONT_ENABLED: ${AWS_CLOUDFRONT_ENABLED:-false}
+      ONLYOFFICE_ENABLED: ${ONLYOFFICE_ENABLED:-true}
+      ONLYOFFICE_PUBLIC_URL: ${ONLYOFFICE_PUBLIC_URL:-http://localhost:8082}
+      ONLYOFFICE_INTERNAL_URL: http://onlyoffice:80
+      ONLYOFFICE_JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-orbit-local-onlyoffice-secret-32chars}
+      ONLYOFFICE_CALLBACK_BASE_URL: http://backend:8080
     ports:
       - "${SERVER_PORT:-8080}:8080"
     volumes:
@@ -111,6 +138,8 @@ services:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
+      onlyoffice:
+        condition: service_started
     networks:
       - orbit_local
 
@@ -133,6 +162,7 @@ volumes:
   orbit_pg_data:
   orbit_redis_data:
   orbit_minio_data:
+  orbit_onlyoffice_data:
 
 networks:
   orbit_local:

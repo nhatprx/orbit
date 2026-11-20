@@ -67,7 +67,28 @@ services:
         mc mb --ignore-existing "local/$$AWS_CLOUD_FILES_BUCKET"
         mc anonymous set none "local/$$AWS_CLOUD_FILES_BUCKET"
 
+  onlyoffice:
+    image: onlyoffice/documentserver:latest
+    container_name: orbit-onlyoffice
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-orbit-local-onlyoffice-secret-32chars}
+      JWT_HEADER: Authorization
+      ALLOW_PRIVATE_IP_ADDRESS: "true"
+      ALLOW_META_IP_ADDRESS: "true"
+    ports:
+      - "8082:80"
+    volumes:
+      - orbit_onlyoffice_data:/var/www/onlyoffice/Data
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:80/healthcheck"]
+      interval: 15s
+      timeout: 5s
+      start_period: 45s
+      retries: 10
+
 volumes:
   orbit_pg_data:
   orbit_redis_data:
   orbit_minio_data:
+  orbit_onlyoffice_data:
