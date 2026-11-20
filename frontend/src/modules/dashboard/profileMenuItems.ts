@@ -30,7 +30,7 @@ export const PRIMARY_PROFILE_ITEMS: ProfileMenuItem[] = [
 ];
 
 export const SETTINGS_PROFILE_ITEMS: ProfileMenuItem[] = [
-  { label: 'Settings', icon: Settings, area: 'workspace-settings' },
+  { label: 'Settings', icon: Settings, section: 'settings' },
   { label: 'Feature preview', icon: FlaskConical, badge: { text: 'New', tone: 'green' } },
   { label: 'Appearance', icon: Paintbrush },
   { label: 'Accessibility', icon: Accessibility },

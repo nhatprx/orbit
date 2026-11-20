@@ -19,12 +19,19 @@ interface DashboardContentProps {
   nav: DashboardNavigation;
   onCreateWorkspace: () => void;
   onCreateProject: () => void;
+  onUserUpdated?: (user: AuthUser) => void;
 }
 
 /** Areas that fill the viewport instead of scrolling inside a padded column. */
 export const FULL_HEIGHT_AREAS = ['ai', 'mail', 'cloud', 'chat'] as const;
 
-export function DashboardContent({ user, nav, onCreateWorkspace, onCreateProject }: DashboardContentProps) {
+export function DashboardContent({
+  user,
+  nav,
+  onCreateWorkspace,
+  onCreateProject,
+  onUserUpdated,
+}: DashboardContentProps) {
   const workspace = useActiveWorkspace();
   const project = useActiveProject();
   const { active } = nav;
@@ -46,7 +53,15 @@ export function DashboardContent({ user, nav, onCreateWorkspace, onCreateProject
     case 'cloud':
       return <CloudFilesPage user={{ ...user, workspaceId: workspace?.id ?? user.workspaceId }} />;
     case 'profile':
-      return <ProfilePage user={user} nav={nav} section={nav.profileSection} onSectionChange={nav.openProfile} />;
+      return (
+        <ProfilePage
+          user={user}
+          nav={nav}
+          section={nav.profileSection}
+          onSectionChange={nav.openProfile}
+          onUserUpdated={onUserUpdated}
+        />
+      );
     case 'admin':
       return <AdminOverview user={user} />;
     case 'workspace-settings':

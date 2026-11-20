@@ -15,7 +15,7 @@ export type WorkspaceAreaId =
   | 'admin';
 
 /** Tabs inside the Profile area (D-10, O-08). */
-export type ProfileSectionId = 'overview' | 'workspaces' | 'projects' | 'accounts';
+export type ProfileSectionId = 'overview' | 'workspaces' | 'projects' | 'accounts' | 'settings';
 
 export interface WorkspaceAreaTile {
   id: Exclude<WorkspaceAreaId, 'overview' | 'admin'>;

@@ -4,8 +4,8 @@
  */
 import { httpInvitationService, httpMemberService, httpRoleService } from './httpAccess.service';
 import { httpChatService } from './httpChat.service';
+import { httpLinkedAccountService } from './httpLinkedAccount.service';
 import { httpModuleService, httpProjectService, httpWorkspaceService } from './httpWorkspace.service';
-import { mockLinkedAccountService } from './mockLinkedAccount.service';
 import { mockMailService } from './mockMail.service';
 import type {
   ChatService,
@@ -22,7 +22,7 @@ export const roleService: RoleService = httpRoleService;
 export const memberService: MemberService = httpMemberService;
 export const invitationService: InvitationService = httpInvitationService;
 export const chatService: ChatService = httpChatService;
+export const linkedAccountService: LinkedAccountService = httpLinkedAccountService;
 
-/** Mocked this round: Mails and social linking have no backend yet. */
+/** Mocked this round: Mails has no backend yet. */
 export const mailService: MailService = mockMailService;
-export const linkedAccountService: LinkedAccountService = mockLinkedAccountService;

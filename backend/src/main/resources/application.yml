@@ -90,3 +90,4 @@ orbit:
       bucket: ${AWS_S3_BUCKET:}
       region: ${AWS_REGION:ap-southeast-1}
       presign-duration-minutes: ${AWS_S3_PRESIGN_DURATION_MINUTES:15}
+      public-base-url: ${AWS_S3_PUBLIC_BASE_URL:}

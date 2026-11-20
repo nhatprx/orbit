@@ -1,4 +1,4 @@
-import type { AuthSession } from '../types/auth.types';
+import type { AuthSession, AuthUser } from '../types/auth.types';
 
 const SESSION_KEY = 'orbit_auth_session';
 const RAW_API_BASE_URL = (
@@ -46,6 +46,18 @@ export function saveStoredSession(
 export function clearStoredSession(): void {
   localStorage.removeItem(SESSION_KEY);
   sessionStorage.removeItem(SESSION_KEY);
+}
+
+export function updateStoredSessionUser(user: AuthUser): AuthSession | null {
+  const inLocal = readStorage(localStorage);
+  if (inLocal) {
+    return saveStoredSession({ ...inLocal, user }, true);
+  }
+  const inSession = readStorage(sessionStorage);
+  if (inSession) {
+    return saveStoredSession({ ...inSession, user }, false);
+  }
+  return null;
 }
 
 export async function postAuthJson<T>(

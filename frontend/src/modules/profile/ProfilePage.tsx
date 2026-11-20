@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Panel } from '../../components/ui/Panel';
 import { Tabs, type TabItem } from '../../components/ui/Tabs';
+import { accountSecurityService } from '../../services/accountSecurity.service';
 import { dashboardService } from '../../services/dashboard.service';
 import { profileService } from '../../services/profile.service';
 import type { AuthUser } from '../../types/auth.types';
@@ -8,6 +9,7 @@ import type { ActivityRecord, ProfileSectionId } from '../../types/dashboard.typ
 import type { ProfileData, ProfileUpdatePayload } from '../../types/profile.types';
 import type { DashboardNavigation } from '../dashboard/useDashboardNavigation';
 import { SocialAccountsPanel } from '../integrations/SocialAccountsPanel';
+import { AccountSettingsSection } from './AccountSettingsSection';
 import { ProfileOverview } from './ProfileOverview';
 import { ProfileProjectsSection } from './ProfileProjectsSection';
 import { ProfileSidebar } from './ProfileSidebar';
@@ -18,6 +20,7 @@ interface ProfilePageProps {
   nav: DashboardNavigation;
   section: ProfileSectionId;
   onSectionChange: (section: ProfileSectionId) => void;
+  onUserUpdated?: (user: AuthUser) => void;
 }
 
 const SECTIONS: TabItem<ProfileSectionId>[] = [
@@ -25,9 +28,10 @@ const SECTIONS: TabItem<ProfileSectionId>[] = [
   { id: 'workspaces', label: 'Workspaces' },
   { id: 'projects', label: 'Projects' },
   { id: 'accounts', label: 'Connected accounts' },
+  { id: 'settings', label: 'Settings' },
 ];
 
-export function ProfilePage({ user, nav, section, onSectionChange }: ProfilePageProps) {
+export function ProfilePage({ user, nav, section, onSectionChange, onUserUpdated }: ProfilePageProps) {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [activity, setActivity] = useState<ActivityRecord[]>([]);
   const [saving, setSaving] = useState(false);
@@ -49,7 +53,17 @@ export function ProfilePage({ user, nav, section, onSectionChange }: ProfilePage
   async function handleSave(payload: ProfileUpdatePayload) {
     setSaving(true);
     try {
-      setProfile(await profileService.updateProfile(user, payload));
+      const updatedUser = await accountSecurityService.updateProfile({
+        username: payload.username,
+        displayName: payload.name,
+      });
+      onUserUpdated?.(updatedUser);
+      const syncedPayload: ProfileUpdatePayload = {
+        ...payload,
+        name: updatedUser.name,
+        username: updatedUser.username ?? payload.username,
+      };
+      setProfile(await profileService.updateProfile(updatedUser, syncedPayload));
     } finally {
       setSaving(false);
     }
@@ -61,7 +75,13 @@ export function ProfilePage({ user, nav, section, onSectionChange }: ProfilePage
 
   return (
     <div className="flex flex-col gap-8 lg:flex-row">
-      <ProfileSidebar user={user} profile={profile} saving={saving} onSave={handleSave} />
+      <ProfileSidebar
+        user={user}
+        profile={profile}
+        saving={saving}
+        onSave={handleSave}
+        onUserUpdated={onUserUpdated}
+      />
 
       <div className="min-w-0 flex-1 space-y-5">
         <Tabs tabs={SECTIONS} active={section} onChange={onSectionChange} />
@@ -73,6 +93,7 @@ export function ProfilePage({ user, nav, section, onSectionChange }: ProfilePage
             <SocialAccountsPanel />
           </Panel>
         )}
+        {section === 'settings' && <AccountSettingsSection onUserUpdated={onUserUpdated} />}
       </div>
     </div>
   );

@@ -40,6 +40,21 @@ public class UserEntity {
     @Column(name = "workspace_id", nullable = false, length = 64)
     private String workspaceId = "ws_orbit_core";
 
+    @Column(name = "avatar_key", length = 512)
+    private String avatarKey;
+
+    @Column(name = "totp_enabled", nullable = false)
+    private boolean totpEnabled;
+
+    @Column(name = "totp_secret", length = 128)
+    private String totpSecret;
+
+    @Column(name = "totp_pending_secret", length = 128)
+    private String totpPendingSecret;
+
+    @Column(name = "totp_backup_codes", columnDefinition = "TEXT")
+    private String totpBackupCodes;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -85,6 +100,21 @@ public class UserEntity {
 
     public String getWorkspaceId() { return workspaceId; }
     public void setWorkspaceId(String workspaceId) { this.workspaceId = workspaceId; }
+
+    public String getAvatarKey() { return avatarKey; }
+    public void setAvatarKey(String avatarKey) { this.avatarKey = avatarKey; }
+
+    public boolean isTotpEnabled() { return totpEnabled; }
+    public void setTotpEnabled(boolean totpEnabled) { this.totpEnabled = totpEnabled; }
+
+    public String getTotpSecret() { return totpSecret; }
+    public void setTotpSecret(String totpSecret) { this.totpSecret = totpSecret; }
+
+    public String getTotpPendingSecret() { return totpPendingSecret; }
+    public void setTotpPendingSecret(String totpPendingSecret) { this.totpPendingSecret = totpPendingSecret; }
+
+    public String getTotpBackupCodes() { return totpBackupCodes; }
+    public void setTotpBackupCodes(String totpBackupCodes) { this.totpBackupCodes = totpBackupCodes; }
 
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }

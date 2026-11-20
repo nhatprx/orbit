@@ -3,6 +3,7 @@ package com.orbit.auth.controller;
 import com.orbit.auth.dto.AuthSessionResponse;
 import com.orbit.auth.dto.AuthUserDto;
 import com.orbit.auth.dto.LoginRequest;
+import com.orbit.auth.dto.MfaLoginRequest;
 import com.orbit.auth.dto.OAuthExchangeRequest;
 import com.orbit.auth.dto.RegisterRequest;
 import com.orbit.auth.security.AuthenticatedUserPrincipal;
@@ -36,6 +37,11 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<AuthSessionResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/login/2fa")
+    public ResponseEntity<AuthSessionResponse> completeMfaLogin(@Valid @RequestBody MfaLoginRequest request) {
+        return ResponseEntity.ok(authService.completeMfaLogin(request));
     }
 
     @PostMapping("/oauth/exchange")

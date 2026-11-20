@@ -3,6 +3,7 @@ import {
   validateUsernameFormat,
 } from '../modules/auth/passwordPolicy';
 import type {
+  AuthLoginResponse,
   AuthSession,
   ForgotPasswordResponse,
   LoginPayload,
@@ -22,7 +23,8 @@ export interface IAuthService {
   getSession(): AuthSession | null;
   getStoredToken(): string | null;
   clearToken(): void;
-  login(payload: LoginPayload, signal?: AbortSignal): Promise<AuthSession>;
+  login(payload: LoginPayload, signal?: AbortSignal): Promise<AuthLoginResponse>;
+  completeMfaLogin(mfaToken: string, code: string, signal?: AbortSignal): Promise<AuthSession>;
   register(payload: RegisterPayload, signal?: AbortSignal): Promise<AuthSession>;
   forgotPassword(email: string, signal?: AbortSignal): Promise<ForgotPasswordResponse>;
   resetPassword(
@@ -31,7 +33,7 @@ export interface IAuthService {
     signal?: AbortSignal
   ): Promise<ResetPasswordResponse>;
   startOAuthLogin(provider: OAuthProvider): void;
-  exchangeOAuthCode(code: string): Promise<AuthSession>;
+  exchangeOAuthCode(code: string): Promise<AuthLoginResponse>;
   logout(): Promise<void>;
 }
 
@@ -48,23 +50,42 @@ class HttpAuthService implements IAuthService {
     clearStoredSession();
   }
 
-  async login(payload: LoginPayload, signal?: AbortSignal): Promise<AuthSession> {
+  async login(payload: LoginPayload, signal?: AbortSignal): Promise<AuthLoginResponse> {
     const identifier = payload.identifier.trim();
     if (!identifier || !payload.password) {
       throw new Error('Username/email and password are required.');
     }
 
     const rememberMe = Boolean(payload.rememberMe);
-    const session = await postAuthJson<AuthSession>(
+    const res = await postAuthJson<AuthLoginResponse>(
       '/api/v1/auth/login',
-      {
-        identifier,
-        password: payload.password,
-        rememberMe,
-      },
+      { identifier, password: payload.password, rememberMe },
       signal
     );
-    return saveStoredSession(session, rememberMe);
+    if (!res.mfaRequired && res.user && res.accessToken && res.expiresAt) {
+      saveStoredSession(
+        { user: res.user, accessToken: res.accessToken, expiresAt: res.expiresAt },
+        rememberMe
+      );
+    }
+    return res;
+  }
+
+  async completeMfaLogin(
+    mfaToken: string,
+    code: string,
+    signal?: AbortSignal
+  ): Promise<AuthSession> {
+    const trimmedCode = code.trim();
+    if (!trimmedCode) {
+      throw new Error('Verification code is required.');
+    }
+    const session = await postAuthJson<AuthSession>(
+      '/api/v1/auth/login/2fa',
+      { mfaToken, code: trimmedCode },
+      signal
+    );
+    return saveStoredSession(session, true);
   }
 
   async register(
@@ -129,11 +150,17 @@ class HttpAuthService implements IAuthService {
     window.location.assign(`${API_BASE_URL}/oauth2/authorization/${provider}`);
   }
 
-  async exchangeOAuthCode(code: string): Promise<AuthSession> {
-    const session = await postAuthJson<AuthSession>('/api/v1/auth/oauth/exchange', {
+  async exchangeOAuthCode(code: string): Promise<AuthLoginResponse> {
+    const res = await postAuthJson<AuthLoginResponse>('/api/v1/auth/oauth/exchange', {
       code,
     });
-    return saveStoredSession(session, true);
+    if (!res.mfaRequired && res.user && res.accessToken && res.expiresAt) {
+      saveStoredSession(
+        { user: res.user, accessToken: res.accessToken, expiresAt: res.expiresAt },
+        true
+      );
+    }
+    return res;
   }
 
   async logout(): Promise<void> {

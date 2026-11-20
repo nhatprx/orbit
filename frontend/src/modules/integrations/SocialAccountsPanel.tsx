@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Github, Globe, Link2, Unlink } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -5,20 +6,49 @@ import { ErrorView, LoadingView } from '../../components/ui/StateViews';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { useResource } from '../../hooks/useResource';
 import { SOCIAL_PROVIDERS } from '../../mocks/linkedAccount.mock';
+import { subscribeOAuthLinkResult } from '../../services/workspace/oauthPopup';
 import { linkedAccountService } from '../../services/workspace/services';
 import type { SocialProvider } from '../../types/workspace.types';
 import { formatDate } from '../../utils/format';
 
 const PROVIDER_ICON = { google: Globe, github: Github } as const;
 
-/** User-level social linking for sign-in (D-05). Backed by a typed mock service this round. */
 export function SocialAccountsPanel() {
   const accounts = useResource(() => linkedAccountService.listLinkedAccounts(), []);
+  const [activeProvider, setActiveProvider] = useState<SocialProvider | null>(null);
+  const [linkNotice, setLinkNotice] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
+
+  useEffect(() => {
+    return subscribeOAuthLinkResult((result) => {
+      setActiveProvider(null);
+      if (result.error) {
+        setLinkNotice(null);
+        setLinkError(result.error);
+      } else if (result.provider) {
+        const label = result.provider.charAt(0).toUpperCase() + result.provider.slice(1);
+        setLinkError(null);
+        setLinkNotice(`Connected ${label} account successfully.`);
+      }
+      accounts.reload();
+    });
+  }, [accounts.reload]);
+
   const connect = useAsyncAction(async (provider: SocialProvider) => {
-    await linkedAccountService.connectProvider(provider);
-    accounts.reload();
+    setLinkError(null);
+    setLinkNotice(null);
+    setActiveProvider(provider);
+    try {
+      await linkedAccountService.connectProvider(provider);
+      accounts.reload();
+    } finally {
+      setActiveProvider(null);
+    }
   });
+
   const disconnect = useAsyncAction(async (accountId: string) => {
+    setLinkError(null);
+    setLinkNotice(null);
     await linkedAccountService.disconnectAccount(accountId);
     accounts.reload();
   });
@@ -28,7 +58,7 @@ export function SocialAccountsPanel() {
 
   const linked = accounts.data ?? [];
   const busy = connect.pending || disconnect.pending;
-  const error = connect.error ?? disconnect.error;
+  const error = linkError ?? connect.error ?? disconnect.error;
 
   return (
     <div className="space-y-3">
@@ -36,6 +66,7 @@ export function SocialAccountsPanel() {
         {SOCIAL_PROVIDERS.map((provider) => {
           const Icon = PROVIDER_ICON[provider.id];
           const account = linked.find((a) => a.provider === provider.id);
+          const isConnecting = connect.pending && activeProvider === provider.id;
           return (
             <div key={provider.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
               <div className="flex min-w-0 items-center gap-3">
@@ -52,14 +83,24 @@ export function SocialAccountsPanel() {
               <div className="flex items-center gap-2">
                 {account && <Badge tone="green" withDot>Connected</Badge>}
                 {account ? (
-                  <Button type="button" variant="secondary" disabled={busy} onClick={() => void disconnect.run(account.id)}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={busy}
+                    onClick={() => void disconnect.run(account.id)}
+                  >
                     <Unlink className="h-3.5 w-3.5" strokeWidth={1.5} />
                     Disconnect
                   </Button>
                 ) : (
-                  <Button type="button" variant="primary" disabled={busy} onClick={() => void connect.run(provider.id)}>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    disabled={busy}
+                    onClick={() => void connect.run(provider.id)}
+                  >
                     <Link2 className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    {connect.pending ? 'Connecting...' : 'Connect'}
+                    {isConnecting ? 'Waiting for popup...' : 'Connect'}
                   </Button>
                 )}
               </div>
@@ -67,13 +108,18 @@ export function SocialAccountsPanel() {
           );
         })}
       </div>
+      {linkNotice && (
+        <p role="status" className="border border-[#22C55E] bg-[#052E16] px-3 py-2 text-xs text-[#22C55E]">
+          {linkNotice}
+        </p>
+      )}
       {error && (
-        <p role="alert" className="text-xs text-[#EF4444]">
+        <p role="alert" className="border border-[#EF4444] bg-[#21262D] px-3 py-2 text-xs text-[#EF4444]">
           {error}
         </p>
       )}
       <p className="text-xs text-[#7D8590]">
-        Linked accounts are used to sign in and identify you. This preview uses simulated providers.
+        Connected Google and GitHub accounts sign in to this same Orbit account alongside your username and email.
       </p>
     </div>
   );

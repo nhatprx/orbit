@@ -3,16 +3,20 @@ package com.orbit.auth.service;
 import com.orbit.auth.dto.AuthSessionResponse;
 import com.orbit.auth.dto.AuthUserDto;
 import com.orbit.auth.dto.LoginRequest;
+import com.orbit.auth.dto.MfaLoginRequest;
 import com.orbit.auth.dto.RegisterRequest;
 import com.orbit.auth.entity.UserEntity;
 import com.orbit.auth.repository.UserRepository;
+import com.orbit.auth.service.AuthEphemeralStore.MfaChallenge;
 import com.orbit.auth.service.JwtService.IssuedToken;
 import com.orbit.auth.validation.PasswordPolicyValidator;
 import com.orbit.auth.validation.UsernameNormalizer;
 import com.orbit.common.ApiException;
+import com.orbit.storage.service.StorageService;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -25,17 +29,36 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final RedisSessionService redisSessionService;
+    private final AuthEphemeralStore ephemeralStore;
+    private final AccountSecurityService accountSecurityService;
+    private final StorageService storageService;
 
+    @Autowired
     public AuthService(
         UserRepository userRepository,
         PasswordEncoder passwordEncoder,
         JwtService jwtService,
-        RedisSessionService redisSessionService
+        RedisSessionService redisSessionService,
+        AuthEphemeralStore ephemeralStore,
+        AccountSecurityService accountSecurityService,
+        StorageService storageService
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.redisSessionService = redisSessionService;
+        this.ephemeralStore = ephemeralStore;
+        this.accountSecurityService = accountSecurityService;
+        this.storageService = storageService;
+    }
+
+    AuthService(
+        UserRepository userRepository,
+        PasswordEncoder passwordEncoder,
+        JwtService jwtService,
+        RedisSessionService redisSessionService
+    ) {
+        this(userRepository, passwordEncoder, jwtService, redisSessionService, null, null, null);
     }
 
     @Transactional
@@ -81,14 +104,10 @@ public class AuthService {
         );
 
         if (user.getPasswordHash() == null || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            throw new ApiException(
-                HttpStatus.UNAUTHORIZED,
-                "INVALID_CREDENTIALS",
-                "Invalid username/email or password."
-            );
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Invalid username/email or password.");
         }
 
-        return createSession(user, request.isRememberMe());
+        return issueSessionOrMfa(user, request.isRememberMe());
     }
 
     @Transactional(readOnly = true)
@@ -102,7 +121,29 @@ public class AuthService {
         UserEntity user = userRepository.findById(userId).orElseThrow(() ->
             new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Authenticated user not found.")
         );
-        return createSession(user, false);
+        return issueSessionOrMfa(user, false);
+    }
+
+    @Transactional
+    public AuthSessionResponse completeMfaLogin(MfaLoginRequest request) {
+        if (ephemeralStore == null || accountSecurityService == null) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "MFA_UNAVAILABLE", "Two-factor verification unavailable.");
+        }
+        MfaChallenge challenge = ephemeralStore.peekMfaChallenge(request.mfaToken()).orElseThrow(() ->
+            new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_MFA_TOKEN", "Verification session expired. Sign in again.")
+        );
+        UserEntity user = userRepository.findById(challenge.userId()).orElseThrow(() ->
+            new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User not found.")
+        );
+        if (!accountSecurityService.verifySecondFactor(user, request.code())) {
+            boolean locked = ephemeralStore.recordMfaFailure(request.mfaToken());
+            String msg = locked
+                ? "Too many invalid codes. Please sign in again."
+                : "Invalid authentication code.";
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_TOTP_CODE", msg);
+        }
+        ephemeralStore.consumeMfaChallenge(request.mfaToken());
+        return createSession(user, challenge.rememberMe());
     }
 
     @Transactional(readOnly = true)
@@ -110,7 +151,7 @@ public class AuthService {
         UserEntity user = userRepository.findById(userId).orElseThrow(() ->
             new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User not found.")
         );
-        return AuthUserDto.from(user);
+        return toUserDto(user);
     }
 
     public void logout(String jti) {
@@ -125,11 +166,19 @@ public class AuthService {
         long ttlSeconds = jwtService.resolveExpirationSeconds(rememberMe);
         IssuedToken issued = jwtService.issueToken(user, ttlSeconds);
         redisSessionService.storeActiveSession(issued.jti(), user.getId(), ttlSeconds);
-        return new AuthSessionResponse(
-            AuthUserDto.from(user),
-            issued.token(),
-            issued.expiresAt(),
-            issued.expiresInSeconds()
-        );
+        return new AuthSessionResponse(toUserDto(user), issued.token(), issued.expiresAt(), issued.expiresInSeconds());
+    }
+
+    private AuthUserDto toUserDto(UserEntity user) {
+        String avatarUrl = storageService == null ? null : storageService.resolveObjectUrl(user.getAvatarKey());
+        return AuthUserDto.from(user, avatarUrl);
+    }
+
+    private AuthSessionResponse issueSessionOrMfa(UserEntity user, boolean rememberMe) {
+        if (user.isTotpEnabled() && ephemeralStore != null) {
+            String mfaToken = ephemeralStore.createMfaChallenge(user.getId(), rememberMe);
+            return AuthSessionResponse.mfaChallenge(mfaToken);
+        }
+        return createSession(user, rememberMe);
     }
 }

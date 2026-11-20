@@ -7,7 +7,7 @@ import type {
   RegisterPayload,
 } from '../../types/auth.types';
 
-export type AuthMode = 'login' | 'register' | 'forgot';
+export type AuthMode = 'login' | 'register' | 'forgot' | 'mfa';
 
 export function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError';
@@ -16,9 +16,11 @@ export function isAbortError(error: unknown): boolean {
 export function useAuthPageState(
   initialError: string | null,
   onSuccess: (session: AuthSession) => void,
-  initialMode: AuthMode = 'login'
+  initialMode: AuthMode = 'login',
+  initialMfaToken: string | null = null
 ) {
-  const [mode, setMode] = useState<AuthMode>(initialMode);
+  const [mode, setMode] = useState<AuthMode>(initialMfaToken ? 'mfa' : initialMode);
+  const [mfaToken, setMfaToken] = useState<string | null>(initialMfaToken);
   const [submitting, setSubmitting] = useState(false);
   const [oauthProvider, setOauthProvider] = useState<OAuthProvider | null>(null);
   const [error, setError] = useState<string | null>(initialError);
@@ -38,25 +40,16 @@ export function useAuthPageState(
   }, []);
 
   useEffect(() => {
-    const handlePageShow = (event: PageTransitionEvent) => {
-      if (event.persisted || oauthPendingRef.current) resetPendingState();
-    };
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && oauthPendingRef.current) {
-        resetPendingState();
-      }
-    };
-    const handleFocus = () => {
-      if (oauthPendingRef.current) resetPendingState();
-    };
-
-    window.addEventListener('pageshow', handlePageShow);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
+    const onShow = (e: PageTransitionEvent) => { if (e.persisted || oauthPendingRef.current) resetPendingState(); };
+    const onVis = () => { if (document.visibilityState === 'visible' && oauthPendingRef.current) resetPendingState(); };
+    const onFocus = () => { if (oauthPendingRef.current) resetPendingState(); };
+    window.addEventListener('pageshow', onShow);
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('focus', onFocus);
     return () => {
-      window.removeEventListener('pageshow', handlePageShow);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('pageshow', onShow);
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('focus', onFocus);
     };
   }, [resetPendingState]);
 
@@ -65,14 +58,19 @@ export function useAuthPageState(
   }, [initialError]);
 
   useEffect(() => {
-    return () => {
-      requestIdRef.current += 1;
-      abortControllerRef.current?.abort();
-      oauthPendingRef.current = false;
-    };
+    if (initialMfaToken) {
+      setMfaToken(initialMfaToken);
+      setMode('mfa');
+    }
+  }, [initialMfaToken]);
+
+  useEffect(() => () => {
+    requestIdRef.current += 1;
+    abortControllerRef.current?.abort();
+    oauthPendingRef.current = false;
   }, []);
 
-  async function runAuthAction(
+  async function runSessionAction(
     action: (signal: AbortSignal) => Promise<AuthSession>,
     fallbackError: string
   ) {
@@ -96,18 +94,44 @@ export function useAuthPageState(
     }
   }
 
-  function handleLoginSubmit(payload: LoginPayload) {
-    return runAuthAction(
-      (signal) => authService.login(payload, signal),
-      'Authentication failed.'
+  async function handleLoginSubmit(payload: LoginPayload) {
+    resetPendingState();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const requestId = ++requestIdRef.current;
+
+    setError(null);
+    setNotice(null);
+    setSubmitting(true);
+    try {
+      const res = await authService.login(payload, controller.signal);
+      if (requestIdRef.current !== requestId) return;
+      if (res.mfaRequired && res.mfaToken) {
+        setMfaToken(res.mfaToken);
+        setMode('mfa');
+        return;
+      }
+      if (res.user && res.accessToken && res.expiresAt) {
+        onSuccess({ user: res.user, accessToken: res.accessToken, expiresAt: res.expiresAt });
+      }
+    } catch (err) {
+      if (requestIdRef.current !== requestId || isAbortError(err)) return;
+      setError(err instanceof Error ? err.message : 'Authentication failed.');
+    } finally {
+      if (requestIdRef.current === requestId) setSubmitting(false);
+    }
+  }
+
+  function handleMfaSubmit(code: string) {
+    if (!mfaToken) return Promise.resolve();
+    return runSessionAction(
+      (signal) => authService.completeMfaLogin(mfaToken, code, signal),
+      'Two-factor verification failed.'
     );
   }
 
   function handleRegisterSubmit(payload: RegisterPayload) {
-    return runAuthAction(
-      (signal) => authService.register(payload, signal),
-      'Registration failed.'
-    );
+    return runSessionAction((signal) => authService.register(payload, signal), 'Registration failed.');
   }
 
   function handleOAuth(provider: OAuthProvider) {
@@ -121,6 +145,7 @@ export function useAuthPageState(
 
   function switchMode(nextMode: AuthMode) {
     resetPendingState();
+    if (nextMode !== 'mfa') setMfaToken(null);
     setMode(nextMode);
     setError(null);
     setNotice(null);
@@ -142,6 +167,7 @@ export function useAuthPageState(
     notice,
     resetPendingState,
     handleLoginSubmit,
+    handleMfaSubmit,
     handleRegisterSubmit,
     handleOAuth,
     switchMode,

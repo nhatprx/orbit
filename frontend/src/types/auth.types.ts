@@ -10,12 +10,41 @@ export interface AuthUser {
   emailPreference?: boolean;
   role: UserRole;
   workspaceId: string;
+  avatarUrl?: string | null;
 }
 
 export interface AuthSession {
   user: AuthUser;
   accessToken: string;
   expiresAt: string;
+}
+
+export interface AuthLoginResponse {
+  user: AuthUser | null;
+  accessToken: string | null;
+  expiresAt: string | null;
+  expiresIn: number;
+  mfaRequired?: boolean;
+  mfaToken?: string | null;
+}
+
+export interface AccountSecurityStatus {
+  email: string;
+  username: string;
+  hasPassword: boolean;
+  totpEnabled: boolean;
+  backupCodesRemaining: number;
+  linkedProviders: string[];
+}
+
+export interface TwoFactorSetupResponse {
+  secret: string;
+  otpauthUri: string;
+}
+
+export interface TwoFactorEnableResponse {
+  enabled: boolean;
+  backupCodes: string[];
 }
 
 export interface LoginPayload {

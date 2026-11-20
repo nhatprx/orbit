@@ -5,10 +5,13 @@ import com.orbit.auth.entity.UserEntity;
 import com.orbit.auth.repository.OAuthAccountRepository;
 import com.orbit.auth.repository.UserRepository;
 import com.orbit.auth.validation.UsernameNormalizer;
+import com.orbit.common.ApiException;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,20 +44,74 @@ public class OAuthUserProvisioningService {
             .findByProviderAndProviderUserId(normalizedProvider, providerUserId);
 
         if (existingOAuth.isPresent()) {
-            return existingOAuth.get().getUser();
+            OAuthAccountEntity account = existingOAuth.get();
+            if (account.getProviderDisplayName() == null || account.getProviderDisplayName().isBlank()) {
+                account.setProviderDisplayName(displayName);
+                oauthAccountRepository.save(account);
+            }
+            return account.getUser();
         }
 
         UserEntity user = userRepository.findByEmailIgnoreCase(email)
             .orElseGet(() -> createNewOAuthUser(email, displayName, candidateUsername));
 
+        saveOAuthLink(user, normalizedProvider, providerUserId, email, displayName);
+        return user;
+    }
+
+    @Transactional
+    public OAuthAccountEntity linkOAuthAccount(UUID userId, String provider, OAuth2User oauth2User) {
+        String normalizedProvider = provider.toLowerCase(Locale.ROOT);
+        UserEntity user = userRepository.findById(userId).orElseThrow(() ->
+            new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User not found.")
+        );
+
+        Map<String, Object> attrs = oauth2User.getAttributes();
+        String providerUserId = extractProviderUserId(normalizedProvider, attrs);
+        String email = extractEmail(normalizedProvider, providerUserId, attrs);
+        String displayName = extractDisplayName(attrs, email);
+
+        Optional<OAuthAccountEntity> existingByProviderId = oauthAccountRepository
+            .findByProviderAndProviderUserId(normalizedProvider, providerUserId);
+        if (existingByProviderId.isPresent()) {
+            OAuthAccountEntity existing = existingByProviderId.get();
+            if (!existing.getUser().getId().equals(userId)) {
+                throw new ApiException(
+                    HttpStatus.CONFLICT,
+                    "OAUTH_ACCOUNT_ALREADY_LINKED",
+                    "This " + normalizedProvider + " account is already linked to another Orbit account."
+                );
+            }
+            existing.setProviderEmail(email);
+            existing.setProviderDisplayName(displayName);
+            return oauthAccountRepository.save(existing);
+        }
+
+        if (oauthAccountRepository.findByUserIdAndProvider(userId, normalizedProvider).isPresent()) {
+            throw new ApiException(
+                HttpStatus.CONFLICT,
+                "PROVIDER_ALREADY_LINKED",
+                "A " + normalizedProvider + " account is already connected to your Orbit account."
+            );
+        }
+
+        return saveOAuthLink(user, normalizedProvider, providerUserId, email, displayName);
+    }
+
+    private OAuthAccountEntity saveOAuthLink(
+        UserEntity user,
+        String provider,
+        String providerUserId,
+        String email,
+        String displayName
+    ) {
         OAuthAccountEntity account = new OAuthAccountEntity();
         account.setUser(user);
-        account.setProvider(normalizedProvider);
+        account.setProvider(provider);
         account.setProviderUserId(providerUserId);
         account.setProviderEmail(email);
-        oauthAccountRepository.save(account);
-
-        return user;
+        account.setProviderDisplayName(displayName);
+        return oauthAccountRepository.save(account);
     }
 
     private UserEntity createNewOAuthUser(String email, String displayName, String candidateUsername) {

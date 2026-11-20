@@ -38,7 +38,7 @@ class MockProfileService implements IProfileService {
     if (!saved) return base;
     try {
       const overrides = JSON.parse(saved) as Partial<ProfileUpdatePayload>;
-      return { ...base, ...overrides };
+      return { ...base, ...overrides, username: base.username };
     } catch {
       return base;
     }

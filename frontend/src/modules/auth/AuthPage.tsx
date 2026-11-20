@@ -4,11 +4,13 @@ import { AuthOAuthButtons } from './AuthOAuthButtons';
 import { ForgotPasswordForm } from './ForgotPasswordForm';
 import { LoginForm } from './LoginForm';
 import { RegisterForm } from './RegisterForm';
+import { TwoFactorLoginForm } from './TwoFactorLoginForm';
 import { type AuthMode, useAuthPageState } from './useAuthPageLifecycle';
 
 interface AuthPageProps {
   initialError?: string | null;
   initialMode?: AuthMode;
+  initialMfaToken?: string | null;
   onSuccess: (session: AuthSession) => void;
   onBackHome: () => void;
 }
@@ -26,11 +28,16 @@ const MODE_COPY: Record<AuthMode, { title: string; subtitle: string }> = {
     title: 'Reset Your Password',
     subtitle: 'Request a reset token and choose a new password.',
   },
+  mfa: {
+    title: 'Two-Factor Verification',
+    subtitle: 'Enter the 6-digit code from your authenticator app or a recovery backup code.',
+  },
 };
 
 export function AuthPage({
   initialError = null,
   initialMode = 'login',
+  initialMfaToken = null,
   onSuccess,
   onBackHome,
 }: AuthPageProps) {
@@ -43,11 +50,14 @@ export function AuthPage({
     notice,
     resetPendingState,
     handleLoginSubmit,
+    handleMfaSubmit,
     handleRegisterSubmit,
     handleOAuth,
     switchMode,
     handleResetSuccess,
-  } = useAuthPageState(initialError, onSuccess, initialMode);
+  } = useAuthPageState(initialError, onSuccess, initialMode, initialMfaToken);
+
+  const showAuthSwitcher = mode === 'login' || mode === 'register';
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#0D1117] px-4 py-12 text-[#E6EDF3]">
@@ -70,12 +80,10 @@ export function AuthPage({
           <h1 className="text-xl font-semibold tracking-tight text-[#E6EDF3]">
             {MODE_COPY[mode].title}
           </h1>
-          <p className="mt-1 text-xs text-[#A3A3A3]">
-            {MODE_COPY[mode].subtitle}
-          </p>
+          <p className="mt-1 text-xs text-[#A3A3A3]">{MODE_COPY[mode].subtitle}</p>
         </div>
 
-        {mode !== 'forgot' && (
+        {showAuthSwitcher && (
           <>
             <div className="mb-6 grid grid-cols-2 rounded-none border border-[#30363D]">
               <button
@@ -134,6 +142,15 @@ export function AuthPage({
           <ForgotPasswordForm
             onBackToLogin={() => switchMode('login')}
             onResetSuccess={handleResetSuccess}
+          />
+        )}
+
+        {mode === 'mfa' && (
+          <TwoFactorLoginForm
+            loading={submitting}
+            error={error}
+            onSubmit={handleMfaSubmit}
+            onBackToLogin={() => switchMode('login')}
           />
         )}
       </div>

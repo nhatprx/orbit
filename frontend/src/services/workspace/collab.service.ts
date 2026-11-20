@@ -44,6 +44,6 @@ export interface MailService {
 
 export interface LinkedAccountService {
   listLinkedAccounts(): Promise<LinkedAccountDto[]>;
-  connectProvider(provider: SocialProvider): Promise<LinkedAccountDto>;
+  connectProvider(provider: SocialProvider): Promise<LinkedAccountDto | void>;
   disconnectAccount(accountId: string): Promise<void>;
 }

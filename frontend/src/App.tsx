@@ -5,13 +5,15 @@ import { DashboardShell } from './modules/dashboard/DashboardShell';
 import { HomePage } from './modules/home/HomePage';
 import { InviteAcceptPage } from './modules/invite/InviteAcceptPage';
 import { authService } from './services/auth.service';
+import { updateStoredSessionUser } from './services/auth.storage';
 import { SESSION_EXPIRED_EVENT } from './services/workspace/httpClient';
 import { chatConnection } from './services/workspace/httpChat.service';
 import { acceptPendingInvite } from './services/workspace/inviteFlow';
 import { parseInviteToken, savePendingInvite } from './services/workspace/pendingInvite';
 import { invitationService } from './services/workspace/services';
 import { workspaceActions } from './store/workspaceActions';
-import type { AuthSession } from './types/auth.types';
+import type { AuthSession, AuthUser } from './types/auth.types';
+import type { ProfileSectionId } from './types/dashboard.types';
 
 type AppRoute = 'home' | 'auth' | 'dashboard' | 'invite';
 
@@ -23,7 +25,9 @@ export function App() {
   );
   const [authMode, setAuthMode] = useState<AuthMode>('login');
   const [oauthError, setOauthError] = useState<string | null>(null);
+  const [pendingMfaToken, setPendingMfaToken] = useState<string | null>(null);
   const [joinedWorkspaceId, setJoinedWorkspaceId] = useState<string | null>(null);
+  const [initialProfileSection, setInitialProfileSection] = useState<ProfileSectionId | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const leaveInviteUrl = useCallback(() => {
@@ -37,6 +41,7 @@ export function App() {
   const completeSignIn = useCallback(
     async (nextSession: AuthSession) => {
       setOauthError(null);
+      setPendingMfaToken(null);
       setSession(nextSession);
       const outcome = await acceptPendingInvite(invitationService);
       if (outcome.status === 'joined') setJoinedWorkspaceId(outcome.workspaceId);
@@ -51,9 +56,22 @@ export function App() {
     const params = new URLSearchParams(window.location.search);
     const oauthCode = params.get('oauth_code');
     const errorParam = params.get('oauth_error');
-    if (!oauthCode && !errorParam) return;
+    const oauthLinked = params.get('oauth_linked');
+    const oauthLinkError = params.get('oauth_link_error');
+    if (!oauthCode && !errorParam && !oauthLinked && !oauthLinkError) return;
 
     window.history.replaceState({}, document.title, window.location.pathname);
+
+    if (oauthLinked || oauthLinkError) {
+      setInitialProfileSection('accounts');
+      setNotice(
+        oauthLinked
+          ? `Connected ${oauthLinked.charAt(0).toUpperCase() + oauthLinked.slice(1)} account successfully.`
+          : oauthLinkError
+      );
+      if (authService.getSession()) setRoute('dashboard');
+      return;
+    }
     if (errorParam) {
       setOauthError(errorParam);
       setRoute('auth');
@@ -62,7 +80,17 @@ export function App() {
     if (oauthCode) {
       authService
         .exchangeOAuthCode(oauthCode)
-        .then((next) => completeSignIn(next))
+        .then((res) => {
+          if (res.mfaRequired && res.mfaToken) {
+            setPendingMfaToken(res.mfaToken);
+            setRoute('auth');
+            return;
+          }
+          if (res.user && res.accessToken && res.expiresAt) {
+            return completeSignIn({ user: res.user, accessToken: res.accessToken, expiresAt: res.expiresAt });
+          }
+          throw new Error('OAuth exchange failed.');
+        })
         .catch((err) => {
           setOauthError(err instanceof Error ? err.message : 'OAuth exchange failed.');
           setRoute('auth');
@@ -82,6 +110,11 @@ export function App() {
     return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleExpired);
   }, []);
 
+  const handleUserUpdated = useCallback((nextUser: AuthUser) => {
+    const stored = updateStoredSessionUser(nextUser);
+    setSession((prev) => stored ?? (prev ? { ...prev, user: nextUser } : prev));
+  }, []);
+
   async function handleLogout() {
     await authService.logout();
     workspaceActions.reset();
@@ -89,6 +122,7 @@ export function App() {
     setSession(null);
     setNotice(null);
     setJoinedWorkspaceId(null);
+    setInitialProfileSection(null);
     setRoute('home');
   }
 
@@ -120,8 +154,9 @@ export function App() {
       <AuthPage
         initialError={oauthError ?? notice}
         initialMode={authMode}
+        initialMfaToken={pendingMfaToken}
         onSuccess={(next) => void completeSignIn(next)}
-        onBackHome={() => setRoute('home')}
+        onBackHome={() => { setPendingMfaToken(null); setRoute('home'); }}
       />
     );
   }
@@ -131,7 +166,9 @@ export function App() {
       <DashboardShell
         session={session}
         initialWorkspaceId={joinedWorkspaceId}
+        initialProfileSection={initialProfileSection}
         notice={notice}
+        onUserUpdated={handleUserUpdated}
         onNavigateHome={() => setRoute('home')}
         onLogout={() => void handleLogout()}
       />

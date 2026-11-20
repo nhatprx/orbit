@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { avatarService } from '../../services/avatar.service';
 import { workspaceActions } from '../../store/workspaceActions';
 import { useStore } from '../../store/createStore';
 import { useActiveProject, useActiveWorkspace, workspaceStore } from '../../store/workspaceStore';
-import type { AuthSession } from '../../types/auth.types';
+import type { AuthSession, AuthUser } from '../../types/auth.types';
+import type { ProfileSectionId } from '../../types/dashboard.types';
 import { CreateProjectModal } from '../workspace/CreateProjectModal';
 import { CreateWorkspaceWizard } from '../workspace/CreateWorkspaceWizard';
 import { DashboardContent, FULL_HEIGHT_AREAS } from './DashboardContent';
@@ -14,7 +16,9 @@ interface DashboardShellProps {
   session: AuthSession;
   /** A Workspace joined through an invitation, opened first. */
   initialWorkspaceId?: string | null;
+  initialProfileSection?: ProfileSectionId | null;
   notice?: string | null;
+  onUserUpdated?: (user: AuthUser) => void;
   onNavigateHome: () => void;
   onLogout: () => void;
 }
@@ -22,7 +26,9 @@ interface DashboardShellProps {
 export function DashboardShell({
   session,
   initialWorkspaceId = null,
+  initialProfileSection = null,
   notice = null,
+  onUserUpdated,
   onNavigateHome,
   onLogout,
 }: DashboardShellProps) {
@@ -39,6 +45,24 @@ export function DashboardShell({
     void workspaceActions.bootstrap(user.id, initialWorkspaceId);
     return () => workspaceActions.reset();
   }, [user.id, initialWorkspaceId]);
+
+  useEffect(() => {
+    if (!onUserUpdated) return;
+    const controller = new AbortController();
+    avatarService
+      .fetchCurrentUser(controller.signal)
+      .then((fresh) => onUserUpdated(fresh))
+      .catch(() => {
+        // Keep cached session user when offline or aborted.
+      });
+    return () => controller.abort();
+  }, [user.id, onUserUpdated]);
+
+  useEffect(() => {
+    if (initialProfileSection) {
+      nav.openProfile(initialProfileSection);
+    }
+  }, [initialProfileSection]);
 
   const canCreateProject = workspace?.myPermissions.includes('project.create') ?? false;
   const fullHeight = (FULL_HEIGHT_AREAS as readonly string[]).includes(nav.active);
@@ -81,6 +105,7 @@ export function DashboardShell({
                 nav={nav}
                 onCreateWorkspace={() => setWizardOpen(true)}
                 onCreateProject={() => setProjectOpen(true)}
+                onUserUpdated={onUserUpdated}
               />
             )}
           </div>

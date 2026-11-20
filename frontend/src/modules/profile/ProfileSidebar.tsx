@@ -1,60 +1,36 @@
-import { useState, type FormEvent } from 'react';
-import {
-  Building2,
-  Calendar,
-  Globe,
-  Mail,
-  MapPin,
-  Users,
-} from 'lucide-react';
+import { useState } from 'react';
+import { Building2, Calendar, Globe, Mail, MapPin, Users } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import type { AuthUser } from '../../types/auth.types';
 import type { ProfileData, ProfileUpdatePayload } from '../../types/profile.types';
+import { ProfileAvatarControl } from './ProfileAvatarControl';
+import { ProfileEditForm } from './ProfileEditForm';
 
 interface ProfileSidebarProps {
   user: AuthUser;
   profile: ProfileData;
   saving: boolean;
   onSave: (payload: ProfileUpdatePayload) => Promise<void>;
+  onUserUpdated?: (user: AuthUser) => void;
 }
-
-const INPUT_CLASS =
-  'w-full border border-[#30363D] bg-[#0D1117] px-2.5 py-1.5 text-xs text-[#E6EDF3] focus:border-[#22C55E] focus:outline-none';
 
 export function ProfileSidebar({
   user,
   profile,
   saving,
   onSave,
+  onUserUpdated,
 }: ProfileSidebarProps) {
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState<ProfileUpdatePayload>({
-    name: profile.name,
-    bio: profile.bio,
-    organization: profile.organization,
-    location: profile.location,
-    website: profile.website,
-  });
-
-  const initials = profile.name
-    .split(' ')
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    await onSave(form);
-    setEditing(false);
-  }
 
   return (
     <aside className="w-full shrink-0 space-y-5 lg:w-72">
-      <div className="flex aspect-square w-full max-w-[260px] items-center justify-center border border-[#22C55E] bg-[#052E16] font-mono text-5xl font-semibold text-[#22C55E]">
-        {initials}
-      </div>
+      <ProfileAvatarControl
+        user={user}
+        displayName={profile.name}
+        onUserUpdated={onUserUpdated}
+      />
 
       <div>
         <div className="flex items-center justify-between gap-2">
@@ -69,57 +45,19 @@ export function ProfileSidebar({
       </div>
 
       {editing ? (
-        <form onSubmit={handleSubmit} className="space-y-3 border border-[#30363D] bg-[#161B22] p-4">
-          <input
-            type="text"
-            required
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            placeholder="Name"
-            className={INPUT_CLASS}
-          />
-          <textarea
-            rows={3}
-            value={form.bio}
-            onChange={(e) => setForm({ ...form, bio: e.target.value })}
-            placeholder="Bio"
-            className={INPUT_CLASS}
-          />
-          <input
-            type="text"
-            value={form.organization}
-            onChange={(e) => setForm({ ...form, organization: e.target.value })}
-            placeholder="Organization"
-            className={INPUT_CLASS}
-          />
-          <input
-            type="text"
-            value={form.location}
-            onChange={(e) => setForm({ ...form, location: e.target.value })}
-            placeholder="Location"
-            className={INPUT_CLASS}
-          />
-          <input
-            type="text"
-            value={form.website}
-            onChange={(e) => setForm({ ...form, website: e.target.value })}
-            placeholder="Website"
-            className={INPUT_CLASS}
-          />
-          <div className="flex gap-2 pt-1">
-            <Button type="submit" variant="primary" disabled={saving} className="flex-1">
-              {saving ? 'Saving...' : 'Save'}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setEditing(false)}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-          </div>
-        </form>
+        <ProfileEditForm
+          initial={{
+            name: profile.name,
+            username: profile.username,
+            bio: profile.bio,
+            organization: profile.organization,
+            location: profile.location,
+            website: profile.website,
+          }}
+          saving={saving}
+          onSave={onSave}
+          onCancel={() => setEditing(false)}
+        />
       ) : (
         <>
           <p className="text-sm leading-relaxed text-[#BDBDBD]">{profile.bio}</p>
@@ -127,16 +65,7 @@ export function ProfileSidebar({
           <Button
             type="button"
             variant="secondary"
-            onClick={() => {
-              setForm({
-                name: profile.name,
-                bio: profile.bio,
-                organization: profile.organization,
-                location: profile.location,
-                website: profile.website,
-              });
-              setEditing(true);
-            }}
+            onClick={() => setEditing(true)}
             className="w-full"
           >
             Edit profile

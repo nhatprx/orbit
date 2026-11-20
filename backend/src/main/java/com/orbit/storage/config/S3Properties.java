@@ -12,6 +12,7 @@ public class S3Properties {
     private String bucket = "";
     private String region = "ap-southeast-1";
     private int presignDurationMinutes = DEFAULT_PRESIGN_MINUTES;
+    private String publicBaseUrl = "";
 
     public boolean isEnabled() {
         return enabled;
@@ -43,6 +44,18 @@ public class S3Properties {
 
     public void setPresignDurationMinutes(int presignDurationMinutes) {
         this.presignDurationMinutes = presignDurationMinutes;
+    }
+
+    public String getPublicBaseUrl() {
+        return publicBaseUrl;
+    }
+
+    public void setPublicBaseUrl(String publicBaseUrl) {
+        if (publicBaseUrl == null) {
+            this.publicBaseUrl = "";
+        } else {
+            this.publicBaseUrl = publicBaseUrl.trim().replaceAll("/+$", "");
+        }
     }
 
     public boolean isConfigured() {

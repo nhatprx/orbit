@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeftRight, LogOut, Shield, Smile } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
+import { UserAvatar } from '../../components/ui/UserAvatar';
 import type { AuthUser } from '../../types/auth.types';
 import type { ProfileSectionId, WorkspaceAreaId } from '../../types/dashboard.types';
 import {
@@ -43,12 +44,6 @@ export function HeaderProfileMenu({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const initials = user.name
-    .split(' ')
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
   const handle = user.username ?? user.email.split('@')[0] ?? user.name;
 
   function renderItems(items: ProfileMenuItem[]) {
@@ -81,18 +76,16 @@ export function HeaderProfileMenu({
         type="button"
         title={user.email}
         onClick={() => setOpen((v) => !v)}
-        className="flex h-7 w-7 items-center justify-center border border-[#22C55E] bg-[#052E16] font-mono text-xs font-semibold text-[#22C55E]"
+        className="block p-0"
       >
-        {initials}
+        <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size="sm" />
       </button>
 
       {open && (
         <div className="absolute right-0 mt-1.5 w-60 border border-[#30363D] bg-[#161B22] py-1">
           <div className="flex items-center justify-between px-3 py-2">
             <div className="flex min-w-0 items-center gap-2.5">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center border border-[#22C55E] bg-[#052E16] font-mono text-xs font-semibold text-[#22C55E]">
-                {initials}
-              </div>
+              <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size="sm" />
               <div className="min-w-0">
                 <p className="truncate text-[13px] font-semibold text-[#E6EDF3]">{handle}</p>
                 <p className="truncate text-xs text-[#8B949E]">{user.name}</p>

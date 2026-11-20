@@ -2,10 +2,13 @@ package com.orbit.storage.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.orbit.common.ApiException;
@@ -17,6 +20,8 @@ import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
@@ -124,5 +129,38 @@ class S3StorageServiceTest {
         assertEquals("artifacts/build-123.tar.gz", result.key());
         assertEquals("GET", result.method());
         assertEquals(expiry, result.expiresAt());
+    }
+
+    @Test
+    void resolvesPublicBaseUrlOrPresignedUrlAndDeletesSafely() throws Exception {
+        S3Properties props = new S3Properties();
+        props.setEnabled(true);
+        props.setBucket("orbit-storage-test");
+        props.setPublicBaseUrl("https://cdn.orbit.dev/");
+
+        S3Presigner presigner = mock(S3Presigner.class);
+        S3Client s3Client = mock(S3Client.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<S3Client> clientProvider = mock(ObjectProvider.class);
+        when(clientProvider.getIfAvailable()).thenReturn(s3Client);
+
+        S3StorageService service = new S3StorageService(props, providerOf(presigner), clientProvider);
+
+        assertEquals("https://cdn.orbit.dev/avatars/u1/a.png", service.resolveObjectUrl("avatars/u1/a.png"));
+        verify(presigner, never()).presignGetObject(any(GetObjectPresignRequest.class));
+
+        props.setPublicBaseUrl("");
+        PresignedGetObjectRequest presigned = mock(PresignedGetObjectRequest.class);
+        when(presigned.url()).thenReturn(URI.create("https://s3.ap-southeast-1.amazonaws.com/signed-avatar").toURL());
+        when(presigned.expiration()).thenReturn(Instant.now().plusSeconds(600));
+        when(presigner.presignGetObject(any(GetObjectPresignRequest.class))).thenReturn(presigned);
+
+        assertEquals("https://s3.ap-southeast-1.amazonaws.com/signed-avatar", service.resolveObjectUrl("avatars/u1/a.png"));
+
+        service.deleteObject("avatars/u1/a.png");
+        verify(s3Client).deleteObject(any(DeleteObjectRequest.class));
+
+        props.setEnabled(false);
+        assertNull(service.resolveObjectUrl("avatars/u1/a.png"));
     }
 }
