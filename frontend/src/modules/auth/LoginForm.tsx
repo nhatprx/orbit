@@ -2,9 +2,11 @@ import { useState, type FormEvent } from 'react';
 import { Check, Lock } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import type { LoginPayload } from '../../types/auth.types';
+import { PasswordInput } from './PasswordInput';
 
 interface LoginFormProps {
   loading: boolean;
+  disabled?: boolean;
   error: string | null;
   notice: string | null;
   onSubmit: (payload: LoginPayload) => Promise<void>;
@@ -16,6 +18,7 @@ const INPUT_CLASS =
 
 export function LoginForm({
   loading,
+  disabled = false,
   error,
   notice,
   onSubmit,
@@ -63,14 +66,13 @@ export function LoginForm({
         >
           Password
         </label>
-        <input
+        <PasswordInput
           id="login-password"
-          type="password"
           required
+          autoComplete="current-password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={setPassword}
           placeholder="Enter your password"
-          className={INPUT_CLASS}
         />
       </div>
 
@@ -112,7 +114,7 @@ export function LoginForm({
       <Button
         type="submit"
         variant="primary"
-        disabled={loading}
+        disabled={loading || disabled}
         className="w-full rounded-none"
       >
         <Lock className="h-3.5 w-3.5" strokeWidth={1.5} />

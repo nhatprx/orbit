@@ -3,6 +3,7 @@ import type { OAuthProvider } from '../../types/auth.types';
 
 interface AuthOAuthButtonsProps {
   loading: boolean;
+  activeProvider?: OAuthProvider | null;
   onSelectProvider: (provider: OAuthProvider) => void;
 }
 
@@ -39,6 +40,7 @@ function GitHubLogo() {
 
 export function AuthOAuthButtons({
   loading,
+  activeProvider = null,
   onSelectProvider,
 }: AuthOAuthButtonsProps) {
   return (
@@ -48,20 +50,24 @@ export function AuthOAuthButtons({
         variant="secondary"
         disabled={loading}
         onClick={() => onSelectProvider('google')}
-        className="w-full"
+        className="w-full rounded-none"
       >
         <GoogleLogo />
-        Continue with Google
+        {activeProvider === 'google'
+          ? 'Redirecting to Google...'
+          : 'Continue with Google'}
       </Button>
       <Button
         type="button"
         variant="secondary"
         disabled={loading}
         onClick={() => onSelectProvider('github')}
-        className="w-full"
+        className="w-full rounded-none"
       >
         <GitHubLogo />
-        Continue with GitHub
+        {activeProvider === 'github'
+          ? 'Redirecting to GitHub...'
+          : 'Continue with GitHub'}
       </Button>
       <div className="flex items-center gap-3 pt-3">
         <div className="h-px flex-1 bg-[#30363D]" />

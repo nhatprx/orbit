@@ -2,10 +2,13 @@ import { useState, type FormEvent } from 'react';
 import { Lock } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import type { RegisterPayload } from '../../types/auth.types';
+import { PasswordInput } from './PasswordInput';
+import { PasswordRulesList } from './PasswordRulesList';
 import { evaluatePasswordRules } from './passwordPolicy';
 
 interface RegisterFormProps {
   loading: boolean;
+  disabled?: boolean;
   error: string | null;
   onSubmit: (payload: RegisterPayload) => Promise<void>;
 }
@@ -22,30 +25,46 @@ const COUNTRIES = [
 ];
 
 const INPUT_CLASS =
-  'w-full border border-[#30363D] bg-[#0D1117] px-3 py-2 text-sm text-[#E6EDF3] focus:border-[#22C55E] focus:outline-none';
+  'w-full rounded-none border border-[#30363D] bg-[#0D1117] px-3 py-2 text-sm text-[#E6EDF3] focus:border-[#22C55E] focus:outline-none';
 
-export function RegisterForm({ loading, error, onSubmit }: RegisterFormProps) {
+export function RegisterForm({
+  loading,
+  disabled = false,
+  error,
+  onSubmit,
+}: RegisterFormProps) {
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [country, setCountry] = useState('Vietnam');
   const [emailPreference, setEmailPreference] = useState(false);
 
   const passwordRules = evaluatePasswordRules(password);
   const allRulesPassed = passwordRules.every((rule) => rule.passed);
+  const passwordMismatch =
+    confirmPassword.length > 0 && password !== confirmPassword;
+  const canSubmit =
+    !loading &&
+    !disabled &&
+    allRulesPassed &&
+    confirmPassword.length > 0 &&
+    !passwordMismatch;
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!canSubmit) return;
     await onSubmit({ email, password, username, country, emailPreference });
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="mb-1 block text-xs text-[#A3A3A3]">
+        <label htmlFor="register-username" className="mb-1 block text-xs text-[#A3A3A3]">
           Username (Unique)
         </label>
         <input
+          id="register-username"
           type="text"
           required
           minLength={3}
@@ -58,8 +77,11 @@ export function RegisterForm({ loading, error, onSubmit }: RegisterFormProps) {
       </div>
 
       <div>
-        <label className="mb-1 block text-xs text-[#A3A3A3]">Email</label>
+        <label htmlFor="register-email" className="mb-1 block text-xs text-[#A3A3A3]">
+          Email
+        </label>
         <input
+          id="register-email"
           type="email"
           required
           value={email}
@@ -70,37 +92,45 @@ export function RegisterForm({ loading, error, onSubmit }: RegisterFormProps) {
       </div>
 
       <div>
-        <label className="mb-1 block text-xs text-[#A3A3A3]">Password</label>
-        <input
-          type="password"
+        <label htmlFor="register-password" className="mb-1 block text-xs text-[#A3A3A3]">
+          Password
+        </label>
+        <PasswordInput
+          id="register-password"
           required
           minLength={8}
+          autoComplete="new-password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={setPassword}
           placeholder="Min 8 chars, upper, lower, digit, special"
-          className={INPUT_CLASS}
         />
-        <div className="mt-2 space-y-1 border border-[#30363D] bg-[#0D1117] p-2.5">
-          {passwordRules.map((rule) => (
-            <div key={rule.key} className="flex items-center gap-2 text-[11px]">
-              <span
-                className={`h-1.5 w-1.5 ${
-                  rule.passed ? 'bg-[#22C55E]' : 'bg-[#3B434B]'
-                }`}
-              />
-              <span
-                className={rule.passed ? 'text-[#22C55E]' : 'text-[#8A8A8A]'}
-              >
-                {rule.label}
-              </span>
-            </div>
-          ))}
-        </div>
+        <PasswordRulesList rules={passwordRules} />
       </div>
 
       <div>
-        <label className="mb-1 block text-xs text-[#A3A3A3]">Country</label>
+        <label htmlFor="register-confirm-password" className="mb-1 block text-xs text-[#A3A3A3]">
+          Confirm Password
+        </label>
+        <PasswordInput
+          id="register-confirm-password"
+          required
+          minLength={8}
+          autoComplete="new-password"
+          value={confirmPassword}
+          onChange={setConfirmPassword}
+          placeholder="Re-enter your password"
+        />
+        {passwordMismatch && (
+          <p className="mt-1 text-[11px] text-[#EF4444]">Passwords do not match.</p>
+        )}
+      </div>
+
+      <div>
+        <label htmlFor="register-country" className="mb-1 block text-xs text-[#A3A3A3]">
+          Country
+        </label>
         <select
+          id="register-country"
           required
           value={country}
           onChange={(e) => setCountry(e.target.value)}
@@ -119,23 +149,18 @@ export function RegisterForm({ loading, error, onSubmit }: RegisterFormProps) {
           type="checkbox"
           checked={emailPreference}
           onChange={(e) => setEmailPreference(e.target.checked)}
-          className="mt-0.5 h-3.5 w-3.5 border border-[#3B434B] bg-[#0D1117] accent-[#22C55E]"
+          className="mt-0.5 h-3.5 w-3.5 rounded-none border border-[#3B434B] bg-[#0D1117] accent-[#22C55E]"
         />
         <span>Receive product updates and announcements via email</span>
       </label>
 
       {error && (
-        <div className="border border-[#EF4444] bg-[#21262D] px-3 py-2 text-xs text-[#EF4444]">
+        <div className="rounded-none border border-[#EF4444] bg-[#21262D] px-3 py-2 text-xs text-[#EF4444]">
           {error}
         </div>
       )}
 
-      <Button
-        type="submit"
-        variant="primary"
-        disabled={loading || !allRulesPassed}
-        className="w-full"
-      >
+      <Button type="submit" variant="primary" disabled={!canSubmit} className="w-full rounded-none">
         <Lock className="h-3.5 w-3.5" strokeWidth={1.5} />
         {loading ? 'Creating Account...' : 'Create Account'}
       </Button>

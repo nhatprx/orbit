@@ -22,10 +22,14 @@ export interface IAuthService {
   getSession(): AuthSession | null;
   getStoredToken(): string | null;
   clearToken(): void;
-  login(payload: LoginPayload): Promise<AuthSession>;
-  register(payload: RegisterPayload): Promise<AuthSession>;
-  forgotPassword(email: string): Promise<ForgotPasswordResponse>;
-  resetPassword(token: string, newPassword: string): Promise<ResetPasswordResponse>;
+  login(payload: LoginPayload, signal?: AbortSignal): Promise<AuthSession>;
+  register(payload: RegisterPayload, signal?: AbortSignal): Promise<AuthSession>;
+  forgotPassword(email: string, signal?: AbortSignal): Promise<ForgotPasswordResponse>;
+  resetPassword(
+    token: string,
+    newPassword: string,
+    signal?: AbortSignal
+  ): Promise<ResetPasswordResponse>;
   startOAuthLogin(provider: OAuthProvider): void;
   exchangeOAuthCode(code: string): Promise<AuthSession>;
   logout(): Promise<void>;
@@ -44,51 +48,68 @@ class HttpAuthService implements IAuthService {
     clearStoredSession();
   }
 
-  async login(payload: LoginPayload): Promise<AuthSession> {
+  async login(payload: LoginPayload, signal?: AbortSignal): Promise<AuthSession> {
     const identifier = payload.identifier.trim();
     if (!identifier || !payload.password) {
       throw new Error('Username/email and password are required.');
     }
 
     const rememberMe = Boolean(payload.rememberMe);
-    const session = await postAuthJson<AuthSession>('/api/v1/auth/login', {
-      identifier,
-      password: payload.password,
-      rememberMe,
-    });
+    const session = await postAuthJson<AuthSession>(
+      '/api/v1/auth/login',
+      {
+        identifier,
+        password: payload.password,
+        rememberMe,
+      },
+      signal
+    );
     return saveStoredSession(session, rememberMe);
   }
 
-  async register(payload: RegisterPayload): Promise<AuthSession> {
+  async register(
+    payload: RegisterPayload,
+    signal?: AbortSignal
+  ): Promise<AuthSession> {
     const usernameError = validateUsernameFormat(payload.username);
     if (usernameError) throw new Error(usernameError);
 
     const passwordError = validateStrongPassword(payload.password);
     if (passwordError) throw new Error(passwordError);
 
-    const session = await postAuthJson<AuthSession>('/api/v1/auth/register', {
-      email: payload.email.trim().toLowerCase(),
-      username: payload.username.trim().toLowerCase(),
-      password: payload.password,
-      country: payload.country,
-      emailPreference: payload.emailPreference,
-    });
+    const session = await postAuthJson<AuthSession>(
+      '/api/v1/auth/register',
+      {
+        email: payload.email.trim().toLowerCase(),
+        username: payload.username.trim().toLowerCase(),
+        password: payload.password,
+        country: payload.country,
+        emailPreference: payload.emailPreference,
+      },
+      signal
+    );
     return saveStoredSession(session, true);
   }
 
-  async forgotPassword(email: string): Promise<ForgotPasswordResponse> {
+  async forgotPassword(
+    email: string,
+    signal?: AbortSignal
+  ): Promise<ForgotPasswordResponse> {
     const normalized = email.trim().toLowerCase();
     if (!normalized) {
       throw new Error('Email address is required.');
     }
-    return postAuthJson<ForgotPasswordResponse>('/api/v1/auth/forgot-password', {
-      email: normalized,
-    });
+    return postAuthJson<ForgotPasswordResponse>(
+      '/api/v1/auth/forgot-password',
+      { email: normalized },
+      signal
+    );
   }
 
   async resetPassword(
     token: string,
-    newPassword: string
+    newPassword: string,
+    signal?: AbortSignal
   ): Promise<ResetPasswordResponse> {
     const trimmedToken = token.trim();
     if (!trimmedToken) {
@@ -97,10 +118,11 @@ class HttpAuthService implements IAuthService {
     if (newPassword.length < 8) {
       throw new Error('New password must be at least 8 characters.');
     }
-    return postAuthJson<ResetPasswordResponse>('/api/v1/auth/reset-password', {
-      token: trimmedToken,
-      newPassword,
-    });
+    return postAuthJson<ResetPasswordResponse>(
+      '/api/v1/auth/reset-password',
+      { token: trimmedToken, newPassword },
+      signal
+    );
   }
 
   startOAuthLogin(provider: OAuthProvider): void {

@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, Mail } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { authService } from '../../services/auth.service';
 import { ResetPasswordStep } from './ResetPasswordStep';
+import { isAbortError } from './useAuthPageLifecycle';
 
 interface ForgotPasswordFormProps {
   onBackToLogin: () => void;
@@ -24,22 +25,50 @@ export function ForgotPasswordForm({
   const [error, setError] = useState<string | null>(null);
   const [requestNotice, setRequestNotice] = useState<string | null>(null);
 
+  const requestIdRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      requestIdRef.current += 1;
+      abortControllerRef.current?.abort();
+    };
+  }, []);
+
+  function goToResetStep() {
+    requestIdRef.current += 1;
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setLoading(false);
+    setError(null);
+    setStep('reset');
+  }
+
   async function handleRequestSubmit(event: FormEvent) {
     event.preventDefault();
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const requestId = ++requestIdRef.current;
+
     setError(null);
     setLoading(true);
     try {
-      const result = await authService.forgotPassword(email);
+      const result = await authService.forgotPassword(email, controller.signal);
+      if (requestIdRef.current !== requestId) return;
       setRequestNotice(
         result.message ||
           'If an account exists for that email, a password reset token has been issued.'
       );
     } catch (err) {
+      if (requestIdRef.current !== requestId || isAbortError(err)) return;
       setError(
         err instanceof Error ? err.message : 'Unable to request password reset.'
       );
     } finally {
-      setLoading(false);
+      if (requestIdRef.current === requestId) {
+        setLoading(false);
+      }
     }
   }
 
@@ -92,10 +121,7 @@ export function ForgotPasswordForm({
               <Button
                 type="button"
                 variant="primary"
-                onClick={() => {
-                  setError(null);
-                  setStep('reset');
-                }}
+                onClick={goToResetStep}
                 className="w-full rounded-none"
               >
                 Enter reset token
@@ -123,10 +149,7 @@ export function ForgotPasswordForm({
               </Button>
               <button
                 type="button"
-                onClick={() => {
-                  setError(null);
-                  setStep('reset');
-                }}
+                onClick={goToResetStep}
                 className="w-full rounded-none border border-[#30363D] bg-[#0D1117] py-2 text-xs text-[#A3A3A3] transition-colors hover:border-[#22C55E] hover:text-[#22C55E]"
               >
                 Already have a reset token?

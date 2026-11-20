@@ -1,7 +1,9 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { KeyRound } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { authService } from '../../services/auth.service';
+import { PasswordInput } from './PasswordInput';
+import { isAbortError } from './useAuthPageLifecycle';
 
 interface ResetPasswordStepProps {
   onSuccess: (message: string) => void;
@@ -16,6 +18,16 @@ export function ResetPasswordStep({ onSuccess }: ResetPasswordStepProps) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const requestIdRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      requestIdRef.current += 1;
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -34,18 +46,31 @@ export function ResetPasswordStep({ onSuccess }: ResetPasswordStepProps) {
       return;
     }
 
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const requestId = ++requestIdRef.current;
+
     setLoading(true);
     try {
-      const result = await authService.resetPassword(token, newPassword);
+      const result = await authService.resetPassword(
+        token,
+        newPassword,
+        controller.signal
+      );
+      if (requestIdRef.current !== requestId) return;
       onSuccess(
         result.message || 'Password updated. Sign in with your new password.'
       );
     } catch (err) {
+      if (requestIdRef.current !== requestId || isAbortError(err)) return;
       setError(
         err instanceof Error ? err.message : 'Unable to reset password.'
       );
     } finally {
-      setLoading(false);
+      if (requestIdRef.current === requestId) {
+        setLoading(false);
+      }
     }
   }
 
@@ -76,15 +101,14 @@ export function ResetPasswordStep({ onSuccess }: ResetPasswordStepProps) {
         >
           New Password
         </label>
-        <input
+        <PasswordInput
           id="reset-new-password"
-          type="password"
           required
           minLength={8}
+          autoComplete="new-password"
           value={newPassword}
-          onChange={(e) => setNewPassword(e.target.value)}
+          onChange={setNewPassword}
           placeholder="At least 8 characters"
-          className={INPUT_CLASS}
         />
       </div>
 
@@ -95,15 +119,14 @@ export function ResetPasswordStep({ onSuccess }: ResetPasswordStepProps) {
         >
           Confirm New Password
         </label>
-        <input
+        <PasswordInput
           id="reset-confirm-password"
-          type="password"
           required
           minLength={8}
+          autoComplete="new-password"
           value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
+          onChange={setConfirmPassword}
           placeholder="Re-enter your new password"
-          className={INPUT_CLASS}
         />
       </div>
 

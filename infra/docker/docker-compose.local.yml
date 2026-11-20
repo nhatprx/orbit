@@ -1,0 +1,85 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: orbit-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-orbit}
+      POSTGRES_USER: ${POSTGRES_USER:-orbit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orbit_dev}
+    ports:
+      - "5432:5432"
+    volumes:
+      - orbit_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - orbit_local
+
+  redis:
+    image: redis:7-alpine
+    container_name: orbit-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - orbit_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - orbit_local
+
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: orbit-backend
+    env_file:
+      - path: ../../.env
+        required: false
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-orbit}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-orbit}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-orbit_dev}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SERVER_PORT: 8080
+      CORS_ALLOWED_ORIGINS: http://localhost:${FRONTEND_PORT:-5173},http://127.0.0.1:${FRONTEND_PORT:-5173}
+      FRONTEND_URL: http://localhost:${FRONTEND_PORT:-5173}
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - orbit_local
+
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:${SERVER_PORT:-8080}
+    container_name: orbit-frontend
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - orbit_local
+
+volumes:
+  orbit_pg_data:
+  orbit_redis_data:
+
+networks:
+  orbit_local:
+    driver: bridge

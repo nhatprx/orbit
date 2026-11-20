@@ -48,11 +48,16 @@ export function clearStoredSession(): void {
   sessionStorage.removeItem(SESSION_KEY);
 }
 
-export async function postAuthJson<T>(path: string, body: unknown): Promise<T> {
+export async function postAuthJson<T>(
+  path: string,
+  body: unknown,
+  signal?: AbortSignal
+): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    signal,
   });
 
   if (!response.ok) {
