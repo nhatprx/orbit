@@ -84,15 +84,14 @@ export function LoginForm({
           />
           <span
             aria-hidden="true"
-            className={`flex h-4 w-4 items-center justify-center rounded-none border transition-colors peer-focus-visible:outline peer-focus-visible:outline-1 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[#22C55E] ${
-              rememberMe
-                ? 'border-[#22C55E] bg-[#052E16] text-[#22C55E]'
-                : 'border-[#3B434B] bg-[#0D1117] text-transparent'
-            }`}
+            className={`flex h-4 w-4 items-center justify-center rounded-none border transition-colors peer-focus-visible:outline peer-focus-visible:outline-1 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[#22C55E] ${rememberMe
+              ? 'border-[#22C55E] bg-[#052E16] text-[#22C55E]'
+              : 'border-[#3B434B] bg-[#0D1117] text-transparent'
+              }`}
           >
             <Check className="h-3 w-3" strokeWidth={2.5} />
           </span>
-          <span>Remember me (30 days)</span>
+          <span>Remember me</span>
         </label>
 
         <button
