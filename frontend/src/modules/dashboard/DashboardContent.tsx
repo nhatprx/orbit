@@ -23,7 +23,7 @@ interface DashboardContentProps {
 }
 
 /** Areas that fill the viewport instead of scrolling inside a padded column. */
-export const FULL_HEIGHT_AREAS = ['ai', 'mail', 'cloud', 'chat'] as const;
+export const FULL_HEIGHT_AREAS = ['ai', 'mail', 'cloud', 'personal-cloud', 'chat'] as const;
 
 export function DashboardContent({
   user,
@@ -47,11 +47,18 @@ export function DashboardContent({
         />
       );
     case 'ai':
-      return <AiChatPage workspaceName={workspace?.name ?? 'Workspace'} />;
+      return (
+        <AiChatPage
+          workspaceId={workspace?.id ?? null}
+          workspaceName={workspace?.name ?? 'Workspace'}
+          projectId={project?.id ?? null}
+          projectName={project?.name ?? null}
+        />
+      );
     case 'mail':
       return <MailPage />;
-    case 'cloud':
-      return <CloudFilesPage user={{ ...user, workspaceId: workspace?.id ?? user.workspaceId }} />;
+    case 'personal-cloud':
+      return <CloudFilesPage scope={{ type: 'USER' }} />;
     case 'profile':
       return (
         <ProfilePage

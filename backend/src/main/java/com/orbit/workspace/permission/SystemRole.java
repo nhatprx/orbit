@@ -40,7 +40,10 @@ public enum SystemRole {
                 Permissions.ROLE_VIEW,
                 Permissions.PROJECT_CREATE,
                 Permissions.CHAT_READ,
-                Permissions.CHAT_WRITE
+                Permissions.CHAT_WRITE,
+                Permissions.FILES_READ,
+                Permissions.FILES_WRITE,
+                Permissions.FILES_DELETE
             ));
         };
     }
@@ -56,7 +59,10 @@ public enum SystemRole {
             case MEMBER -> new LinkedHashSet<>(Set.of(
                 Permissions.PROJECT_VIEW,
                 Permissions.PCHAT_READ,
-                Permissions.PCHAT_WRITE
+                Permissions.PCHAT_WRITE,
+                Permissions.PFILES_READ,
+                Permissions.PFILES_WRITE,
+                Permissions.PFILES_DELETE
             ));
         };
     }

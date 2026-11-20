@@ -26,6 +26,7 @@ public final class ProjectPermissionPolicy {
         if (workspacePermissions.contains(Permissions.PROJECT_VIEW_ALL)) {
             result.add(Permissions.PROJECT_VIEW);
             result.add(Permissions.PCHAT_READ);
+            result.add(Permissions.PFILES_READ);
         }
         if (workspaceOwner || workspacePermissions.contains(Permissions.WORKSPACE_EDIT)) {
             result.addAll(Permissions.PROJECT_KEYS);

@@ -4,6 +4,7 @@ import { EmptyView } from '../../components/ui/StateViews';
 import { useActiveProject, useActiveWorkspace } from '../../store/workspaceStore';
 import type { ModuleKey } from '../../types/workspace.types';
 import { ChatPage } from '../chat/ChatPage';
+import { CloudFilesPage } from '../cloud/CloudFilesPage';
 import { GitPage } from '../git/GitPage';
 import { MODULE_META } from '../workspace/moduleMeta';
 import type { DashboardNavigation } from './useDashboardNavigation';
@@ -44,6 +45,31 @@ export function ModuleArea({ module, nav }: ModuleAreaProps) {
 
   if (module === 'chat') {
     return <ChatPage workspace={workspace} project={project} />;
+  }
+  if (module === 'cloud') {
+    if (project) {
+      return (
+        <CloudFilesPage
+          scope={{
+            type: 'PROJECT',
+            workspaceId: workspace.id,
+            projectId: project.id,
+            permissions: project.myPermissions,
+          }}
+          scopeLabel={project.name}
+        />
+      );
+    }
+    return (
+      <CloudFilesPage
+        scope={{
+          type: 'WORKSPACE',
+          workspaceId: workspace.id,
+          permissions: workspace.myPermissions,
+        }}
+        scopeLabel={workspace.name}
+      />
+    );
   }
   if (module === 'git') {
     return <GitPage workspaceId={scope.slug} />;

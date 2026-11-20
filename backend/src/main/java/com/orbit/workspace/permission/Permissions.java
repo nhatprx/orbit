@@ -26,6 +26,10 @@ public final class Permissions {
     public static final String CHAT_READ = "chat.read";
     public static final String CHAT_WRITE = "chat.write";
     public static final String CHAT_MANAGE = "chat.manage";
+    public static final String FILES_READ = "files.read";
+    public static final String FILES_WRITE = "files.write";
+    public static final String FILES_DELETE = "files.delete";
+    public static final String FILES_MANAGE = "files.manage";
 
     public static final String PROJECT_VIEW = "project.view";
     public static final String PROJECT_EDIT = "project.edit";
@@ -40,6 +44,10 @@ public final class Permissions {
     public static final String PCHAT_READ = "pchat.read";
     public static final String PCHAT_WRITE = "pchat.write";
     public static final String PCHAT_MANAGE = "pchat.manage";
+    public static final String PFILES_READ = "pfiles.read";
+    public static final String PFILES_WRITE = "pfiles.write";
+    public static final String PFILES_DELETE = "pfiles.delete";
+    public static final String PFILES_MANAGE = "pfiles.manage";
 
     public static final List<String> WORKSPACE_KEYS = List.of(
         WORKSPACE_VIEW, WORKSPACE_EDIT, WORKSPACE_DELETE, WORKSPACE_TRANSFER_OWNER,
@@ -47,7 +55,8 @@ public final class Permissions {
         ROLE_VIEW, ROLE_CREATE, ROLE_EDIT, ROLE_DELETE,
         MODULE_ENABLE, MODULE_DISABLE, INTEGRATION_MANAGE,
         PROJECT_CREATE, PROJECT_VIEW_ALL,
-        CHAT_READ, CHAT_WRITE, CHAT_MANAGE
+        CHAT_READ, CHAT_WRITE, CHAT_MANAGE,
+        FILES_READ, FILES_WRITE, FILES_DELETE, FILES_MANAGE
     );
 
     public static final List<String> PROJECT_KEYS = List.of(
@@ -55,7 +64,8 @@ public final class Permissions {
         PMEMBER_INVITE, PMEMBER_REMOVE, PMEMBER_ASSIGN_ROLE,
         PROLE_CREATE, PROLE_EDIT, PROLE_DELETE,
         PMODULE_SELECT,
-        PCHAT_READ, PCHAT_WRITE, PCHAT_MANAGE
+        PCHAT_READ, PCHAT_WRITE, PCHAT_MANAGE,
+        PFILES_READ, PFILES_WRITE, PFILES_DELETE, PFILES_MANAGE
     );
 
     private static final Set<String> WORKSPACE_KEY_SET = Set.copyOf(WORKSPACE_KEYS);

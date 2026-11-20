@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { KeyRound } from 'lucide-react';
+import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { Panel } from '../../components/ui/Panel';
+import { CollapsibleCard } from '../../components/ui/CollapsibleCard';
 import { accountSecurityService } from '../../services/accountSecurity.service';
 import { errorMessage } from '../../services/workspace/httpClient';
 import { PasswordInput } from '../auth/PasswordInput';
@@ -61,13 +62,20 @@ export function PasswordSettingsPanel({ hasPassword, onUpdated }: PasswordSettin
   }
 
   return (
-    <Panel
+    <CollapsibleCard
       title={hasPassword ? 'Change password' : 'Set account password'}
       description={
         hasPassword
-          ? 'Update your password used to sign in with username or email.'
-          : 'Your account currently signs in via OAuth. Set a password to enable password sign-in.'
+          ? 'Update the password used to sign in with username or email.'
+          : 'Your account signs in via OAuth. Set a password to enable password sign-in.'
       }
+      icon={<KeyRound className="h-4 w-4" strokeWidth={1.5} />}
+      badge={
+        <Badge tone={hasPassword ? 'green' : 'neutral'} withDot>
+          {hasPassword ? 'Configured' : 'Not set'}
+        </Badge>
+      }
+      defaultOpen={false}
     >
       <form onSubmit={handleSubmit} className="max-w-md space-y-4">
         {hasPassword && (
@@ -131,6 +139,6 @@ export function PasswordSettingsPanel({ hasPassword, onUpdated }: PasswordSettin
           {submitting ? 'Saving...' : hasPassword ? 'Update password' : 'Set password'}
         </Button>
       </form>
-    </Panel>
+    </CollapsibleCard>
   );
 }

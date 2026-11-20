@@ -1,18 +1,29 @@
 import type {
   AccountSecurityStatus,
+  AccountStatus,
   AuthUser,
   TwoFactorEnableResponse,
   TwoFactorSetupResponse,
+  UserActivitySummary,
 } from '../types/auth.types';
 import { apiRequest } from './workspace/httpClient';
 
 export interface UpdateAccountProfilePayload {
   username?: string;
   displayName?: string;
+  bio?: string;
+  introduction?: string;
+  organization?: string;
+  location?: string;
+  website?: string;
+  activeStatusEnabled?: boolean;
+  activeStatus?: AccountStatus;
+  pinnedProjectIds?: string[];
 }
 
 export interface AccountSecurityService {
   getSecurityStatus(): Promise<AccountSecurityStatus>;
+  getActivitySummary(): Promise<UserActivitySummary>;
   updateProfile(payload: UpdateAccountProfilePayload): Promise<AuthUser>;
   changePassword(currentPassword: string | null, newPassword: string): Promise<{ message: string }>;
   beginTwoFactorSetup(password: string): Promise<TwoFactorSetupResponse>;
@@ -24,6 +35,10 @@ export interface AccountSecurityService {
 export const accountSecurityService: AccountSecurityService = {
   getSecurityStatus() {
     return apiRequest<AccountSecurityStatus>('GET', '/api/v1/auth/account/security');
+  },
+
+  getActivitySummary() {
+    return apiRequest<UserActivitySummary>('GET', '/api/v1/auth/account/activity-summary');
   },
 
   updateProfile(payload) {

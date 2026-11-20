@@ -1,148 +1,178 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { FolderPlus, Plus, Search } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
-import { cloudFilesService } from '../../services/cloud.service';
-import type { AuthUser } from '../../types/auth.types';
-import type {
-  CloudCategory,
-  CloudFileItem,
-  CloudFileKind,
+import { useMemo, useState, type DragEvent } from 'react';
+import { AlertCircle, Upload, X } from 'lucide-react';
+import { EmptyView } from '../../components/ui/StateViews';
+import { createHttpCloudFilesApi, type CloudFilesApi } from '../../services/cloud/cloudApi';
+import {
+  cloudScopeKey,
+  resolveCloudPermissions,
+  type CloudNodeDto,
+  type CloudScope,
 } from '../../types/cloud.types';
 import { CloudFileTable } from './CloudFileTable';
+import { FolderNameModal, MoveNodeModal } from './CloudNodeModals';
 import { CloudPreviewPane } from './CloudPreviewPane';
 import { CloudSidebar } from './CloudSidebar';
+import { CloudToolbar } from './CloudToolbar';
+import { CloudUploadQueue } from './CloudUploadQueue';
+import { useCloudBrowser } from './useCloudBrowser';
+import { useCloudUploads } from './useCloudUploads';
 
 interface CloudFilesPageProps {
-  user: AuthUser;
+  scope: CloudScope;
+  scopeLabel?: string;
+  apiOverride?: CloudFilesApi;
 }
 
-export function CloudFilesPage({ user }: CloudFilesPageProps) {
-  const [category, setCategory] = useState<CloudCategory>('all');
-  const [query, setQuery] = useState('');
-  const [files, setFiles] = useState<CloudFileItem[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newKind, setNewKind] = useState<CloudFileKind>('doc');
+export function CloudFilesPage({ scope, scopeLabel, apiOverride }: CloudFilesPageProps) {
+  const scopeKey = cloudScopeKey(scope);
+  const permissions = useMemo(() => resolveCloudPermissions(scope), [scope]);
+  const api = useMemo(
+    () => apiOverride ?? createHttpCloudFilesApi(scope),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [apiOverride, scopeKey]
+  );
 
-  const refresh = useCallback(async () => {
-    const items = await cloudFilesService.listFiles(category, query, 50);
-    setFiles(items);
-    setSelectedId((prev) =>
-      items.some((f) => f.id === prev) ? prev : (items[0]?.id ?? null)
+  const browser = useCloudBrowser(api, scopeKey, permissions.canRead);
+  const uploads = useCloudUploads(api, scopeKey, browser.quota, () => void browser.refresh());
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [renamingNode, setRenamingNode] = useState<CloudNodeDto | null>(null);
+  const [movingNode, setMovingNode] = useState<CloudNodeDto | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+
+  if (!permissions.canRead) {
+    return (
+      <div className="flex h-[calc(100vh-3rem)] items-center justify-center bg-[#0D1117] p-6">
+        <EmptyView title="No access to Cloud Files" description="You do not have permission to view files in this scope." />
+      </div>
     );
-  }, [category, query]);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  const selectedFile = files.find((f) => f.id === selectedId) ?? null;
-
-  async function handleCreate(event: FormEvent) {
-    event.preventDefault();
-    if (!newName.trim()) return;
-    const created = await cloudFilesService.createItem(
-      { name: newName, kind: newKind },
-      user.username ?? user.name
-    );
-    setNewName('');
-    setCreating(false);
-    setSelectedId(created.id);
-    await refresh();
   }
 
+  const selectedNode = browser.nodes.find((n) => n.id === browser.selectedId) ?? null;
+  const activeParentId = browser.view === 'ALL' ? browser.parentId : null;
+  const canDropUpload = permissions.canWrite && browser.view !== 'TRASH';
+
+  const nodeHandlers = {
+    onDownload: (node: CloudNodeDto) => {
+      void browser.runMutation(() => api.getDownloadUrl(node.id), false).then((res) => {
+        if (res?.url) window.open(res.url, '_blank', 'noopener,noreferrer');
+      });
+    },
+    onToggleStar: (node: CloudNodeDto) =>
+      void browser.runMutation(() => api.updateNode(node.id, { starred: !node.starred })),
+    onRename: (node: CloudNodeDto) => setRenamingNode(node),
+    onMove: (node: CloudNodeDto) => setMovingNode(node),
+    onSoftDelete: (node: CloudNodeDto) => void browser.runMutation(() => api.softDeleteNode(node.id)),
+    onRestore: (node: CloudNodeDto) => void browser.runMutation(() => api.restoreNode(node.id)),
+    onPermanentDelete: (node: CloudNodeDto) => void browser.runMutation(() => api.permanentDeleteNode(node.id)),
+  };
+
+  const onDragOver = (e: DragEvent<HTMLDivElement>) => {
+    if (canDropUpload) {
+      e.preventDefault();
+      if (!dragActive) setDragActive(true);
+    }
+  };
+  const onDragLeave = (e: DragEvent<HTMLDivElement>) => {
+    if (canDropUpload && !e.currentTarget.contains(e.relatedTarget as Node | null)) setDragActive(false);
+  };
+  const onDrop = (e: DragEvent<HTMLDivElement>) => {
+    if (!canDropUpload) return;
+    e.preventDefault();
+    setDragActive(false);
+    const dropped = Array.from(e.dataTransfer.files);
+    if (dropped.length > 0) uploads.enqueueFiles(dropped, activeParentId);
+  };
+
   return (
-    <div className="flex h-[calc(100vh-3rem)] w-full overflow-hidden border border-[#30363D] bg-[#0D1117]">
-      <CloudSidebar active={category} onSelect={setCategory} />
+    <div
+      className="relative flex h-[calc(100vh-3rem)] w-full overflow-hidden border border-[#30363D] bg-[#0D1117]"
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
+      <CloudSidebar scope={scope} scopeLabel={scopeLabel} activeView={browser.view} quota={browser.quota} onSelectView={browser.selectView} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#30363D] bg-[#161B22] px-4 py-3">
-          <div className="flex items-center border border-[#3B434B] bg-[#0D1117] px-2.5 focus-within:border-[#22C55E]">
-            <Search className="h-4 w-4 text-[#8A8A8A]" strokeWidth={1.5} />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search Cloud Files..."
-              className="h-8 w-56 bg-transparent px-2 text-sm text-[#E6EDF3] placeholder-[#8A8A8A] focus:outline-none"
-            />
-          </div>
+        <CloudToolbar
+          view={browser.view}
+          breadcrumbs={browser.breadcrumbs}
+          search={browser.searchInput}
+          sortBy={browser.sortBy}
+          sortDir={browser.sortDir}
+          permissions={permissions}
+          hasNodes={browser.nodes.length > 0}
+          onSearchChange={browser.setSearchInput}
+          onSortByChange={browser.setSortBy}
+          onToggleSortDir={browser.toggleSortDir}
+          onNavigateFolder={browser.openFolder}
+          onUploadFiles={(files) => uploads.enqueueFiles(files, activeParentId)}
+          onOpenNewFolder={() => setNewFolderOpen(true)}
+          onEmptyTrash={() => void browser.runMutation(() => api.emptyTrash())}
+        />
 
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                setNewKind('folder');
-                setCreating(true);
-              }}
-            >
-              <FolderPlus className="h-4 w-4" strokeWidth={1.5} />
-              New Folder
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              onClick={() => {
-                setNewKind('doc');
-                setCreating(true);
-              }}
-            >
-              <Plus className="h-4 w-4" strokeWidth={1.5} />
-              New File
-            </Button>
+        {browser.error && (
+          <div role="alert" className="flex items-center justify-between gap-2 border-b border-[#EF4444]/40 bg-[#EF4444]/10 px-4 py-2 text-xs text-[#EF4444]">
+            <span className="flex items-center gap-2">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
+              {browser.error}
+            </span>
+            <button type="button" aria-label="Dismiss error" onClick={browser.clearError}>
+              <X className="h-3.5 w-3.5" strokeWidth={1.5} />
+            </button>
           </div>
-        </div>
-
-        {creating && (
-          <form
-            onSubmit={handleCreate}
-            className="flex flex-wrap items-center gap-2 border-b border-[#30363D] bg-[#21262D] px-4 py-3"
-          >
-            <select
-              value={newKind}
-              onChange={(e) => setNewKind(e.target.value as CloudFileKind)}
-              className="h-9 border border-[#3B434B] bg-[#0D1117] px-2.5 text-sm text-[#E6EDF3] focus:border-[#22C55E] focus:outline-none"
-            >
-              <option value="folder">Folder</option>
-              <option value="doc">Document</option>
-              <option value="sheet">Spreadsheet</option>
-              <option value="slide">Presentation</option>
-              <option value="markdown">Markdown</option>
-            </select>
-            <input
-              type="text"
-              autoFocus
-              required
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="Enter file or folder name..."
-              className="h-9 flex-1 border border-[#3B434B] bg-[#0D1117] px-3 text-sm text-[#E6EDF3] placeholder-[#8A8A8A] focus:border-[#22C55E] focus:outline-none"
-            />
-            <Button type="submit" variant="primary">
-              Create
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => setCreating(false)}>
-              Cancel
-            </Button>
-          </form>
         )}
 
         <CloudFileTable
-          files={files}
-          selectedId={selectedId}
-          onSelect={(f) => setSelectedId(f.id)}
-          onToggleStar={(id) => void cloudFilesService.toggleStar(id).then(refresh)}
-          onToggleTrash={(id, trashed) =>
-            void cloudFilesService.setTrashed(id, trashed).then(refresh)
-          }
+          nodes={browser.nodes}
+          view={browser.view}
+          selectedId={browser.selectedId}
+          loading={browser.loading}
+          hasMore={browser.hasMore}
+          loadingMore={browser.loadingMore}
+          permissions={permissions}
+          onSelect={(node) => browser.setSelectedId(node.id)}
+          onOpenFolder={(id) => browser.openFolder(id)}
+          onLoadMore={() => void browser.loadMore()}
+          {...nodeHandlers}
         />
+
+        <CloudUploadQueue tasks={uploads.tasks} onCancel={uploads.cancelTask} onDismiss={uploads.dismissTask} onClearFinished={uploads.clearFinished} />
       </div>
 
-      <CloudPreviewPane
-        file={selectedFile}
-        onClose={() => setSelectedId(null)}
+      <CloudPreviewPane node={selectedNode} view={browser.view} permissions={permissions} onClose={() => browser.setSelectedId(null)} {...nodeHandlers} />
+
+      {dragActive && (
+        <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center border-2 border-dashed border-[#22C55E] bg-[#052E16]/80">
+          <div className="flex flex-col items-center gap-2 border border-[#22C55E] bg-[#0D1117] px-8 py-6">
+            <Upload className="h-7 w-7 text-[#22C55E]" strokeWidth={1.5} />
+            <p className="text-sm font-semibold text-[#E6EDF3]">Drop files to upload</p>
+            <p className="font-mono text-xs text-[#8B949E]">Direct upload to Orbit Cloud Storage</p>
+          </div>
+        </div>
+      )}
+
+      <FolderNameModal
+        open={newFolderOpen}
+        title="Create Folder"
+        submitLabel="Create"
+        onClose={() => setNewFolderOpen(false)}
+        onSubmit={async (name) => { await browser.runMutation(() => api.createFolder({ parentId: activeParentId, name })); }}
+      />
+      <FolderNameModal
+        open={Boolean(renamingNode)}
+        title="Rename Item"
+        submitLabel="Rename"
+        initialValue={renamingNode?.name ?? ''}
+        onClose={() => setRenamingNode(null)}
+        onSubmit={async (name) => { if (renamingNode) await browser.runMutation(() => api.updateNode(renamingNode.id, { name })); }}
+      />
+      <MoveNodeModal
+        node={movingNode}
+        api={api}
+        onClose={() => setMovingNode(null)}
+        onMove={async (nodeId, targetParentId) => {
+          await browser.runMutation(() => api.updateNode(nodeId, targetParentId ? { parentId: targetParentId } : { moveToRoot: true }));
+        }}
       />
     </div>
   );

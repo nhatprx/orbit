@@ -20,7 +20,7 @@ describe('ProfileAvatarControl', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders initials when no avatar exists and uploads valid image', async () => {
+  it('renders initials, corner edit icon without S3 helper text, and uploads valid image', async () => {
     const updatedUser: AuthUser = {
       ...BASE_USER,
       avatarUrl: 'https://cdn.orbit.dev/avatars/u-1/new.png',
@@ -34,11 +34,16 @@ describe('ProfileAvatarControl', () => {
       <ProfileAvatarControl
         user={BASE_USER}
         displayName="Alice Nguyen"
+        status="ONLINE"
         onUserUpdated={onUserUpdated}
       />
     );
 
     expect(screen.getByText('AN')).toBeTruthy();
+    expect(screen.getByLabelText('Edit avatar')).toBeTruthy();
+    expect(screen.getByLabelText('Account online')).toBeTruthy();
+    expect(screen.queryByText(/Stored on AWS S3/i)).toBeNull();
+
     const input = screen.getByLabelText('Upload profile avatar') as HTMLInputElement;
     const file = new File(['img'], 'avatar.png', { type: 'image/png' });
     fireEvent.change(input, { target: { files: [file] } });
@@ -46,13 +51,14 @@ describe('ProfileAvatarControl', () => {
     await waitFor(() => expect(uploadSpy).toHaveBeenCalledWith(file));
     const status = await screen.findByRole('status');
     expect(onUserUpdated).toHaveBeenCalledWith(updatedUser);
-    expect(status.textContent).toContain('AWS S3');
+    expect(status.textContent).toContain('Avatar updated');
   });
 
   it('shows validation error for unsupported file type without calling upload', () => {
     const uploadSpy = vi.spyOn(avatarService, 'uploadAvatar');
 
-    render(<ProfileAvatarControl user={BASE_USER} displayName="Alice Nguyen" />);
+    render(<ProfileAvatarControl user={BASE_USER} displayName="Alice Nguyen" status="BUSY" />);
+    expect(screen.getByLabelText('Account busy')).toBeTruthy();
 
     const input = screen.getByLabelText('Upload profile avatar') as HTMLInputElement;
     const badFile = new File(['<svg/>'], 'bad.svg', { type: 'image/svg+xml' });
@@ -62,7 +68,7 @@ describe('ProfileAvatarControl', () => {
     expect(screen.getByRole('alert').textContent).toContain('JPEG, PNG, WebP, or GIF');
   });
 
-  it('renders avatar image and supports removing it', async () => {
+  it('opens corner edit menu when avatar exists and supports removing it', async () => {
     const userWithAvatar: AuthUser = {
       ...BASE_USER,
       avatarUrl: 'https://cdn.orbit.dev/avatars/u-1/current.png',
@@ -81,7 +87,10 @@ describe('ProfileAvatarControl', () => {
     const img = screen.getByAltText('Alice Nguyen avatar') as HTMLImageElement;
     expect(img.src).toBe(userWithAvatar.avatarUrl);
 
-    fireEvent.click(screen.getByLabelText('Remove avatar'));
+    expect(screen.queryByRole('menuitem', { name: /Remove avatar/i })).toBeNull();
+    fireEvent.click(screen.getByLabelText('Edit avatar'));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Remove avatar/i }));
+
     await waitFor(() => expect(removeSpy).toHaveBeenCalledTimes(1));
     expect(onUserUpdated).toHaveBeenCalledWith(BASE_USER);
   });

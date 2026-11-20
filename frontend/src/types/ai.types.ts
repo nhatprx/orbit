@@ -1,9 +1,27 @@
 export type AiModelId = 'orbit-pro' | 'orbit-fast' | 'orbit-coder';
+export type AiScopeType = 'USER' | 'WORKSPACE' | 'PROJECT';
+export type AiProviderType = 'BEDROCK' | 'OPENROUTER';
+
+export interface AiToolTrace {
+  tool: string;
+  status: string;
+  summary: string;
+}
+
+export interface AiCitation {
+  type: string;
+  label: string;
+  ref: string;
+}
 
 export interface AiThread {
   id: string;
+  scopeType: AiScopeType;
+  workspaceId: string | null;
+  projectId: string | null;
   title: string;
   model: AiModelId;
+  messageCount: number;
   updatedAt: string;
 }
 
@@ -12,5 +30,48 @@ export interface AiMessage {
   threadId: string;
   role: 'user' | 'assistant';
   content: string;
+  modelUsed?: string | null;
+  providerUsed?: string | null;
+  toolTraces: AiToolTrace[];
+  citations: AiCitation[];
+  inputTokens?: number;
+  outputTokens?: number;
   timestamp: string;
+}
+
+export interface AiMemory {
+  id: string;
+  scopeType: AiScopeType;
+  workspaceId: string | null;
+  projectId: string | null;
+  category: 'FACT' | 'DECISION' | 'PREFERENCE';
+  content: string;
+  pinned: boolean;
+  vectorIndexed: boolean;
+  updatedAt: string;
+}
+
+export interface AiProviderConfig {
+  activeProvider: AiProviderType;
+  bedrockRegion: string;
+  fastModel: string;
+  proModel: string;
+  coderModel: string;
+  embedModel: string;
+  webSearchEnabled: boolean;
+  bedrockConfigured: boolean;
+  openRouterConfigured: boolean;
+  qdrantConfigured: boolean;
+  tavilyConfigured: boolean;
+  updatedAt: string | null;
+}
+
+export interface UpdateAiProviderConfigPayload {
+  activeProvider: AiProviderType;
+  bedrockRegion: string;
+  fastModel: string;
+  proModel: string;
+  coderModel: string;
+  embedModel: string;
+  webSearchEnabled: boolean;
 }

@@ -4,6 +4,7 @@ import { Badge } from '../../components/ui/Badge';
 import { dashboardService } from '../../services/dashboard.service';
 import type { AuthUser } from '../../types/auth.types';
 import type { DirectoryUser, PlatformMetric } from '../../types/dashboard.types';
+import { AdminAiConfigPanel } from './AdminAiConfigPanel';
 
 interface AdminOverviewProps {
   user: AuthUser;
@@ -75,6 +76,8 @@ export function AdminOverview({ user }: AdminOverviewProps) {
           </div>
         ))}
       </div>
+
+      <AdminAiConfigPanel />
 
       <div>
         <h3 className="mb-2.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-[#8B949E]">

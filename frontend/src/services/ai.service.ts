@@ -1,100 +1,153 @@
-import type { AiMessage, AiModelId, AiThread } from '../types/ai.types';
+import type {
+  AiMemory,
+  AiMessage,
+  AiModelId,
+  AiProviderConfig,
+  AiScopeType,
+  AiThread,
+  AiToolTrace,
+  UpdateAiProviderConfigPayload,
+} from '../types/ai.types';
+import { getStoredSession } from './auth.storage';
+import { apiRequest } from './workspace/httpClient';
+
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080').replace(/\/$/, '');
+
+export interface StreamHandlers {
+  onToken?: (delta: string) => void;
+  onTool?: (trace: AiToolTrace) => void;
+  onDone?: (message: AiMessage) => void;
+  onError?: (message: string) => void;
+}
 
 export interface IAiChatService {
-  listThreads(): Promise<AiThread[]>;
-  createThread(model: AiModelId): Promise<AiThread>;
+  listThreads(scopeType?: AiScopeType, workspaceId?: string | null): Promise<AiThread[]>;
+  createThread(payload: {
+    scopeType: AiScopeType;
+    workspaceId?: string | null;
+    projectId?: string | null;
+    model: AiModelId;
+  }): Promise<AiThread>;
+  deleteThread(threadId: string): Promise<void>;
   listMessages(threadId: string): Promise<AiMessage[]>;
-  sendPrompt(threadId: string, prompt: string, model: AiModelId): Promise<AiMessage>;
-}
-
-let threads: AiThread[] = [
-  { id: 'ai_01', title: 'Orbit 10k CCU Checklist', model: 'orbit-pro', updatedAt: '10m ago' },
-  { id: 'ai_02', title: 'Spring Boot Virtual Threads', model: 'orbit-coder', updatedAt: '2h ago' },
-];
-
-let messages: AiMessage[] = [
-  {
-    id: 'aim_01',
-    threadId: 'ai_01',
-    role: 'user',
-    content: 'Summarize the core infrastructure stack for Orbit.',
-    timestamp: '10:10 AM',
-  },
-  {
-    id: 'aim_02',
-    threadId: 'ai_01',
-    role: 'assistant',
-    content:
-      'Orbit targets 10,000+ CCU using:\n- Frontend: React + TypeScript + Tailwind CSS (Outfit font, 0px square borders)\n- Backend: Spring Boot 3.4 (Java 21 Virtual Threads)\n- Database: AWS RDS PostgreSQL (Primary + Read Replicas)\n- Cache & Sessions: AWS ElastiCache Redis\n- Deployment: Immutable Docker containers on AWS',
-    timestamp: '10:10 AM',
-  },
-];
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function buildReply(prompt: string, model: AiModelId): string {
-  const lower = prompt.toLowerCase();
-  if (lower.includes('ponytail') || lower.includes('loc')) {
-    return `[${model}] Ponytail enforces < 200 LOC per source file, zero emojis, and strict 0px square borders across frontend/, backend/, and ponytail/.`;
-  }
-  if (lower.includes('project') || lower.includes('module')) {
-    return `[${model}] Each Orbit Project can independently toggle Git, Mail, Cloud Files, Community Chat, Docs, Sheets, Slides, and Markdown under Project Settings.`;
-  }
-  return `[${model}] Received your request: "${prompt.trim()}". Workspace context is synced and ready for follow-up commands.`;
-}
-
-class MockAiChatService implements IAiChatService {
-  async listThreads(): Promise<AiThread[]> {
-    return [...threads];
-  }
-
-  async createThread(model: AiModelId): Promise<AiThread> {
-    const created: AiThread = {
-      id: `ai_${Date.now()}`,
-      title: 'New AI Session',
-      model,
-      updatedAt: 'Just now',
-    };
-    threads = [created, ...threads];
-    return created;
-  }
-
-  async listMessages(threadId: string): Promise<AiMessage[]> {
-    return messages.filter((m) => m.threadId === threadId);
-  }
-
-  async sendPrompt(
+  streamPrompt(
     threadId: string,
-    prompt: string,
-    model: AiModelId
-  ): Promise<AiMessage> {
-    const userMsg: AiMessage = {
-      id: `aim_u_${Date.now()}`,
-      threadId,
-      role: 'user',
-      content: prompt.trim(),
-      timestamp: 'Just now',
-    };
-    messages = [...messages, userMsg];
-    threads = threads.map((t) =>
-      t.id === threadId && t.title === 'New AI Session'
-        ? { ...t, title: prompt.trim().slice(0, 32), updatedAt: 'Just now' }
-        : t
-    );
+    payload: { prompt: string; model: AiModelId; webSearch: boolean },
+    handlers: StreamHandlers
+  ): Promise<void>;
+  listMemories(scopeType: AiScopeType, workspaceId?: string | null, projectId?: string | null): Promise<AiMemory[]>;
+  createMemory(payload: {
+    scopeType: AiScopeType;
+    workspaceId?: string | null;
+    projectId?: string | null;
+    category: 'FACT' | 'DECISION' | 'PREFERENCE';
+    content: string;
+    pinned?: boolean;
+  }): Promise<AiMemory>;
+  deleteMemory(memoryId: string): Promise<void>;
+  getAdminConfig(): Promise<AiProviderConfig>;
+  updateAdminConfig(payload: UpdateAiProviderConfigPayload): Promise<AiProviderConfig>;
+}
 
-    await delay(260);
-    const reply: AiMessage = {
-      id: `aim_a_${Date.now() + 1}`,
-      threadId,
-      role: 'assistant',
-      content: buildReply(prompt, model),
-      timestamp: 'Just now',
-    };
-    messages = [...messages, reply];
-    return reply;
+function parseSseChunk(rawEvent: string, handlers: StreamHandlers) {
+  let eventName = 'message';
+  const dataLines: string[] = [];
+  for (const line of rawEvent.split('\n')) {
+    if (line.startsWith('event:')) eventName = line.slice(6).trim();
+    else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
+  }
+  if (dataLines.length === 0) return;
+  const payload = JSON.parse(dataLines.join('\n')) as Record<string, unknown>;
+  if (eventName === 'token' && typeof payload.delta === 'string') {
+    handlers.onToken?.(payload.delta);
+  } else if (eventName === 'tool') {
+    handlers.onTool?.(payload as unknown as AiToolTrace);
+  } else if (eventName === 'done') {
+    handlers.onDone?.(payload as unknown as AiMessage);
+  } else if (eventName === 'error') {
+    handlers.onError?.(typeof payload.message === 'string' ? payload.message : 'AI request failed.');
   }
 }
 
-export const aiChatService: IAiChatService = new MockAiChatService();
+export const aiChatService: IAiChatService = {
+  listThreads(scopeType, workspaceId) {
+    return apiRequest<AiThread[]>('GET', '/api/v1/ai/threads', {
+      query: { scopeType: scopeType ?? undefined, workspaceId: workspaceId ?? undefined },
+    });
+  },
+
+  createThread(payload) {
+    return apiRequest<AiThread>('POST', '/api/v1/ai/threads', { body: payload });
+  },
+
+  deleteThread(threadId) {
+    return apiRequest<void>('DELETE', `/api/v1/ai/threads/${threadId}`);
+  },
+
+  listMessages(threadId) {
+    return apiRequest<AiMessage[]>('GET', `/api/v1/ai/threads/${threadId}/messages`);
+  },
+
+  async streamPrompt(threadId, payload, handlers) {
+    const token = getStoredSession()?.accessToken ?? null;
+    const res = await fetch(`${API_BASE}/api/v1/ai/threads/${threadId}/messages/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok || !res.body) {
+      handlers.onError?.(`AI request failed (HTTP ${res.status}).`);
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n');
+      let sepIndex = buffer.indexOf('\n\n');
+      while (sepIndex !== -1) {
+        const block = buffer.slice(0, sepIndex).trim();
+        buffer = buffer.slice(sepIndex + 2);
+        if (block) {
+          try {
+            parseSseChunk(block, handlers);
+          } catch {
+            // Ignore partial frame
+          }
+        }
+        sepIndex = buffer.indexOf('\n\n');
+      }
+    }
+  },
+
+  listMemories(scopeType, workspaceId, projectId) {
+    return apiRequest<AiMemory[]>('GET', '/api/v1/ai/memories', {
+      query: { scopeType, workspaceId: workspaceId ?? undefined, projectId: projectId ?? undefined },
+    });
+  },
+
+  createMemory(payload) {
+    return apiRequest<AiMemory>('POST', '/api/v1/ai/memories', { body: payload });
+  },
+
+  deleteMemory(memoryId) {
+    return apiRequest<void>('DELETE', `/api/v1/ai/memories/${memoryId}`);
+  },
+
+  getAdminConfig() {
+    return apiRequest<AiProviderConfig>('GET', '/api/v1/admin/ai/config');
+  },
+
+  updateAdminConfig(payload) {
+    return apiRequest<AiProviderConfig>('PUT', '/api/v1/admin/ai/config', { body: payload });
+  },
+};

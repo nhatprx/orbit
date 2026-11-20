@@ -43,6 +43,30 @@ public class UserEntity {
     @Column(name = "avatar_key", length = 512)
     private String avatarKey;
 
+    @Column(length = 300)
+    private String bio;
+
+    @Column(columnDefinition = "TEXT")
+    private String introduction;
+
+    @Column(length = 120)
+    private String organization;
+
+    @Column(length = 120)
+    private String location;
+
+    @Column(length = 255)
+    private String website;
+
+    @Column(name = "active_status_enabled", nullable = false)
+    private boolean activeStatusEnabled = true;
+
+    @Column(name = "active_status", nullable = false, length = 16)
+    private String activeStatus = "ONLINE";
+
+    @Column(name = "pinned_project_ids", columnDefinition = "TEXT")
+    private String pinnedProjectIds;
+
     @Column(name = "totp_enabled", nullable = false)
     private boolean totpEnabled;
 
@@ -103,6 +127,30 @@ public class UserEntity {
 
     public String getAvatarKey() { return avatarKey; }
     public void setAvatarKey(String avatarKey) { this.avatarKey = avatarKey; }
+
+    public String getBio() { return bio; }
+    public void setBio(String bio) { this.bio = bio; }
+
+    public String getIntroduction() { return introduction; }
+    public void setIntroduction(String introduction) { this.introduction = introduction; }
+
+    public String getOrganization() { return organization; }
+    public void setOrganization(String organization) { this.organization = organization; }
+
+    public String getLocation() { return location; }
+    public void setLocation(String location) { this.location = location; }
+
+    public String getWebsite() { return website; }
+    public void setWebsite(String website) { this.website = website; }
+
+    public boolean isActiveStatusEnabled() { return activeStatusEnabled; }
+    public void setActiveStatusEnabled(boolean activeStatusEnabled) { this.activeStatusEnabled = activeStatusEnabled; }
+
+    public String getActiveStatus() { return activeStatus; }
+    public void setActiveStatus(String activeStatus) { this.activeStatus = activeStatus; }
+
+    public String getPinnedProjectIds() { return pinnedProjectIds; }
+    public void setPinnedProjectIds(String pinnedProjectIds) { this.pinnedProjectIds = pinnedProjectIds; }
 
     public boolean isTotpEnabled() { return totpEnabled; }
     public void setTotpEnabled(boolean totpEnabled) { this.totpEnabled = totpEnabled; }

@@ -35,7 +35,7 @@ class RoleApiTest extends AbstractIntegrationTest {
         Result list = api(owner).get(url);
         assertEquals(200, list.status());
         assertEquals(3, list.<List<Object>>json("$").size());
-        assertEquals(20, list.<List<Integer>>json("$[?(@.name=='Owner')].permissions.length()").getFirst());
+        assertEquals(24, list.<List<Integer>>json("$[?(@.name=='Owner')].permissions.length()").getFirst());
         assertEquals(1, list.<List<Integer>>json("$[?(@.name=='Member')].memberCount").getFirst());
         assertTrue(list.<List<Boolean>>json("$[?(@.name=='Owner')].immutable").getFirst());
 
@@ -117,7 +117,7 @@ class RoleApiTest extends AbstractIntegrationTest {
         String url = Fixtures.projectUrl(ws, project) + "/roles";
 
         assertEquals(3, api(owner).get(url).<List<Object>>json("$").size());
-        assertEquals(13, api(owner).get(url).<List<Integer>>json("$[?(@.name=='Owner')].permissions.length()").getFirst());
+        assertEquals(17, api(owner).get(url).<List<Integer>>json("$[?(@.name=='Owner')].permissions.length()").getFirst());
 
         Result created = api(owner).post(url, Fixtures.roleBody("Reviewer", "project.view", "pchat.read"));
         assertEquals(201, created.status());

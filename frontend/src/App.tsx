@@ -63,7 +63,7 @@ export function App() {
     window.history.replaceState({}, document.title, window.location.pathname);
 
     if (oauthLinked || oauthLinkError) {
-      setInitialProfileSection('accounts');
+      setInitialProfileSection('settings');
       setNotice(
         oauthLinked
           ? `Connected ${oauthLinked.charAt(0).toUpperCase() + oauthLinked.slice(1)} account successfully.`

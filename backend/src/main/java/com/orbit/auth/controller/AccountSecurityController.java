@@ -10,10 +10,12 @@ import com.orbit.auth.dto.StartTwoFactorSetupRequest;
 import com.orbit.auth.dto.TwoFactorEnableResponse;
 import com.orbit.auth.dto.TwoFactorSetupResponse;
 import com.orbit.auth.dto.UpdateAccountProfileRequest;
+import com.orbit.auth.dto.UserActivitySummaryDto;
 import com.orbit.auth.dto.VerifyTotpRequest;
 import com.orbit.auth.security.AuthenticatedUserPrincipal;
 import com.orbit.auth.service.AccountProfileService;
 import com.orbit.auth.service.AccountSecurityService;
+import com.orbit.auth.service.UserActivitySummaryService;
 import com.orbit.common.ApiException;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -34,13 +36,23 @@ public class AccountSecurityController {
 
     private final AccountSecurityService accountSecurityService;
     private final AccountProfileService accountProfileService;
+    private final UserActivitySummaryService userActivitySummaryService;
 
     public AccountSecurityController(
         AccountSecurityService accountSecurityService,
-        AccountProfileService accountProfileService
+        AccountProfileService accountProfileService,
+        UserActivitySummaryService userActivitySummaryService
     ) {
         this.accountSecurityService = accountSecurityService;
         this.accountProfileService = accountProfileService;
+        this.userActivitySummaryService = userActivitySummaryService;
+    }
+
+    @GetMapping("/activity-summary")
+    public ResponseEntity<UserActivitySummaryDto> getActivitySummary(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal
+    ) {
+        return ResponseEntity.ok(userActivitySummaryService.getSummary(requireUser(principal)));
     }
 
     @GetMapping("/security")

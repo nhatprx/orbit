@@ -28,6 +28,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
  */
 @SpringBootTest(properties = {
     "orbit.workspace.purge.enabled=false",
+    "orbit.cloud.sweeper.enabled=false",
     "orbit.chat.redis.enabled=false",
     "orbit.cors.allowed-origins=http://localhost:5173"
 })

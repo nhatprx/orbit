@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Lock, ShieldCheck } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { Panel } from '../../components/ui/Panel';
+import { CollapsibleCard } from '../../components/ui/CollapsibleCard';
 import { accountSecurityService } from '../../services/accountSecurity.service';
 import { errorMessage } from '../../services/workspace/httpClient';
 import type { TwoFactorSetupResponse } from '../../types/auth.types';
@@ -74,14 +74,16 @@ export function TwoFactorSettingsPanel({
   }
 
   return (
-    <Panel
+    <CollapsibleCard
       title="Two-factor authentication (2FA)"
-      description="Protect your account with a TOTP authenticator app such as Google Authenticator, Authy, or 1Password."
-      actions={
+      description="Protect your account with a TOTP authenticator app such as Google Authenticator or 1Password."
+      icon={<ShieldCheck className="h-4 w-4" strokeWidth={1.5} />}
+      badge={
         <Badge tone={totpEnabled ? 'green' : 'neutral'} withDot>
           {totpEnabled ? 'Enabled' : 'Disabled'}
         </Badge>
       }
+      defaultOpen={false}
     >
       <div className="space-y-4">
         {backupCodes && <BackupCodesBox codes={backupCodes} onDismiss={() => setBackupCodes(null)} />}
@@ -167,6 +169,6 @@ export function TwoFactorSettingsPanel({
           </p>
         )}
       </div>
-    </Panel>
+    </CollapsibleCard>
   );
 }

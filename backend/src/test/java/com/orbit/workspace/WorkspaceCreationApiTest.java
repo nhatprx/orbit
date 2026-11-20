@@ -58,12 +58,12 @@ class WorkspaceCreationApiTest extends AbstractIntegrationTest {
         WorkspaceRoleEntity members = roles.findByWorkspaceIdAndNameIgnoreCase(id, "Member").orElseThrow();
         assertTrue(owners.isImmutable());
         assertFalse(admins.isImmutable());
-        assertEquals(20, rolePermissions.findKeys(owners.getId(), RoleScope.WORKSPACE).size());
+        assertEquals(24, rolePermissions.findKeys(owners.getId(), RoleScope.WORKSPACE).size());
         Set<String> adminKeys = rolePermissions.findKeys(admins.getId(), RoleScope.WORKSPACE);
-        assertEquals(18, adminKeys.size());
+        assertEquals(22, adminKeys.size());
         assertFalse(adminKeys.contains(Permissions.WORKSPACE_DELETE));
         assertFalse(adminKeys.contains(Permissions.WORKSPACE_TRANSFER_OWNER));
-        assertEquals(6, rolePermissions.findKeys(members.getId(), RoleScope.WORKSPACE).size());
+        assertEquals(9, rolePermissions.findKeys(members.getId(), RoleScope.WORKSPACE).size());
     }
 
     @Test

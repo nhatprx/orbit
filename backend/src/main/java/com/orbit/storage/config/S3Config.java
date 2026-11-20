@@ -1,5 +1,6 @@
 package com.orbit.storage.config;
 
+import java.net.URI;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -7,30 +8,51 @@ import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3ClientBuilder;
+import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 @Configuration
-@EnableConfigurationProperties(S3Properties.class)
+@EnableConfigurationProperties({S3Properties.class, CloudFrontProperties.class})
 public class S3Config {
 
     private static final String S3_ENABLED_CONDITION =
-        "${orbit.storage.s3.enabled:false} and !'${orbit.storage.s3.bucket:}'.trim().isEmpty()";
+        "${orbit.storage.s3.enabled:false} and ("
+            + "!'${orbit.storage.s3.bucket:}'.trim().isEmpty() or "
+            + "!'${orbit.storage.s3.cloud-files-bucket:}'.trim().isEmpty())";
 
     @Bean(destroyMethod = "close")
     @ConditionalOnExpression(S3_ENABLED_CONDITION)
     public S3Client s3Client(S3Properties properties) {
-        return S3Client.builder()
+        S3ClientBuilder builder = S3Client.builder()
             .region(Region.of(properties.getRegion()))
             .credentialsProvider(DefaultCredentialsProvider.create())
-            .build();
+            .serviceConfiguration(
+                S3Configuration.builder()
+                    .pathStyleAccessEnabled(properties.isPathStyleAccess())
+                    .build()
+            );
+        if (!properties.getEndpoint().isBlank()) {
+            builder.endpointOverride(URI.create(properties.getEndpoint()));
+        }
+        return builder.build();
     }
 
     @Bean(destroyMethod = "close")
     @ConditionalOnExpression(S3_ENABLED_CONDITION)
     public S3Presigner s3Presigner(S3Properties properties) {
-        return S3Presigner.builder()
+        S3Presigner.Builder builder = S3Presigner.builder()
             .region(Region.of(properties.getRegion()))
             .credentialsProvider(DefaultCredentialsProvider.create())
-            .build();
+            .serviceConfiguration(
+                S3Configuration.builder()
+                    .pathStyleAccessEnabled(properties.isPathStyleAccess())
+                    .build()
+            );
+        String presignerEndpoint = properties.effectivePresignerEndpoint();
+        if (!presignerEndpoint.isBlank()) {
+            builder.endpointOverride(URI.create(presignerEndpoint));
+        }
+        return builder.build();
     }
 }

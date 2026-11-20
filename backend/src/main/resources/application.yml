@@ -88,6 +88,51 @@ orbit:
     s3:
       enabled: ${AWS_S3_ENABLED:false}
       bucket: ${AWS_S3_BUCKET:}
+      cloud-files-bucket: ${AWS_CLOUD_FILES_BUCKET:}
       region: ${AWS_REGION:ap-southeast-1}
+      endpoint: ${AWS_S3_ENDPOINT:}
+      public-endpoint: ${AWS_S3_PUBLIC_ENDPOINT:}
+      path-style-access: ${AWS_S3_PATH_STYLE_ACCESS:false}
       presign-duration-minutes: ${AWS_S3_PRESIGN_DURATION_MINUTES:15}
       public-base-url: ${AWS_S3_PUBLIC_BASE_URL:}
+    cloudfront:
+      enabled: ${AWS_CLOUDFRONT_ENABLED:false}
+      domain: ${AWS_CLOUDFRONT_DOMAIN:}
+      key-pair-id: ${AWS_CLOUDFRONT_KEY_PAIR_ID:}
+      private-key-pem: ${AWS_CLOUDFRONT_PRIVATE_KEY_PEM:}
+      url-ttl-minutes: ${AWS_CLOUDFRONT_URL_TTL_MINUTES:15}
+  cloud:
+    user-quota-bytes: ${ORBIT_CLOUD_USER_QUOTA_BYTES:5368709120}
+    workspace-quota-bytes: ${ORBIT_CLOUD_WORKSPACE_QUOTA_BYTES:53687091200}
+    project-quota-bytes: ${ORBIT_CLOUD_PROJECT_QUOTA_BYTES:10737418240}
+    max-file-size-bytes: ${ORBIT_CLOUD_MAX_FILE_SIZE_BYTES:524288000}
+    multipart-threshold-bytes: ${ORBIT_CLOUD_MULTIPART_THRESHOLD_BYTES:52428800}
+    multipart-part-size-bytes: ${ORBIT_CLOUD_MULTIPART_PART_SIZE_BYTES:10485760}
+    trash-retention-days: ${ORBIT_CLOUD_TRASH_RETENTION_DAYS:30}
+    upload-session-ttl-minutes: ${ORBIT_CLOUD_UPLOAD_SESSION_TTL_MINUTES:60}
+    sweeper:
+      enabled: ${ORBIT_CLOUD_SWEEPER_ENABLED:true}
+      cron: ${ORBIT_CLOUD_SWEEPER_CRON:0 */15 * * * *}
+  ai:
+    provider: ${ORBIT_AI_PROVIDER:BEDROCK}
+    web-search-enabled: ${ORBIT_AI_WEB_SEARCH_ENABLED:true}
+    rate-limit-per-minute: ${ORBIT_AI_RATE_LIMIT_PER_MINUTE:20}
+    bedrock:
+      region: ${ORBIT_AI_BEDROCK_REGION:us-east-1}
+      fast-model: ${ORBIT_AI_BEDROCK_FAST_MODEL:anthropic.claude-3-5-haiku-20241022-v1:0}
+      pro-model: ${ORBIT_AI_BEDROCK_PRO_MODEL:anthropic.claude-3-5-sonnet-20241022-v2:0}
+      coder-model: ${ORBIT_AI_BEDROCK_CODER_MODEL:anthropic.claude-3-5-sonnet-20241022-v2:0}
+      embed-model: ${ORBIT_AI_BEDROCK_EMBED_MODEL:amazon.titan-embed-text-v2:0}
+    openrouter:
+      api-key: ${ORBIT_AI_OPENROUTER_API_KEY:}
+      base-url: ${ORBIT_AI_OPENROUTER_BASE_URL:https://openrouter.ai/api/v1}
+      fast-model: ${ORBIT_AI_OPENROUTER_FAST_MODEL:google/gemini-2.5-flash}
+      pro-model: ${ORBIT_AI_OPENROUTER_PRO_MODEL:anthropic/claude-3.7-sonnet}
+      coder-model: ${ORBIT_AI_OPENROUTER_CODER_MODEL:anthropic/claude-3.7-sonnet}
+      embed-model: ${ORBIT_AI_OPENROUTER_EMBED_MODEL:openai/text-embedding-3-small}
+    qdrant:
+      url: ${ORBIT_AI_QDRANT_URL:}
+      api-key: ${ORBIT_AI_QDRANT_API_KEY:}
+      collection: ${ORBIT_AI_QDRANT_COLLECTION:orbit_ai_memories}
+    tavily:
+      api-key: ${ORBIT_AI_TAVILY_API_KEY:}

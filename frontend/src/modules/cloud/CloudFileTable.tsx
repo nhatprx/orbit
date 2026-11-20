@@ -1,134 +1,145 @@
-import {
-  FileSpreadsheet,
-  FileText,
-  Folder,
-  Presentation,
-  RotateCcw,
-  Star,
-  Terminal,
-  Trash2,
-} from 'lucide-react';
-import type { CloudFileItem, CloudFileKind } from '../../types/cloud.types';
+import { File, Folder } from 'lucide-react';
+import { Button } from '../../components/ui/Button';
+import type { CloudNodeDto, CloudPermissions, CloudView } from '../../types/cloud.types';
+import { daysUntil, formatRelative } from '../../utils/format';
+import { formatBytes } from './cloudFormat';
+import { CloudRowActions } from './CloudRowActions';
 
 interface CloudFileTableProps {
-  files: CloudFileItem[];
+  nodes: CloudNodeDto[];
+  view: CloudView;
   selectedId: string | null;
-  onSelect: (file: CloudFileItem) => void;
-  onToggleStar: (id: string) => void;
-  onToggleTrash: (id: string, trashed: boolean) => void;
+  loading: boolean;
+  hasMore: boolean;
+  loadingMore: boolean;
+  permissions: CloudPermissions;
+  onSelect: (node: CloudNodeDto) => void;
+  onOpenFolder: (folderId: string) => void;
+  onToggleStar: (node: CloudNodeDto) => void;
+  onDownload: (node: CloudNodeDto) => void;
+  onRename: (node: CloudNodeDto) => void;
+  onMove: (node: CloudNodeDto) => void;
+  onSoftDelete: (node: CloudNodeDto) => void;
+  onRestore: (node: CloudNodeDto) => void;
+  onPermanentDelete: (node: CloudNodeDto) => void;
+  onLoadMore: () => void;
 }
 
-const KIND_ICON: Record<CloudFileKind, typeof FileText> = {
-  folder: Folder,
-  doc: FileText,
-  sheet: FileSpreadsheet,
-  slide: Presentation,
-  markdown: Terminal,
-};
-
 export function CloudFileTable({
-  files,
+  nodes,
+  view,
   selectedId,
+  loading,
+  hasMore,
+  loadingMore,
+  permissions,
   onSelect,
+  onOpenFolder,
   onToggleStar,
-  onToggleTrash,
+  onDownload,
+  onRename,
+  onMove,
+  onSoftDelete,
+  onRestore,
+  onPermanentDelete,
+  onLoadMore,
 }: CloudFileTableProps) {
+  if (loading && nodes.length === 0) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-10 font-mono text-xs text-[#7D8590]">
+        Loading cloud files...
+      </div>
+    );
+  }
+
+  if (nodes.length === 0) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center p-12 text-center">
+        <p className="text-sm font-medium text-[#E6EDF3]">
+          {view === 'TRASH' ? 'Trash is empty' : view === 'STARRED' ? 'No starred items' : 'This folder is empty'}
+        </p>
+        <p className="mt-1 text-xs text-[#7D8590]">
+          {view === 'TRASH'
+            ? 'Deleted items stay here for 30 days before automatic purge.'
+            : permissions.canWrite
+              ? 'Drop files here or use Upload Files / New Folder above.'
+              : 'No files or folders match this view.'}
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex-1 overflow-y-auto bg-[#0D1117]">
-      <table className="w-full text-left text-sm">
-        <thead className="sticky top-0 border-b border-[#30363D] bg-[#161B22] text-xs uppercase tracking-wider text-[#BDBDBD]">
+    <div className="flex-1 overflow-auto">
+      <table className="w-full border-collapse text-left text-[13px]">
+        <thead className="sticky top-0 z-10 border-b border-[#30363D] bg-[#161B22] font-mono text-[10px] uppercase tracking-wider text-[#7D8590]">
           <tr>
-            <th className="px-4 py-3 font-medium">Name</th>
-            <th className="hidden px-4 py-3 font-medium sm:table-cell">Owner</th>
-            <th className="hidden px-4 py-3 font-medium md:table-cell">Size</th>
-            <th className="px-4 py-3 font-medium">Modified</th>
-            <th className="px-4 py-3 text-right font-medium">Actions</th>
+            <th className="px-4 py-2.5 font-medium">Name</th>
+            <th className="w-28 px-3 py-2.5 font-medium">Size</th>
+            <th className="w-36 px-3 py-2.5 font-medium">{view === 'TRASH' ? 'Auto-Purge' : 'Modified'}</th>
+            <th className="w-36 px-3 py-2.5 text-right font-medium">Actions</th>
           </tr>
         </thead>
-        <tbody>
-          {files.length === 0 ? (
-            <tr>
-              <td colSpan={5} className="px-4 py-8 text-center text-sm text-[#8A8A8A]">
-                No files in this view.
-              </td>
-            </tr>
-          ) : (
-            files.map((file) => {
-              const Icon = KIND_ICON[file.kind];
-              const isSelected = file.id === selectedId;
-              return (
-                <tr
-                  key={file.id}
-                  onClick={() => onSelect(file)}
-                  className={`cursor-pointer border-b border-[#30363D] transition-colors ${
-                    isSelected
-                      ? 'bg-[#161B22]'
-                      : 'hover:bg-[#161B22]'
-                  }`}
-                >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <Icon className="h-4 w-4 shrink-0 text-[#22C55E]" strokeWidth={1.5} />
-                      <span className="truncate font-medium text-[#E6EDF3]">
-                        {file.name}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="hidden px-4 py-3 font-mono text-xs text-[#BDBDBD] sm:table-cell">
-                    {file.owner}
-                  </td>
-                  <td className="hidden px-4 py-3 font-mono text-xs text-[#8A8A8A] md:table-cell">
-                    {file.size}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-[#8A8A8A]">
-                    {file.updatedAt}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="inline-flex items-center gap-2">
-                      {!file.trashed && (
-                        <button
-                          type="button"
-                          title="Star"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onToggleStar(file.id);
-                          }}
-                          className={
-                            file.starred
-                              ? 'text-[#22C55E]'
-                              : 'text-[#8A8A8A] hover:text-[#E6EDF3]'
-                          }
-                        >
-                          <Star
-                            className="h-4 w-4"
-                            strokeWidth={1.5}
-                            fill={file.starred ? 'currentColor' : 'none'}
-                          />
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        title={file.trashed ? 'Restore' : 'Move to trash'}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleTrash(file.id, !file.trashed);
-                        }}
-                        className="text-[#8A8A8A] hover:text-[#EF4444]"
-                      >
-                        {file.trashed ? (
-                          <RotateCcw className="h-4 w-4 text-[#22C55E]" strokeWidth={1.5} />
-                        ) : (
-                          <Trash2 className="h-4 w-4" strokeWidth={1.5} />
-                        )}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })
-          )}
+        <tbody className="divide-y divide-[#21262D]">
+          {nodes.map((node) => {
+            const isSelected = node.id === selectedId;
+            const isFolder = node.nodeType === 'FOLDER';
+            const purgeDays = node.purgeAfter ? daysUntil(node.purgeAfter) : null;
+
+            return (
+              <tr
+                key={node.id}
+                onClick={() => onSelect(node)}
+                onDoubleClick={() => {
+                  if (isFolder && view !== 'TRASH') onOpenFolder(node.id);
+                }}
+                className={`cursor-pointer transition-colors ${
+                  isSelected ? 'bg-[#052E16]/70 text-[#E6EDF3]' : 'hover:bg-[#161B22]'
+                }`}
+              >
+                <td className="px-4 py-2.5">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    {isFolder ? (
+                      <Folder className="h-4 w-4 shrink-0 text-[#22C55E]" strokeWidth={1.5} />
+                    ) : (
+                      <File className="h-4 w-4 shrink-0 text-[#8B949E]" strokeWidth={1.5} />
+                    )}
+                    <span className="truncate font-medium text-[#E6EDF3]">{node.name}</span>
+                  </div>
+                </td>
+                <td className="px-3 py-2.5 font-mono text-xs text-[#8B949E]">
+                  {isFolder ? '--' : formatBytes(node.sizeBytes)}
+                </td>
+                <td className="px-3 py-2.5 font-mono text-xs text-[#8B949E]">
+                  {view === 'TRASH' && purgeDays !== null ? `${purgeDays}d left` : formatRelative(node.updatedAt)}
+                </td>
+                <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                  <CloudRowActions
+                    node={node}
+                    view={view}
+                    permissions={permissions}
+                    onToggleStar={onToggleStar}
+                    onDownload={onDownload}
+                    onRename={onRename}
+                    onMove={onMove}
+                    onSoftDelete={onSoftDelete}
+                    onRestore={onRestore}
+                    onPermanentDelete={onPermanentDelete}
+                  />
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
+
+      {hasMore && (
+        <div className="flex justify-center border-t border-[#21262D] py-3">
+          <Button type="button" variant="secondary" disabled={loadingMore} onClick={onLoadMore}>
+            {loadingMore ? 'Loading...' : 'Load more'}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

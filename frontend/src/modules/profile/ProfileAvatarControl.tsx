@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
-import { Camera, Loader2, Trash2 } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
+import { Camera, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { UserAvatar } from '../../components/ui/UserAvatar';
 import { avatarService } from '../../services/avatar.service';
-import type { AuthUser } from '../../types/auth.types';
+import type { AccountStatus, AuthUser } from '../../types/auth.types';
+import { getStatusMeta } from './activeStatus';
 
 interface ProfileAvatarControlProps {
   user: AuthUser;
   displayName: string;
+  status?: AccountStatus;
   onUserUpdated?: (user: AuthUser) => void;
 }
 
@@ -16,9 +17,12 @@ const ACCEPT_TYPES = 'image/jpeg,image/png,image/webp,image/gif';
 export function ProfileAvatarControl({
   user,
   displayName,
+  status = 'ONLINE',
   onUserUpdated,
 }: ProfileAvatarControlProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,11 +34,23 @@ export function ProfileAvatarControl({
     };
   }, [previewUrl]);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleOutsideClick(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [menuOpen]);
+
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
 
+    setMenuOpen(false);
     setError(null);
     setStatusMessage(null);
 
@@ -51,7 +67,7 @@ export function ProfileAvatarControl({
     try {
       const updatedUser = await avatarService.uploadAvatar(file);
       onUserUpdated?.(updatedUser);
-      setStatusMessage('Avatar uploaded to AWS S3.');
+      setStatusMessage('Avatar updated.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to upload avatar.');
     } finally {
@@ -64,6 +80,7 @@ export function ProfileAvatarControl({
   }
 
   async function handleRemove() {
+    setMenuOpen(false);
     setError(null);
     setStatusMessage(null);
     setBusy(true);
@@ -78,16 +95,73 @@ export function ProfileAvatarControl({
     }
   }
 
+  function handleEditClick() {
+    if (busy) return;
+    if (!user.avatarUrl) {
+      fileInputRef.current?.click();
+      return;
+    }
+    setMenuOpen((prev) => !prev);
+  }
+
   const effectiveUrl = previewUrl ?? user.avatarUrl ?? null;
+  const statusMeta = getStatusMeta(status);
 
   return (
     <div className="space-y-2.5">
-      <div className="relative w-full max-w-[260px]">
+      <div ref={menuRef} className="relative w-full max-w-[260px]">
         <UserAvatar name={displayName} avatarUrl={effectiveUrl} size="lg" />
+
+        <span
+          title={statusMeta.label}
+          aria-label={`Account ${statusMeta.label.toLowerCase()}`}
+          className={`absolute right-2 top-2 h-3 w-3 border-2 border-[#0D1117] ${statusMeta.dotClass}`}
+        />
+
+        <button
+          type="button"
+          disabled={busy}
+          aria-label="Edit avatar"
+          title="Edit avatar"
+          onClick={handleEditClick}
+          className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center border border-[#30363D] bg-[#0D1117]/95 text-[#E6EDF3] transition-colors hover:border-[#22C55E] hover:text-[#22C55E] disabled:opacity-50"
+        >
+          <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} />
+        </button>
+
+        {menuOpen && (
+          <div
+            role="menu"
+            className="absolute bottom-9 right-0 z-20 w-44 border border-[#30363D] bg-[#161B22] py-1 shadow-lg"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setMenuOpen(false);
+                fileInputRef.current?.click();
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#E6EDF3] hover:bg-[#21262D]"
+            >
+              <Camera className="h-3.5 w-3.5 text-[#8B949E]" strokeWidth={1.5} />
+              Change avatar
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => void handleRemove()}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-[#EF4444] hover:bg-[#21262D]"
+            >
+              <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+              Remove avatar
+            </button>
+          </div>
+        )}
+
         {busy && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[#0D1117]/80 text-xs text-[#22C55E]">
             <Loader2 className="h-5 w-5 animate-spin" strokeWidth={1.5} />
-            <span className="font-mono">Syncing S3...</span>
+            <span className="font-mono">Syncing...</span>
           </div>
         )}
       </div>
@@ -100,37 +174,6 @@ export function ProfileAvatarControl({
         onChange={(e) => void handleFileChange(e)}
         className="hidden"
       />
-
-      <div className="flex max-w-[260px] gap-2">
-        <Button
-          type="button"
-          variant="secondary"
-          disabled={busy}
-          onClick={() => fileInputRef.current?.click()}
-          className="flex flex-1 items-center justify-center gap-1.5"
-        >
-          <Camera className="h-3.5 w-3.5" strokeWidth={1.5} />
-          {user.avatarUrl ? 'Change avatar' : 'Upload avatar'}
-        </Button>
-
-        {user.avatarUrl && (
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={busy}
-            title="Remove avatar"
-            aria-label="Remove avatar"
-            onClick={() => void handleRemove()}
-            className="px-2.5 text-[#EF4444] hover:border-[#EF4444]"
-          >
-            <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
-          </Button>
-        )}
-      </div>
-
-      <p className="max-w-[260px] text-[11px] text-[#7D8590]">
-        JPEG, PNG, WebP, or GIF up to 5 MB. Stored on AWS S3.
-      </p>
 
       {error && (
         <p role="alert" className="max-w-[260px] border border-[#EF4444] bg-[#161B22] px-2.5 py-1.5 text-xs text-[#EF4444]">

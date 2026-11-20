@@ -1,5 +1,6 @@
 export type UserRole = 'admin' | 'user';
 export type OAuthProvider = 'google' | 'github';
+export type AccountStatus = 'ONLINE' | 'BUSY' | 'AWAY' | 'OFFLINE';
 
 export interface AuthUser {
   id: string;
@@ -11,6 +12,24 @@ export interface AuthUser {
   role: UserRole;
   workspaceId: string;
   avatarUrl?: string | null;
+  bio?: string | null;
+  introduction?: string | null;
+  organization?: string | null;
+  location?: string | null;
+  website?: string | null;
+  activeStatusEnabled?: boolean;
+  activeStatus?: AccountStatus;
+  pinnedProjectIds?: string[];
+  createdAt?: string | null;
+}
+
+export interface UserActivitySummary {
+  workspaceCount: number;
+  projectCount: number;
+  messagesTotal: number;
+  messagesLast30Days: number;
+  activeDaysLast30Days: number;
+  lastActiveAt: string | null;
 }
 
 export interface AuthSession {

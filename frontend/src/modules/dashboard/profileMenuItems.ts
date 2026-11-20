@@ -4,7 +4,6 @@ import {
   Building2,
   FlaskConical,
   FolderGit2,
-  Link2,
   Paintbrush,
   Settings,
   Upload,
@@ -25,7 +24,6 @@ export const PRIMARY_PROFILE_ITEMS: ProfileMenuItem[] = [
   { label: 'Profile', icon: User, section: 'overview' },
   { label: 'Workspaces', icon: Building2, section: 'workspaces' },
   { label: 'Projects', icon: FolderGit2, section: 'projects' },
-  { label: 'Connected accounts', icon: Link2, section: 'accounts' },
   { label: 'Repositories', icon: BookMarked, area: 'git' },
 ];
 

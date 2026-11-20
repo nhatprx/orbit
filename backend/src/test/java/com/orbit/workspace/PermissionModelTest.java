@@ -15,10 +15,10 @@ class PermissionModelTest {
 
     @Test
     void keyCatalogsHaveNoDuplicatesAndDoNotOverlap() {
-        assertEquals(20, Permissions.WORKSPACE_KEYS.size());
-        assertEquals(13, Permissions.PROJECT_KEYS.size());
-        assertEquals(20, new HashSet<>(Permissions.WORKSPACE_KEYS).size());
-        assertEquals(13, new HashSet<>(Permissions.PROJECT_KEYS).size());
+        assertEquals(24, Permissions.WORKSPACE_KEYS.size());
+        assertEquals(17, Permissions.PROJECT_KEYS.size());
+        assertEquals(24, new HashSet<>(Permissions.WORKSPACE_KEYS).size());
+        assertEquals(17, new HashSet<>(Permissions.PROJECT_KEYS).size());
         Set<String> overlap = new HashSet<>(Permissions.WORKSPACE_KEYS);
         overlap.retainAll(Permissions.PROJECT_KEYS);
         assertTrue(overlap.isEmpty());
@@ -37,13 +37,16 @@ class PermissionModelTest {
 
     @Test
     void seededWorkspaceRolesMatchTheSpecification() {
-        assertEquals(20, SystemRole.OWNER.workspacePermissions().size());
+        assertEquals(24, SystemRole.OWNER.workspacePermissions().size());
         Set<String> admin = SystemRole.ADMIN.workspacePermissions();
-        assertEquals(18, admin.size());
+        assertEquals(22, admin.size());
         assertFalse(admin.contains(Permissions.WORKSPACE_DELETE));
         assertFalse(admin.contains(Permissions.WORKSPACE_TRANSFER_OWNER));
         assertEquals(
-            Set.of("workspace.view", "member.view", "role.view", "project.create", "chat.read", "chat.write"),
+            Set.of(
+                "workspace.view", "member.view", "role.view", "project.create",
+                "chat.read", "chat.write", "files.read", "files.write", "files.delete"
+            ),
             SystemRole.MEMBER.workspacePermissions()
         );
         assertTrue(SystemRole.OWNER.immutable());
@@ -52,11 +55,14 @@ class PermissionModelTest {
 
     @Test
     void seededProjectRolesMatchTheSpecification() {
-        assertEquals(13, SystemRole.OWNER.projectPermissions().size());
+        assertEquals(17, SystemRole.OWNER.projectPermissions().size());
         Set<String> admin = SystemRole.ADMIN.projectPermissions();
-        assertEquals(12, admin.size());
+        assertEquals(16, admin.size());
         assertFalse(admin.contains(Permissions.PROJECT_DELETE));
-        assertEquals(Set.of("project.view", "pchat.read", "pchat.write"), SystemRole.MEMBER.projectPermissions());
+        assertEquals(
+            Set.of("project.view", "pchat.read", "pchat.write", "pfiles.read", "pfiles.write", "pfiles.delete"),
+            SystemRole.MEMBER.projectPermissions()
+        );
     }
 
     @Test
@@ -68,18 +74,18 @@ class PermissionModelTest {
         assertEquals(Set.of(Permissions.PROJECT_VIEW), memberOnly);
 
         Set<String> viewAll = ProjectPermissionPolicy.effective(Set.of(Permissions.PROJECT_VIEW_ALL), false, false, none);
-        assertEquals(Set.of(Permissions.PROJECT_VIEW, Permissions.PCHAT_READ), viewAll);
+        assertEquals(Set.of(Permissions.PROJECT_VIEW, Permissions.PCHAT_READ, Permissions.PFILES_READ), viewAll);
 
         Set<String> admin = ProjectPermissionPolicy.effective(Set.of(Permissions.WORKSPACE_EDIT), false, false, none);
-        assertEquals(13, admin.size());
+        assertEquals(17, admin.size());
 
         Set<String> owner = ProjectPermissionPolicy.effective(none, true, false, none);
-        assertEquals(13, owner.size());
+        assertEquals(17, owner.size());
 
         Set<String> merged = ProjectPermissionPolicy.effective(
             Set.of(Permissions.PROJECT_VIEW_ALL), false, true, Set.of(Permissions.PCHAT_WRITE)
         );
-        assertEquals(Set.of("project.view", "pchat.read", "pchat.write"), merged);
+        assertEquals(Set.of("project.view", "pchat.read", "pchat.write", "pfiles.read"), merged);
     }
 
     @Test

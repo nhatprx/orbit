@@ -17,6 +17,14 @@ public interface WorkspaceMemberRepository
 
     long countByRoleId(UUID roleId);
 
+    @Query("""
+        select count(m)
+        from WorkspaceMemberEntity m
+        join WorkspaceEntity w on w.id = m.id.workspaceId
+        where m.id.userId = :userId and w.deletedAt is null
+        """)
+    long countActiveWorkspacesByUserId(UUID userId);
+
     boolean existsByIdWorkspaceIdAndIdUserId(UUID workspaceId, UUID userId);
 
     @Query("""

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BookMarked, Inbox, Menu, Orbit, Search } from 'lucide-react';
+import { Cloud, Inbox, Menu, Orbit, Search } from 'lucide-react';
 import type { AuthUser } from '../../types/auth.types';
 import type { WorkspaceAreaId } from '../../types/dashboard.types';
 import { HeaderBreadcrumb } from './HeaderBreadcrumb';
@@ -93,8 +93,14 @@ export function DashboardHeader({
           onComposeMail={() => select('mail')}
         />
 
-        <button type="button" title="Cloud Files" onClick={() => select('cloud')} className={`hidden sm:flex ${ICON_BTN}`}>
-          <BookMarked className="h-3.5 w-3.5" strokeWidth={1.5} />
+        <button
+          type="button"
+          title="Personal Cloud Files"
+          aria-label="Open Personal Cloud Files"
+          onClick={() => select('personal-cloud')}
+          className={`${ICON_BTN} ${nav.active === 'personal-cloud' ? 'border-[#22C55E] bg-[#052E16] text-[#22C55E]' : ''}`}
+        >
+          <Cloud className="h-3.5 w-3.5" strokeWidth={1.5} />
         </button>
 
         <button

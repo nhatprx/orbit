@@ -1,19 +1,14 @@
-import { Shield } from 'lucide-react';
+import { Link2, Shield } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
-import { Panel } from '../../components/ui/Panel';
+import { CollapsibleCard } from '../../components/ui/CollapsibleCard';
 import { ErrorView, LoadingView } from '../../components/ui/StateViews';
 import { useResource } from '../../hooks/useResource';
 import { accountSecurityService } from '../../services/accountSecurity.service';
-import type { AuthUser } from '../../types/auth.types';
+import { SocialAccountsPanel } from '../integrations/SocialAccountsPanel';
 import { PasswordSettingsPanel } from './PasswordSettingsPanel';
 import { TwoFactorSettingsPanel } from './TwoFactorSettingsPanel';
-import { UsernameSettingsPanel } from './UsernameSettingsPanel';
 
-interface AccountSettingsSectionProps {
-  onUserUpdated?: (user: AuthUser) => void;
-}
-
-export function AccountSettingsSection({ onUserUpdated }: AccountSettingsSectionProps) {
+export function AccountSettingsSection() {
   const security = useResource(() => accountSecurityService.getSecurityStatus(), []);
 
   if (security.loading && !security.data) {
@@ -24,56 +19,70 @@ export function AccountSettingsSection({ onUserUpdated }: AccountSettingsSection
   }
 
   const status = security.data;
+  const linkedCount = status.linkedProviders.length;
 
   return (
-    <div className="space-y-5">
-      <Panel
-        title="Account security overview"
-        description="Manage your handle, sign-in credentials, and two-factor authentication for your Orbit account."
-        actions={<Shield className="h-4 w-4 text-[#22C55E]" strokeWidth={1.5} />}
-      >
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="border border-[#30363D] bg-[#0D1117] p-3">
-            <p className="text-[11px] uppercase tracking-wider text-[#7D8590]">Password</p>
-            <div className="mt-1.5">
-              <Badge tone={status.hasPassword ? 'green' : 'neutral'} withDot>
-                {status.hasPassword ? 'Configured' : 'Not set'}
-              </Badge>
-            </div>
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-px border border-[#30363D] bg-[#30363D] sm:grid-cols-2">
+        <div className="bg-[#161B22] p-4">
+          <div className="flex items-center justify-between text-[#7D8590]">
+            <span className="text-[11px] uppercase tracking-wider">Security</span>
+            <Shield className="h-3.5 w-3.5 text-[#22C55E]" strokeWidth={1.5} />
           </div>
-          <div className="border border-[#30363D] bg-[#0D1117] p-3">
-            <p className="text-[11px] uppercase tracking-wider text-[#7D8590]">Two-factor auth</p>
-            <div className="mt-1.5">
-              <Badge tone={status.totpEnabled ? 'green' : 'neutral'} withDot>
-                {status.totpEnabled ? 'Enabled' : 'Disabled'}
-              </Badge>
-            </div>
-          </div>
-          <div className="border border-[#30363D] bg-[#0D1117] p-3">
-            <p className="text-[11px] uppercase tracking-wider text-[#7D8590]">OAuth providers</p>
-            <p className="mt-1.5 font-mono text-xs text-[#E6EDF3]">
-              {status.linkedProviders.length > 0 ? status.linkedProviders.join(', ') : 'None linked'}
-            </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <Badge tone={status.hasPassword ? 'green' : 'neutral'} withDot>
+              {status.hasPassword ? 'Password set' : 'No password'}
+            </Badge>
+            <Badge tone={status.totpEnabled ? 'green' : 'neutral'} withDot>
+              {status.totpEnabled ? '2FA enabled' : '2FA disabled'}
+            </Badge>
           </div>
         </div>
-      </Panel>
 
-      <UsernameSettingsPanel
-        currentUsername={status.username}
-        onUpdated={(updated) => {
-          onUserUpdated?.(updated);
-          security.reload();
-        }}
-      />
+        <div className="bg-[#161B22] p-4">
+          <div className="flex items-center justify-between text-[#7D8590]">
+            <span className="text-[11px] uppercase tracking-wider">Connected accounts</span>
+            <Link2 className="h-3.5 w-3.5 text-[#22C55E]" strokeWidth={1.5} />
+          </div>
+          <p className="mt-2 font-mono text-xs text-[#E6EDF3]">
+            {linkedCount > 0 ? status.linkedProviders.join(', ') : 'None linked'}
+          </p>
+        </div>
+      </div>
 
-      <PasswordSettingsPanel hasPassword={status.hasPassword} onUpdated={security.reload} />
+      <div className="space-y-2.5">
+        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#8B949E]">
+          Security
+        </h2>
+        <div className="space-y-3">
+          <PasswordSettingsPanel hasPassword={status.hasPassword} onUpdated={security.reload} />
+          <TwoFactorSettingsPanel
+            hasPassword={status.hasPassword}
+            totpEnabled={status.totpEnabled}
+            backupCodesRemaining={status.backupCodesRemaining}
+            onUpdated={security.reload}
+          />
+        </div>
+      </div>
 
-      <TwoFactorSettingsPanel
-        hasPassword={status.hasPassword}
-        totpEnabled={status.totpEnabled}
-        backupCodesRemaining={status.backupCodesRemaining}
-        onUpdated={security.reload}
-      />
+      <div className="space-y-2.5">
+        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#8B949E]">
+          Integrations
+        </h2>
+        <CollapsibleCard
+          title="Connected accounts"
+          description="Link Google or GitHub to sign in to this Orbit account."
+          icon={<Link2 className="h-4 w-4" strokeWidth={1.5} />}
+          badge={
+            <Badge tone={linkedCount > 0 ? 'green' : 'neutral'} withDot>
+              {linkedCount > 0 ? `${linkedCount} linked` : 'Not linked'}
+            </Badge>
+          }
+          defaultOpen={false}
+        >
+          <SocialAccountsPanel />
+        </CollapsibleCard>
+      </div>
     </div>
   );
 }

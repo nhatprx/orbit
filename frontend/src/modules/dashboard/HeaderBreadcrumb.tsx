@@ -12,11 +12,12 @@ const AREA_LABEL: Record<WorkspaceAreaId, string> = {
   chat: 'Chat',
   mail: 'Mails',
   cloud: 'Cloud Files',
+  'personal-cloud': 'Personal Cloud',
   admin: 'Admin Console',
 };
 
 /** Areas that live outside any Workspace or Project scope. */
-const GLOBAL_AREAS: WorkspaceAreaId[] = ['mail', 'ai', 'profile', 'admin', 'cloud'];
+const GLOBAL_AREAS: WorkspaceAreaId[] = ['mail', 'ai', 'profile', 'admin', 'personal-cloud'];
 
 /** Workspace-level pages never show a project, even while one is selected in the sidebar. */
 const WORKSPACE_LEVEL_AREAS: WorkspaceAreaId[] = ['overview', 'workspace-settings'];

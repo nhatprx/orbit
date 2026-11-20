@@ -30,4 +30,12 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessageEntity, 
         order by m.createdAt desc, m.id desc
         """)
     List<ChatMessageDto> findBefore(UUID channelId, Instant createdAt, UUID id, Pageable pageable);
+
+    long countBySenderId(UUID senderId);
+
+    @Query("select m.createdAt from ChatMessageEntity m where m.senderId = :senderId and m.createdAt >= :since")
+    List<Instant> findCreatedAtBySenderIdSince(UUID senderId, Instant since);
+
+    @Query("select max(m.createdAt) from ChatMessageEntity m where m.senderId = :senderId")
+    Instant findLatestCreatedAtBySenderId(UUID senderId);
 }

@@ -26,6 +26,10 @@ export const WORKSPACE_PERMISSIONS: PermissionDef[] = [
   { key: 'chat.read', label: 'Read chat', group: 'Chat' },
   { key: 'chat.write', label: 'Write in chat', group: 'Chat' },
   { key: 'chat.manage', label: 'Manage chat', group: 'Chat' },
+  { key: 'files.read', label: 'Read cloud files', group: 'Cloud Files' },
+  { key: 'files.write', label: 'Upload and edit cloud files', group: 'Cloud Files' },
+  { key: 'files.delete', label: 'Delete cloud files', group: 'Cloud Files' },
+  { key: 'files.manage', label: 'Manage cloud files and trash', group: 'Cloud Files' },
 ];
 
 /** Project-level permission keys. */
@@ -43,6 +47,10 @@ export const PROJECT_PERMISSIONS: PermissionDef[] = [
   { key: 'pchat.read', label: 'Read chat', group: 'Chat' },
   { key: 'pchat.write', label: 'Write in chat', group: 'Chat' },
   { key: 'pchat.manage', label: 'Manage chat', group: 'Chat' },
+  { key: 'pfiles.read', label: 'Read cloud files', group: 'Cloud Files' },
+  { key: 'pfiles.write', label: 'Upload and edit cloud files', group: 'Cloud Files' },
+  { key: 'pfiles.delete', label: 'Delete cloud files', group: 'Cloud Files' },
+  { key: 'pfiles.manage', label: 'Manage cloud files and trash', group: 'Cloud Files' },
 ];
 
 export interface PermissionGroup {
