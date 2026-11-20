@@ -32,9 +32,9 @@ public class AiProperties {
 
     public static class Bedrock {
         private String region = "us-east-1";
-        private String fastModel = "anthropic.claude-3-5-haiku-20241022-v1:0";
-        private String proModel = "anthropic.claude-3-5-sonnet-20241022-v2:0";
-        private String coderModel = "anthropic.claude-3-5-sonnet-20241022-v2:0";
+        private String fastModel = "us.amazon.nova-micro-v1:0";
+        private String proModel = "us.amazon.nova-micro-v1:0";
+        private String coderModel = "us.amazon.nova-micro-v1:0";
         private String embedModel = "amazon.titan-embed-text-v2:0";
 
         public String getRegion() { return region; }

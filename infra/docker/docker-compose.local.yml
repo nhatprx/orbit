@@ -35,6 +35,7 @@ services:
       - orbit_local
 
   minio:
+    profiles: ["offline"]
     image: minio/minio:latest
     container_name: orbit-minio
     command: ["server", "/data", "--console-address", ":9001"]
@@ -56,6 +57,7 @@ services:
       - orbit_local
 
   minio-init:
+    profiles: ["offline"]
     image: minio/mc:latest
     container_name: orbit-minio-init
     depends_on:
@@ -76,6 +78,7 @@ services:
       - orbit_local
 
   onlyoffice:
+    profiles: ["offline"]
     image: onlyoffice/documentserver:latest
     container_name: orbit-onlyoffice
     environment:
@@ -114,19 +117,6 @@ services:
       SERVER_PORT: 8080
       CORS_ALLOWED_ORIGINS: http://localhost:${FRONTEND_PORT:-5173},http://127.0.0.1:${FRONTEND_PORT:-5173}
       FRONTEND_URL: http://localhost:${FRONTEND_PORT:-5173}
-      AWS_S3_ENABLED: ${AWS_S3_ENABLED:-true}
-      AWS_CLOUD_FILES_BUCKET: ${AWS_CLOUD_FILES_BUCKET:-orbit-cloud-files}
-      AWS_S3_ENDPOINT: ${AWS_S3_ENDPOINT:-http://minio:9000}
-      AWS_S3_PUBLIC_ENDPOINT: ${AWS_S3_PUBLIC_ENDPOINT:-http://localhost:9000}
-      AWS_S3_PATH_STYLE_ACCESS: ${AWS_S3_PATH_STYLE_ACCESS:-true}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-orbit_minio}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-orbit_minio_dev}
-      AWS_CLOUDFRONT_ENABLED: ${AWS_CLOUDFRONT_ENABLED:-false}
-      ONLYOFFICE_ENABLED: ${ONLYOFFICE_ENABLED:-true}
-      ONLYOFFICE_PUBLIC_URL: ${ONLYOFFICE_PUBLIC_URL:-http://localhost:8082}
-      ONLYOFFICE_INTERNAL_URL: http://onlyoffice:80
-      ONLYOFFICE_JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-orbit-local-onlyoffice-secret-32chars}
-      ONLYOFFICE_CALLBACK_BASE_URL: http://backend:8080
     ports:
       - "${SERVER_PORT:-8080}:8080"
     volumes:
@@ -136,10 +126,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      minio-init:
-        condition: service_completed_successfully
-      onlyoffice:
-        condition: service_started
     networks:
       - orbit_local
 

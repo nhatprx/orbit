@@ -1,18 +1,8 @@
 package com.orbit.cloud;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.orbit.auth.entity.UserEntity;
@@ -21,17 +11,12 @@ import com.orbit.cloud.config.CloudProperties;
 import com.orbit.cloud.config.OnlyOfficeProperties;
 import com.orbit.cloud.controller.OnlyOfficeCallbackController;
 import com.orbit.cloud.dto.OnlyOfficeSessionResponse;
-import com.orbit.cloud.entity.CloudNodeEntity;
-import com.orbit.cloud.entity.CloudNodeType;
-import com.orbit.cloud.entity.CloudUploadStatus;
-import com.orbit.cloud.service.CloudDocumentService;
-import com.orbit.cloud.service.CloudNodeService;
-import com.orbit.cloud.service.CloudScope;
-import com.orbit.cloud.service.OnlyOfficeCallbackService;
-import com.orbit.cloud.service.OnlyOfficeFileFetcher;
-import com.orbit.cloud.service.OnlyOfficeSessionService;
-import com.orbit.cloud.service.OnlyOfficeTokenService;
+import com.orbit.cloud.entity.*;
+import com.orbit.cloud.service.*;
 import com.orbit.common.ApiException;
+import com.orbit.storage.config.S3Properties;
+import com.orbit.storage.service.CloudDownloadSigner;
+import com.orbit.storage.service.CloudDownloadSigner.SignedDownloadUrl;
 import com.orbit.storage.service.CloudStorageClient;
 import java.time.Duration;
 import java.time.Instant;
@@ -45,7 +30,10 @@ import org.springframework.http.ResponseEntity;
 
 class OnlyOfficeServiceTest {
 
+    private static final String PRESIGNED_URL = "https://orbit-bucket.s3.ap-southeast-1.amazonaws.com/doc?X-Amz-Signature=ok";
+
     private OnlyOfficeProperties props;
+    private S3Properties s3Props;
     private OnlyOfficeTokenService tokenService;
     private CloudNodeService nodeService;
     private CloudDocumentService documentService;
@@ -53,7 +41,6 @@ class OnlyOfficeServiceTest {
     private OnlyOfficeFileFetcher fileFetcher;
     private UserRepository userRepository;
     private OnlyOfficeSessionService sessionService;
-    private OnlyOfficeCallbackService callbackService;
     private OnlyOfficeCallbackController controller;
 
     @BeforeEach
@@ -63,17 +50,21 @@ class OnlyOfficeServiceTest {
         props.setPublicUrl("http://localhost:8082");
         props.setInternalUrl("http://onlyoffice:80");
         props.setJwtSecret("test-onlyoffice-secret-key-for-unit-tests-2026");
-        props.setCallbackBaseUrl("http://host.docker.internal:8080");
-
+        props.setCallbackBaseUrl("http://host.docker.internal:8080/");
+        s3Props = new S3Properties();
         tokenService = new OnlyOfficeTokenService(props, new ObjectMapper());
         nodeService = mock(CloudNodeService.class);
         documentService = mock(CloudDocumentService.class);
         storageClient = mock(CloudStorageClient.class);
+        CloudDownloadSigner downloadSigner = mock(CloudDownloadSigner.class);
         fileFetcher = mock(OnlyOfficeFileFetcher.class);
         userRepository = mock(UserRepository.class);
-
-        sessionService = new OnlyOfficeSessionService(props, tokenService, nodeService, userRepository);
-        callbackService = new OnlyOfficeCallbackService(
+        when(downloadSigner.signDownload(any(), any(), any()))
+            .thenReturn(new SignedDownloadUrl(PRESIGNED_URL, Instant.now().plusSeconds(1800), "S3"));
+        sessionService = new OnlyOfficeSessionService(
+            props, tokenService, nodeService, userRepository, s3Props, downloadSigner
+        );
+        OnlyOfficeCallbackService callbackService = new OnlyOfficeCallbackService(
             props, new CloudProperties(), tokenService, nodeService, documentService, storageClient, fileFetcher
         );
         controller = new OnlyOfficeCallbackController(callbackService);
@@ -82,9 +73,7 @@ class OnlyOfficeServiceTest {
     @Test
     void tokenServiceSignsVerifiesAndRejectsTamperedTokens() {
         String jwt = tokenService.signPayload(Map.of("status", 2, "url", "http://localhost:8082/file.docx"));
-        Map<String, Object> verified = tokenService.verifyPayload(jwt);
-        assertEquals(2, ((Number) verified.get("status")).intValue());
-
+        assertEquals(2, ((Number) tokenService.verifyPayload(jwt).get("status")).intValue());
         String tampered = jwt.substring(0, jwt.length() - 3) + "xxx";
         ApiException ex = assertThrows(ApiException.class, () -> tokenService.verifyPayload(tampered));
         assertEquals(HttpStatus.UNAUTHORIZED, ex.getStatus());
@@ -104,14 +93,34 @@ class OnlyOfficeServiceTest {
         assertTrue(res.enabled());
         assertEquals("edit", res.mode());
         assertEquals("word", res.config().get("documentType"));
-        assertNotNull(res.token());
-        Map<String, Object> decoded = tokenService.verifyPayload(res.token());
-        assertEquals("word", decoded.get("documentType"));
+        assertEquals("word", tokenService.verifyPayload(res.token()).get("documentType"));
+        String cbUrl = ((Map<?, ?>) res.config().get("editorConfig")).get("callbackUrl").toString();
+        assertTrue(cbUrl.startsWith("http://host.docker.internal:8080/api/v1/cloud/onlyoffice/callback?token="));
 
         props.setEnabled(false);
         OnlyOfficeSessionResponse disabled = sessionService.createSession(scope, userId, node.getId(), false);
         assertFalse(disabled.enabled());
         assertEquals("view", disabled.mode());
+    }
+
+    @Test
+    void sessionServiceResolvesFileSourceModeAcrossAutoS3AndProxy() {
+        UUID userId = UUID.randomUUID();
+        CloudScope scope = CloudScope.user(userId);
+        CloudNodeEntity node = sampleDoc(scope, userId, "spec.docx");
+        when(nodeService.requireActiveNode(scope, node.getId())).thenReturn(node);
+        String proxyPrefix = "http://host.docker.internal:8080/api/v1/cloud/onlyoffice/file/" + node.getId() + "?token=";
+
+        props.setFileSourceMode("auto");
+        s3Props.setEndpoint("");
+        assertEquals(PRESIGNED_URL, docUrl(sessionService.createSession(scope, userId, node.getId(), true)));
+        s3Props.setEndpoint("http://localhost:9000");
+        assertTrue(docUrl(sessionService.createSession(scope, userId, node.getId(), true)).startsWith(proxyPrefix));
+        props.setFileSourceMode("s3");
+        assertEquals(PRESIGNED_URL, docUrl(sessionService.createSession(scope, userId, node.getId(), true)));
+        props.setFileSourceMode("proxy");
+        s3Props.setEndpoint("");
+        assertTrue(docUrl(sessionService.createSession(scope, userId, node.getId(), true)).startsWith(proxyPrefix));
     }
 
     @Test
@@ -131,9 +140,7 @@ class OnlyOfficeServiceTest {
         String ooJwt = tokenService.signPayload(Map.of("status", 2, "url", "http://localhost:8082/cache/edited.xlsx"));
         byte[] edited = new byte[]{9, 8, 7};
         when(fileFetcher.fetch(eq("http://onlyoffice:80/cache/edited.xlsx"), anyLong())).thenReturn(edited);
-
-        Map<String, Integer> cbRes = controller.handleCallback(cbToken, "Bearer " + ooJwt, Map.of("status", 2));
-        assertEquals(0, cbRes.get("error"));
+        assertEquals(0, controller.handleCallback(cbToken, "Bearer " + ooJwt, Map.of("status", 2)).get("error"));
         verify(documentService).replaceNodeBytes(scope, node.getId(), userId, edited);
 
         String ooJwt6 = tokenService.signPayload(Map.of("status", 6, "url", "http://localhost:8082/cache/forced.xlsx"));
@@ -145,18 +152,18 @@ class OnlyOfficeServiceTest {
     void callbackRejectsInvalidJwtAndIgnoresNonSaveStatus() {
         UUID userId = UUID.randomUUID();
         CloudScope scope = CloudScope.user(userId);
-        UUID nodeId = UUID.randomUUID();
-        String cbToken = tokenService.createAccessToken("callback", nodeId, scope, userId, true, Duration.ofMinutes(10));
-
-        ApiException missing = assertThrows(
-            ApiException.class,
-            () -> controller.handleCallback(cbToken, null, Map.of("status", 2, "url", "http://localhost:8082/a.docx"))
-        );
+        String cbToken = tokenService.createAccessToken("callback", UUID.randomUUID(), scope, userId, true, Duration.ofMinutes(10));
+        ApiException missing = assertThrows(ApiException.class,
+            () -> controller.handleCallback(cbToken, null, Map.of("status", 2, "url", "http://localhost:8082/a.docx")));
         assertEquals(HttpStatus.UNAUTHORIZED, missing.getStatus());
 
         String status1Jwt = tokenService.signPayload(Map.of("status", 1));
         assertEquals(0, controller.handleCallback(cbToken, "Bearer " + status1Jwt, Map.of("status", 1)).get("error"));
         verify(documentService, never()).replaceNodeBytes(any(), any(), any(), any());
+    }
+
+    private static String docUrl(OnlyOfficeSessionResponse res) {
+        return ((Map<?, ?>) res.config().get("document")).get("url").toString();
     }
 
     private static CloudNodeEntity sampleDoc(CloudScope scope, UUID userId, String name) {

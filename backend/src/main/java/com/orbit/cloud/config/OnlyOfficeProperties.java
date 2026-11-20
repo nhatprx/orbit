@@ -1,5 +1,6 @@
 package com.orbit.cloud.config;
 
+import java.util.Locale;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -13,6 +14,7 @@ public class OnlyOfficeProperties {
     private String internalUrl = "http://localhost:8082";
     private String jwtSecret = "orbit-onlyoffice-dev-jwt-secret-change-in-production-2026";
     private String callbackBaseUrl = "http://host.docker.internal:8080";
+    private String fileSourceMode = "auto";
 
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -28,6 +30,17 @@ public class OnlyOfficeProperties {
 
     public String getCallbackBaseUrl() { return stripTrailingSlash(callbackBaseUrl); }
     public void setCallbackBaseUrl(String callbackBaseUrl) { this.callbackBaseUrl = callbackBaseUrl; }
+
+    public String getFileSourceMode() {
+        if (fileSourceMode == null || fileSourceMode.isBlank()) {
+            return "auto";
+        }
+        return fileSourceMode.trim().toLowerCase(Locale.ROOT);
+    }
+
+    public void setFileSourceMode(String fileSourceMode) {
+        this.fileSourceMode = fileSourceMode;
+    }
 
     private static String stripTrailingSlash(String value) {
         if (value == null) return "";

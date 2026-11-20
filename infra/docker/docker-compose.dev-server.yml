@@ -1,0 +1,72 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: orbit-dev-redis
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-replace-with-strong-dev-redis-password}
+    command:
+      - sh
+      - -c
+      - exec redis-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
+    ports:
+      - "${REDIS_BIND_ADDRESS:-0.0.0.0}:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - orbit_dev_redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - orbit_dev_internal
+
+  onlyoffice:
+    image: onlyoffice/documentserver:latest
+    container_name: orbit-dev-onlyoffice
+    restart: unless-stopped
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: ${ONLYOFFICE_JWT_SECRET:-replace-with-32-char-dev-onlyoffice-secret}
+      JWT_HEADER: Authorization
+      ALLOW_PRIVATE_IP_ADDRESS: ${ONLYOFFICE_ALLOW_PRIVATE_IP:-false}
+      ALLOW_META_IP_ADDRESS: "false"
+    volumes:
+      - orbit_dev_onlyoffice_data:/var/www/onlyoffice/Data
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:80/healthcheck"]
+      interval: 15s
+      timeout: 5s
+      start_period: 45s
+      retries: 10
+    networks:
+      - orbit_dev_internal
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: orbit-dev-caddy
+    restart: unless-stopped
+    environment:
+      ONLYOFFICE_DOMAIN: ${ONLYOFFICE_DOMAIN:-office-dev.orbit.nhatprx.com}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile.dev-server:/etc/caddy/Caddyfile:ro
+      - orbit_dev_caddy_data:/data
+      - orbit_dev_caddy_config:/config
+    depends_on:
+      onlyoffice:
+        condition: service_healthy
+    networks:
+      - orbit_dev_internal
+
+volumes:
+  orbit_dev_redis_data:
+  orbit_dev_onlyoffice_data:
+  orbit_dev_caddy_data:
+  orbit_dev_caddy_config:
+
+networks:
+  orbit_dev_internal:
+    driver: bridge

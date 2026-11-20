@@ -119,15 +119,16 @@ orbit:
       internal-url: ${ONLYOFFICE_INTERNAL_URL:http://localhost:8082}
       jwt-secret: ${ONLYOFFICE_JWT_SECRET:orbit-onlyoffice-dev-jwt-secret-change-in-production-2026}
       callback-base-url: ${ONLYOFFICE_CALLBACK_BASE_URL:http://host.docker.internal:8080}
+      file-source-mode: ${ONLYOFFICE_FILE_SOURCE_MODE:auto}
   ai:
     provider: ${ORBIT_AI_PROVIDER:BEDROCK}
     web-search-enabled: ${ORBIT_AI_WEB_SEARCH_ENABLED:true}
     rate-limit-per-minute: ${ORBIT_AI_RATE_LIMIT_PER_MINUTE:20}
     bedrock:
       region: ${ORBIT_AI_BEDROCK_REGION:us-east-1}
-      fast-model: ${ORBIT_AI_BEDROCK_FAST_MODEL:anthropic.claude-3-5-haiku-20241022-v1:0}
-      pro-model: ${ORBIT_AI_BEDROCK_PRO_MODEL:anthropic.claude-3-5-sonnet-20241022-v2:0}
-      coder-model: ${ORBIT_AI_BEDROCK_CODER_MODEL:anthropic.claude-3-5-sonnet-20241022-v2:0}
+      fast-model: ${ORBIT_AI_BEDROCK_FAST_MODEL:us.amazon.nova-micro-v1:0}
+      pro-model: ${ORBIT_AI_BEDROCK_PRO_MODEL:us.amazon.nova-micro-v1:0}
+      coder-model: ${ORBIT_AI_BEDROCK_CODER_MODEL:us.amazon.nova-micro-v1:0}
       embed-model: ${ORBIT_AI_BEDROCK_EMBED_MODEL:amazon.titan-embed-text-v2:0}
     openrouter:
       api-key: ${ORBIT_AI_OPENROUTER_API_KEY:}

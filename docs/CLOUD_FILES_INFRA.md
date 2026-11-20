@@ -1,42 +1,36 @@
 # Orbit Cloud Files Infrastructure Guide
 
-This guide covers local S3 emulation with MinIO, ONLYOFFICE Document Server integration, AWS production provisioning with Terraform (`infra/terraform/cloud-files/`), CloudFront Signed URL setup, and 10k-user scale/lifecycle operations.
+This guide covers Orbit's primary Dev Server workflow, offline/outage local Docker fallback (MinIO + local ONLYOFFICE), AWS production provisioning with Terraform (`infra/terraform/cloud-files/`), CloudFront Signed URL setup, and 10k-user scale/lifecycle operations.
 
 ---
 
-## 1. Local Development with MinIO
+## 1. Primary Dev Workflow & Offline Fallback
 
-Local development uses MinIO (`minio/minio:latest`) alongside PostgreSQL and Redis so presigned PUT and multipart uploads work directly from `http://localhost:5173`.
+### Primary Dev Workflow (Local BE/FE -> Remote Dev Server)
 
-### Start Local Services
+Orbit's default development workflow runs Spring Boot (`localhost:8080`) and Vite (`localhost:5173`) locally against remote Dev Server services (AWS RDS PostgreSQL, Dev Server Redis, AWS S3 `orbit-cloud-files-dev`, and Dev Server ONLYOFFICE over HTTPS). See [CLOUD_DEV_WORKFLOW.md](CLOUD_DEV_WORKFLOW.md) for the complete setup guide.
+
+- **Deploy Dev Server third-party stack (Redis + ONLYOFFICE + Caddy TLS):**
+  ```bash
+  docker compose -f infra/docker/docker-compose.dev-server.yml up -d
+  ```
+- **ONLYOFFICE save callbacks to `localhost:8080` (pick one 1-command tunnel):**
+  - Cloudflare Tunnel: `cloudflared tunnel --url http://localhost:8080` (set `ONLYOFFICE_CALLBACK_BASE_URL=https://<your-tunnel>.trycloudflare.com`)
+  - SSH Reverse Tunnel: `ssh -N -R 8080:localhost:8080 ubuntu@<dev-server-ip>`
+- With `ONLYOFFICE_FILE_SOURCE_MODE=auto` and blank `AWS_S3_ENDPOINT`, Spring Boot issues direct S3 Presigned GET URLs so remote ONLYOFFICE downloads files directly from AWS S3.
+
+### Offline / Outage Local Fallback (MinIO + Local ONLYOFFICE)
+
+When AWS or the Dev Server is unreachable, start the local Docker stack (`postgres`, `redis`, `minio`, `minio-init`, `onlyoffice`):
 
 ```bash
 docker compose -f infra/docker/docker-compose.yml up -d
 ```
 
-Services started:
-- **MinIO S3 API:** `http://localhost:9000`
-- **MinIO Console:** `http://localhost:9001` (default credentials: `orbit_minio` / `orbit_minio_dev`)
-- **`minio-init`:** One-shot container that creates the private `orbit-cloud-files` bucket.
-
-MinIO is configured with `MINIO_API_CORS_ALLOW_ORIGIN=http://localhost:5173,http://127.0.0.1:5173`, allowing browser `PUT`, `GET`, and `HEAD` requests with `ETag` exposed for multipart upload completion.
-
-### Backend Local `.env` Settings
-
-When running Spring Boot locally against MinIO, set the following in `.env`:
-
-```env
-AWS_S3_ENABLED=true
-AWS_CLOUD_FILES_BUCKET=orbit-cloud-files
-AWS_S3_ENDPOINT=http://localhost:9000
-AWS_S3_PUBLIC_ENDPOINT=http://localhost:9000
-AWS_S3_PATH_STYLE_ACCESS=true
-AWS_ACCESS_KEY_ID=orbit_minio
-AWS_SECRET_ACCESS_KEY=orbit_minio_dev
-AWS_CLOUDFRONT_ENABLED=false
-```
-
-When using the full Docker stack (`infra/docker/docker-compose.local.yml`), the backend container uses `AWS_S3_ENDPOINT=http://minio:9000` for internal SDK calls and `AWS_S3_PUBLIC_ENDPOINT=http://localhost:9000` for browser-facing presigned URLs.
+Local fallback endpoints:
+- **MinIO S3 API / Console:** `http://localhost:9000` / `http://localhost:9001` (`orbit_minio` / `orbit_minio_dev`, bucket `orbit-cloud-files`, CORS enabled for `http://localhost:5173`).
+- **Local ONLYOFFICE:** `http://localhost:8082` (`curl -sf http://localhost:8082/healthcheck`).
+- Uncomment the **OFFLINE / OUTAGE LOCAL FALLBACK** section in `.env` (sets `AWS_S3_ENDPOINT=http://localhost:9000`, `AWS_S3_PATH_STYLE_ACCESS=true`, `ONLYOFFICE_FILE_SOURCE_MODE=proxy`, and `ONLYOFFICE_CALLBACK_BASE_URL=http://host.docker.internal:8080`). For the full containerized stack, `infra/docker/docker-compose.local.yml` wires internal `http://minio:9000` and `http://onlyoffice:80` automatically.
 
 ---
 

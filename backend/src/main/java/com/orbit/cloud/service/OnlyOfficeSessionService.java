@@ -7,6 +7,8 @@ import com.orbit.cloud.dto.OnlyOfficeSessionResponse;
 import com.orbit.cloud.entity.CloudNodeEntity;
 import com.orbit.cloud.entity.CloudNodeType;
 import com.orbit.common.ApiException;
+import com.orbit.storage.config.S3Properties;
+import com.orbit.storage.service.CloudDownloadSigner;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -30,17 +32,23 @@ public class OnlyOfficeSessionService {
     private final OnlyOfficeTokenService tokenService;
     private final CloudNodeService nodeService;
     private final UserRepository userRepository;
+    private final S3Properties s3Properties;
+    private final CloudDownloadSigner downloadSigner;
 
     public OnlyOfficeSessionService(
         OnlyOfficeProperties properties,
         OnlyOfficeTokenService tokenService,
         CloudNodeService nodeService,
-        UserRepository userRepository
+        UserRepository userRepository,
+        S3Properties s3Properties,
+        CloudDownloadSigner downloadSigner
     ) {
         this.properties = properties;
         this.tokenService = tokenService;
         this.nodeService = nodeService;
         this.userRepository = userRepository;
+        this.s3Properties = s3Properties;
+        this.downloadSigner = downloadSigner;
     }
 
     @Transactional(readOnly = true)
@@ -60,13 +68,12 @@ public class OnlyOfficeSessionService {
             .map(UserEntity::getDisplayName)
             .orElse("Orbit User");
 
-        String fileToken = tokenService.createAccessToken("file", nodeId, scope, userId, canWrite, FILE_TOKEN_TTL);
         String callbackToken = tokenService.createAccessToken(
             "callback", nodeId, scope, userId, canWrite, CALLBACK_TOKEN_TTL
         );
 
         String callbackBase = properties.getCallbackBaseUrl();
-        String fileUrl = callbackBase + "/api/v1/cloud/onlyoffice/file/" + nodeId + "?token=" + fileToken;
+        String fileUrl = resolveFileUrl(node, scope, userId, canWrite, callbackBase);
         String callbackUrl = callbackBase + "/api/v1/cloud/onlyoffice/callback?token=" + callbackToken;
         String docKey = buildDocumentKey(node);
 
@@ -98,6 +105,34 @@ public class OnlyOfficeSessionService {
 
         String token = tokenService.signPayload(config);
         return new OnlyOfficeSessionResponse(true, properties.getPublicUrl(), config, token, mode);
+    }
+
+    private String resolveFileUrl(
+        CloudNodeEntity node,
+        CloudScope scope,
+        UUID userId,
+        boolean canWrite,
+        String callbackBase
+    ) {
+        if (shouldUseDirectS3()) {
+            return downloadSigner.signDownload(node.getStorageKey(), node.getName(), node.getMimeType()).url();
+        }
+        String fileToken = tokenService.createAccessToken(
+            "file", node.getId(), scope, userId, canWrite, FILE_TOKEN_TTL
+        );
+        return callbackBase + "/api/v1/cloud/onlyoffice/file/" + node.getId() + "?token=" + fileToken;
+    }
+
+    private boolean shouldUseDirectS3() {
+        String sourceMode = properties.getFileSourceMode();
+        if ("s3".equals(sourceMode)) {
+            return true;
+        }
+        if ("proxy".equals(sourceMode)) {
+            return false;
+        }
+        String endpoint = s3Properties.getEndpoint();
+        return endpoint == null || endpoint.isBlank();
     }
 
     static String buildDocumentKey(CloudNodeEntity node) {
