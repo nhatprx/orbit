@@ -88,18 +88,21 @@ public class AuthService {
             );
         }
 
-        return createSession(user);
+        return createSession(user, request.isRememberMe());
     }
 
     @Transactional(readOnly = true)
     public AuthSessionResponse exchangeOAuthCode(String code) {
+        if (code == null || code.isBlank()) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_OAUTH_CODE", "OAuth code is invalid or expired.");
+        }
         UUID userId = redisSessionService.consumeOAuthExchangeCode(code).orElseThrow(() ->
             new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_OAUTH_CODE", "OAuth code is invalid or expired.")
         );
         UserEntity user = userRepository.findById(userId).orElseThrow(() ->
             new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "Authenticated user not found.")
         );
-        return createSession(user);
+        return createSession(user, false);
     }
 
     @Transactional(readOnly = true)
@@ -115,8 +118,18 @@ public class AuthService {
     }
 
     public AuthSessionResponse createSession(UserEntity user) {
-        IssuedToken issued = jwtService.issueToken(user);
-        redisSessionService.storeActiveSession(issued.jti(), user.getId(), jwtService.getExpirationSeconds());
-        return new AuthSessionResponse(AuthUserDto.from(user), issued.token(), issued.expiresAt());
+        return createSession(user, false);
+    }
+
+    public AuthSessionResponse createSession(UserEntity user, boolean rememberMe) {
+        long ttlSeconds = jwtService.resolveExpirationSeconds(rememberMe);
+        IssuedToken issued = jwtService.issueToken(user, ttlSeconds);
+        redisSessionService.storeActiveSession(issued.jti(), user.getId(), ttlSeconds);
+        return new AuthSessionResponse(
+            AuthUserDto.from(user),
+            issued.token(),
+            issued.expiresAt(),
+            issued.expiresInSeconds()
+        );
     }
 }

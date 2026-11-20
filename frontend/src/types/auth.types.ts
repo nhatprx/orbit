@@ -21,6 +21,26 @@ export interface AuthSession {
 export interface LoginPayload {
   identifier: string;
   password: string;
+  rememberMe?: boolean;
+}
+
+export type LoginRequest = LoginPayload;
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ForgotPasswordResponse {
+  message: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  newPassword: string;
+}
+
+export interface ResetPasswordResponse {
+  message: string;
 }
 
 export interface RegisterPayload {

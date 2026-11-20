@@ -84,3 +84,54 @@ All workflows live in `.github/workflows/`:
 - **`ci.yml`**: Runs on every push and pull request to `main`. Executes `node ponytail/check.mjs`, frontend `npm ci && npm run typecheck && npm run build`, and backend `mvn -B test`.
 - **`deploy-backend.yml`**: Runs on pushes to `main` touching `backend/**`, `infra/docker/**`, or the workflow file (plus manual `workflow_dispatch`). Runs Maven tests, builds and pushes `orbit-backend` (`:<sha>` and `:latest`) to ECR, syncs compose/Caddy config to `/opt/orbit`, restarts `redis`, `backend`, and `caddy`, and verifies `https://api.orbit.nhatprx.com/api/v1/health`.
 - **`deploy-frontend.yml`**: Runs on pushes to `main` touching `frontend/**`, `infra/docker/**`, or the workflow file (plus manual `workflow_dispatch`). Runs frontend typecheck and build with `VITE_API_BASE_URL=https://api.orbit.nhatprx.com`, builds and pushes `orbit-frontend` (`:<sha>` and `:latest`) to ECR, syncs compose/Caddy config to `/opt/orbit`, restarts `frontend` and `caddy`, and verifies `https://orbit.nhatprx.com/healthz`.
+
+---
+
+## 7. Admin Seeding (EC2 Terminal)
+
+The initial administrator account is seeded on-demand using `infra/scripts/seed-admin.sh`, which runs the backend container in one-shot non-web CLI mode (`--spring.main.web-application-type=none`) against the configured RDS database. Never commit real admin passwords or credentials to Git.
+
+1. Place `infra/scripts/seed-admin.sh` at `/opt/orbit/seed-admin.sh` on the EC2 host and mark it executable:
+
+   ```bash
+   chmod +x /opt/orbit/seed-admin.sh
+   ```
+
+2. Run the single-command seeding procedure from the EC2 terminal (replace the placeholder password with a strong secret):
+
+   ```bash
+   /opt/orbit/seed-admin.sh admin@orbit.nhatprx.com 'replace-with-strong-admin-password' "Orbit Admin"
+   ```
+
+   Alternatively, pass credentials via environment variables (`ADMIN_EMAIL`, `ADMIN_PASSWORD`, and optional `ADMIN_NAME`) to avoid exposing the password in process arguments:
+
+   ```bash
+   ADMIN_EMAIL="admin@orbit.nhatprx.com" \
+   ADMIN_PASSWORD="replace-with-strong-admin-password" \
+   ADMIN_NAME="Orbit Admin" \
+   /opt/orbit/seed-admin.sh
+   ```
+
+---
+
+## 8. OAuth2 Provider Configuration (Google & GitHub)
+
+Configure OAuth2 applications in Google Cloud Console and GitHub Developer Settings, then set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, and `FRONTEND_URL` in `/opt/orbit/.env` (production) or your local environment.
+
+### Production (`orbit.nhatprx.com`)
+
+| Provider | Setting | Value |
+| --- | --- | --- |
+| Google | Authorized JavaScript Origin / Homepage URL | `https://orbit.nhatprx.com` |
+| Google | Authorized Redirect URI | `https://api.orbit.nhatprx.com/login/oauth2/code/google` |
+| GitHub | Homepage URL | `https://orbit.nhatprx.com` |
+| GitHub | Authorization Callback URL | `https://api.orbit.nhatprx.com/login/oauth2/code/github` |
+
+### Local Development (`localhost`)
+
+| Provider | Setting | Value |
+| --- | --- | --- |
+| Google | Authorized JavaScript Origin / Homepage URL | `http://localhost:5173` |
+| Google | Authorized Redirect URI | `http://localhost:8080/login/oauth2/code/google` |
+| GitHub | Homepage URL | `http://localhost:5173` |
+| GitHub | Authorization Callback URL | `http://localhost:8080/login/oauth2/code/github` |

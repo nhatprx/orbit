@@ -73,6 +73,7 @@ orbit:
   jwt:
     secret: ${JWT_SECRET:orbit-local-dev-jwt-secret-key-change-me-in-production-2026-secure}
     expiration-seconds: ${JWT_EXPIRATION_SECONDS:3600}
+    remember-me-expiration-seconds: ${JWT_REMEMBER_ME_EXPIRATION_SECONDS:2592000}
   storage:
     s3:
       enabled: ${AWS_S3_ENABLED:false}

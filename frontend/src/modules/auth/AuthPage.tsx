@@ -1,13 +1,15 @@
-import { useState, type FormEvent } from 'react';
-import { ArrowLeft, Lock } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
+import { useState } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { authService } from '../../services/auth.service';
 import type {
   AuthSession,
+  LoginPayload,
   OAuthProvider,
   RegisterPayload,
 } from '../../types/auth.types';
 import { AuthOAuthButtons } from './AuthOAuthButtons';
+import { ForgotPasswordForm } from './ForgotPasswordForm';
+import { LoginForm } from './LoginForm';
 import { RegisterForm } from './RegisterForm';
 
 interface AuthPageProps {
@@ -16,7 +18,22 @@ interface AuthPageProps {
   onBackHome: () => void;
 }
 
-type AuthMode = 'login' | 'register';
+type AuthMode = 'login' | 'register' | 'forgot';
+
+const MODE_COPY: Record<AuthMode, { title: string; subtitle: string }> = {
+  login: {
+    title: 'Sign In to Orbit',
+    subtitle: 'Access your Orbit developer workspace.',
+  },
+  register: {
+    title: 'Create Orbit Account',
+    subtitle: 'Access your Orbit developer workspace.',
+  },
+  forgot: {
+    title: 'Reset Your Password',
+    subtitle: 'Request a reset token and choose a new password.',
+  },
+};
 
 export function AuthPage({
   initialError = null,
@@ -24,17 +41,16 @@ export function AuthPage({
   onBackHome,
 }: AuthPageProps) {
   const [mode, setMode] = useState<AuthMode>('login');
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(initialError);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  async function handleLoginSubmit(event: FormEvent) {
-    event.preventDefault();
+  async function handleLoginSubmit(payload: LoginPayload) {
     setError(null);
+    setNotice(null);
     setLoading(true);
     try {
-      const session = await authService.login({ identifier, password });
+      const session = await authService.login(payload);
       onSuccess(session);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Authentication failed.');
@@ -45,6 +61,7 @@ export function AuthPage({
 
   async function handleRegisterSubmit(payload: RegisterPayload) {
     setError(null);
+    setNotice(null);
     setLoading(true);
     try {
       const session = await authService.register(payload);
@@ -58,18 +75,25 @@ export function AuthPage({
 
   function handleOAuth(provider: OAuthProvider) {
     setError(null);
+    setNotice(null);
     setLoading(true);
     authService.startOAuthLogin(provider);
   }
 
+  function switchMode(nextMode: AuthMode) {
+    setMode(nextMode);
+    setError(null);
+    setNotice(null);
+  }
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#0D1117] px-4 py-12 text-[#E6EDF3]">
-      <div className="w-full max-w-md border border-[#30363D] bg-[#161B22] p-6">
+      <div className="w-full max-w-md rounded-none border border-[#30363D] bg-[#161B22] p-6">
         <div className="mb-6 flex items-center justify-between">
           <button
             type="button"
             onClick={onBackHome}
-            className="inline-flex items-center gap-1.5 text-xs text-[#A3A3A3] hover:text-[#22C55E]"
+            className="inline-flex items-center gap-1.5 rounded-none text-xs text-[#A3A3A3] hover:text-[#22C55E]"
           >
             <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
             Back to Home
@@ -78,95 +102,70 @@ export function AuthPage({
 
         <div className="mb-6">
           <h1 className="text-xl font-semibold tracking-tight text-[#E6EDF3]">
-            {mode === 'login' ? 'Sign In to Orbit' : 'Create Orbit Account'}
+            {MODE_COPY[mode].title}
           </h1>
           <p className="mt-1 text-xs text-[#A3A3A3]">
-            Access your Orbit developer workspace.
+            {MODE_COPY[mode].subtitle}
           </p>
         </div>
 
-        <div className="mb-6 grid grid-cols-2 border border-[#30363D]">
-          <button
-            type="button"
-            onClick={() => {
-              setMode('login');
-              setError(null);
-            }}
-            className={`py-2 text-xs font-medium ${mode === 'login'
-                ? 'bg-[#052E16] text-[#22C55E]'
-                : 'bg-[#161B22] text-[#A3A3A3] hover:text-[#E6EDF3]'
-              }`}
-          >
-            Sign In
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode('register');
-              setError(null);
-            }}
-            className={`border-l border-[#30363D] py-2 text-xs font-medium ${mode === 'register'
-                ? 'bg-[#052E16] text-[#22C55E]'
-                : 'bg-[#161B22] text-[#A3A3A3] hover:text-[#E6EDF3]'
-              }`}
-          >
-            Register
-          </button>
-        </div>
-
-        <AuthOAuthButtons loading={loading} onSelectProvider={handleOAuth} />
-
-        {mode === 'login' ? (
-          <form onSubmit={handleLoginSubmit} className="space-y-4">
-            <div>
-              <label className="mb-1 block text-xs text-[#A3A3A3]">
-                Username or Email
-              </label>
-              <input
-                type="text"
-                required
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="you@domain.com"
-                className="w-full border border-[#30363D] bg-[#0D1117] px-3 py-2 text-sm text-[#E6EDF3] focus:border-[#22C55E] focus:outline-none"
-              />
+        {mode !== 'forgot' && (
+          <>
+            <div className="mb-6 grid grid-cols-2 rounded-none border border-[#30363D]">
+              <button
+                type="button"
+                onClick={() => switchMode('login')}
+                className={`rounded-none py-2 text-xs font-medium ${
+                  mode === 'login'
+                    ? 'bg-[#052E16] text-[#22C55E]'
+                    : 'bg-[#161B22] text-[#A3A3A3] hover:text-[#E6EDF3]'
+                }`}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => switchMode('register')}
+                className={`rounded-none border-l border-[#30363D] py-2 text-xs font-medium ${
+                  mode === 'register'
+                    ? 'bg-[#052E16] text-[#22C55E]'
+                    : 'bg-[#161B22] text-[#A3A3A3] hover:text-[#E6EDF3]'
+                }`}
+              >
+                Register
+              </button>
             </div>
 
-            <div>
-              <label className="mb-1 block text-xs text-[#A3A3A3]">
-                Password
-              </label>
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                className="w-full border border-[#30363D] bg-[#0D1117] px-3 py-2 text-sm text-[#E6EDF3] focus:border-[#22C55E] focus:outline-none"
-              />
-            </div>
+            <AuthOAuthButtons loading={loading} onSelectProvider={handleOAuth} />
+          </>
+        )}
 
-            {error && (
-              <div className="border border-[#EF4444] bg-[#21262D] px-3 py-2 text-xs text-[#EF4444]">
-                {error}
-              </div>
-            )}
+        {mode === 'login' && (
+          <LoginForm
+            loading={loading}
+            error={error}
+            notice={notice}
+            onSubmit={handleLoginSubmit}
+            onForgotPassword={() => switchMode('forgot')}
+          />
+        )}
 
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={loading}
-              className="w-full"
-            >
-              <Lock className="h-3.5 w-3.5" strokeWidth={1.5} />
-              {loading ? 'Authenticating...' : 'Sign In'}
-            </Button>
-          </form>
-        ) : (
+        {mode === 'register' && (
           <RegisterForm
             loading={loading}
             error={error}
             onSubmit={handleRegisterSubmit}
+          />
+        )}
+
+        {mode === 'forgot' && (
+          <ForgotPasswordForm
+            onBackToLogin={() => switchMode('login')}
+            onResetSuccess={(message) => {
+              setMode('login');
+              setError(null);
+              setNotice(message);
+            }}
           />
         )}
       </div>

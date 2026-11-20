@@ -3,7 +3,11 @@ package com.orbit.auth.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.orbit.auth.dto.AuthSessionResponse;
@@ -12,6 +16,8 @@ import com.orbit.auth.dto.RegisterRequest;
 import com.orbit.auth.entity.UserEntity;
 import com.orbit.auth.repository.UserRepository;
 import com.orbit.common.ApiException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -100,5 +106,42 @@ class AuthServiceTest {
         AuthSessionResponse res = authService.login(new LoginRequest("nhatprx", "Orbit@2026"));
         assertEquals("nhatprx", res.user().username());
         assertNotNull(res.accessToken());
+        assertEquals(3600L, res.expiresIn());
+        verify(redisSessionService).storeActiveSession(anyString(), eq(user.getId()), eq(3600L));
+    }
+
+    @Test
+    void loginWithRememberMeTrueIssues30DaySession() {
+        UserEntity user = new UserEntity();
+        user.setId(UUID.randomUUID());
+        user.setUsername("nhatprx");
+        user.setEmail("nhat@orbit.dev");
+        user.setDisplayName("nhatprx");
+        user.setPasswordHash(passwordEncoder.encode("Orbit@2026"));
+
+        when(userRepository.findByEmailIgnoreCase("nhat@orbit.dev")).thenReturn(Optional.of(user));
+
+        Instant before = Instant.now();
+        AuthSessionResponse res = authService.login(new LoginRequest("nhat@orbit.dev", "Orbit@2026", true));
+
+        assertEquals(2_592_000L, res.expiresIn());
+        assertTrue(Duration.between(before, res.expiresAt()).getSeconds() >= 2_591_990L);
+        verify(redisSessionService).storeActiveSession(anyString(), eq(user.getId()), eq(2_592_000L));
+    }
+
+    @Test
+    void loginWithRememberMeNullDefaultsToStandardExpiration() {
+        UserEntity user = new UserEntity();
+        user.setId(UUID.randomUUID());
+        user.setUsername("nhatprx");
+        user.setEmail("nhat@orbit.dev");
+        user.setDisplayName("nhatprx");
+        user.setPasswordHash(passwordEncoder.encode("Orbit@2026"));
+
+        when(userRepository.findByUsernameIgnoreCase("nhatprx")).thenReturn(Optional.of(user));
+
+        AuthSessionResponse res = authService.login(new LoginRequest("nhatprx", "Orbit@2026", null));
+        assertEquals(3600L, res.expiresIn());
+        verify(redisSessionService).storeActiveSession(anyString(), eq(user.getId()), eq(3600L));
     }
 }

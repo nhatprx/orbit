@@ -36,6 +36,15 @@ This file is the **single source of truth for operational compliance** in the Or
 - The **`ponytail`** agent/repository is mandatory for codebase management, structural auditing, dead-code removal, and `< 200 LOC` enforcement.
 - Any new module or refactor must remain compatible with `ponytail` automated cleanup and lint checks.
 
+### 1.6 Mandatory Test Case Brainstorming & Regression Testing
+- **Pre-Implementation & In-Flight Test Brainstorming:** Before and during implementation of any feature or fix, developers and AI agents must brainstorm comprehensive test cases covering:
+  - Boundary conditions (empty/zero values, maximum lengths, pagination limits, null/optional fields).
+  - Invalid and malformed inputs (schema violations, unexpected types, bad encodings, missing required parameters).
+  - Error handling and failure modes (timeouts, upstream errors, duplicate keys, HTTP 4xx/5xx envelopes).
+  - Edge cases and concurrency/state transitions (idempotency, race conditions, expired tokens, revoked sessions).
+  - Security boundaries (authentication, authorization/RBAC, injection resistance, secret redaction).
+- **Mandatory Full Regression Execution:** After every major codebase change, execute automated tests covering **both newly developed features and existing features** (e.g., backend `mvn test`, frontend typecheck/build/tests, and `ponytail` checks) to verify zero regressions before reporting completion.
+
 ---
 
 ## 2. Architecture & Scale Guardrails (10k+ CCU Target)
@@ -57,4 +66,5 @@ Before marking any task complete, verify:
 4. All UI components use `Outfit`, Black/Green minimal tokens, and `rounded-none` (`0px` border radius).
 5. Iconography uses `lucide-react` consistently.
 6. Mock data and services are cleanly isolated behind interfaces (Phase 1).
-7. Build, typecheck, and `ponytail` compliance checks pass with zero errors.
+7. Comprehensive test cases (boundary, invalid input, error handling, edge cases, security/state transitions) are covered and automated tests pass for both new and existing features with zero regressions.
+8. Build, typecheck, and `ponytail` compliance checks pass with zero errors.

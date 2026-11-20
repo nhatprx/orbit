@@ -4,58 +4,44 @@ import {
 } from '../modules/auth/passwordPolicy';
 import type {
   AuthSession,
+  ForgotPasswordResponse,
   LoginPayload,
   OAuthProvider,
   RegisterPayload,
+  ResetPasswordResponse,
 } from '../types/auth.types';
-
-const SESSION_KEY = 'orbit_auth_session';
-const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
-  'http://localhost:8080';
+import {
+  API_BASE_URL,
+  clearStoredSession,
+  getStoredSession,
+  postAuthJson,
+  saveStoredSession,
+} from './auth.storage';
 
 export interface IAuthService {
   getSession(): AuthSession | null;
+  getStoredToken(): string | null;
+  clearToken(): void;
   login(payload: LoginPayload): Promise<AuthSession>;
   register(payload: RegisterPayload): Promise<AuthSession>;
+  forgotPassword(email: string): Promise<ForgotPasswordResponse>;
+  resetPassword(token: string, newPassword: string): Promise<ResetPasswordResponse>;
   startOAuthLogin(provider: OAuthProvider): void;
   exchangeOAuthCode(code: string): Promise<AuthSession>;
   logout(): Promise<void>;
 }
 
-interface ApiErrorPayload {
-  message?: string;
-}
-
-function saveSession(session: AuthSession): AuthSession {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  return session;
-}
-
-async function parseJsonOrThrow<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    let message = `Request failed (${response.status}).`;
-    try {
-      const err = (await response.json()) as ApiErrorPayload;
-      if (err.message) message = err.message;
-    } catch {
-      // ignore non-json body
-    }
-    throw new Error(message);
-  }
-  return (await response.json()) as T;
-}
-
 class HttpAuthService implements IAuthService {
   getSession(): AuthSession | null {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    try {
-      return JSON.parse(raw) as AuthSession;
-    } catch {
-      localStorage.removeItem(SESSION_KEY);
-      return null;
-    }
+    return getStoredSession();
+  }
+
+  getStoredToken(): string | null {
+    return getStoredSession()?.accessToken ?? null;
+  }
+
+  clearToken(): void {
+    clearStoredSession();
   }
 
   async login(payload: LoginPayload): Promise<AuthSession> {
@@ -64,14 +50,13 @@ class HttpAuthService implements IAuthService {
       throw new Error('Username/email and password are required.');
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/v1/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier, password: payload.password }),
+    const rememberMe = Boolean(payload.rememberMe);
+    const session = await postAuthJson<AuthSession>('/api/v1/auth/login', {
+      identifier,
+      password: payload.password,
+      rememberMe,
     });
-
-    const session = await parseJsonOrThrow<AuthSession>(response);
-    return saveSession(session);
+    return saveStoredSession(session, rememberMe);
   }
 
   async register(payload: RegisterPayload): Promise<AuthSession> {
@@ -81,20 +66,41 @@ class HttpAuthService implements IAuthService {
     const passwordError = validateStrongPassword(payload.password);
     if (passwordError) throw new Error(passwordError);
 
-    const response = await fetch(`${API_BASE_URL}/api/v1/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: payload.email.trim().toLowerCase(),
-        username: payload.username.trim().toLowerCase(),
-        password: payload.password,
-        country: payload.country,
-        emailPreference: payload.emailPreference,
-      }),
+    const session = await postAuthJson<AuthSession>('/api/v1/auth/register', {
+      email: payload.email.trim().toLowerCase(),
+      username: payload.username.trim().toLowerCase(),
+      password: payload.password,
+      country: payload.country,
+      emailPreference: payload.emailPreference,
     });
+    return saveStoredSession(session, true);
+  }
 
-    const session = await parseJsonOrThrow<AuthSession>(response);
-    return saveSession(session);
+  async forgotPassword(email: string): Promise<ForgotPasswordResponse> {
+    const normalized = email.trim().toLowerCase();
+    if (!normalized) {
+      throw new Error('Email address is required.');
+    }
+    return postAuthJson<ForgotPasswordResponse>('/api/v1/auth/forgot-password', {
+      email: normalized,
+    });
+  }
+
+  async resetPassword(
+    token: string,
+    newPassword: string
+  ): Promise<ResetPasswordResponse> {
+    const trimmedToken = token.trim();
+    if (!trimmedToken) {
+      throw new Error('Reset token is required.');
+    }
+    if (newPassword.length < 8) {
+      throw new Error('New password must be at least 8 characters.');
+    }
+    return postAuthJson<ResetPasswordResponse>('/api/v1/auth/reset-password', {
+      token: trimmedToken,
+      newPassword,
+    });
   }
 
   startOAuthLogin(provider: OAuthProvider): void {
@@ -102,19 +108,15 @@ class HttpAuthService implements IAuthService {
   }
 
   async exchangeOAuthCode(code: string): Promise<AuthSession> {
-    const response = await fetch(`${API_BASE_URL}/api/v1/auth/oauth/exchange`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code }),
+    const session = await postAuthJson<AuthSession>('/api/v1/auth/oauth/exchange', {
+      code,
     });
-
-    const session = await parseJsonOrThrow<AuthSession>(response);
-    return saveSession(session);
+    return saveStoredSession(session, true);
   }
 
   async logout(): Promise<void> {
     const current = this.getSession();
-    localStorage.removeItem(SESSION_KEY);
+    clearStoredSession();
     if (!current) return;
 
     try {

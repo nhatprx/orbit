@@ -7,5 +7,16 @@ public record LoginRequest(
     String identifier,
 
     @NotBlank(message = "Password is required.")
-    String password
-) {}
+    String password,
+
+    Boolean rememberMe
+) {
+
+    public LoginRequest(String identifier, String password) {
+        this(identifier, password, false);
+    }
+
+    public boolean isRememberMe() {
+        return Boolean.TRUE.equals(rememberMe);
+    }
+}

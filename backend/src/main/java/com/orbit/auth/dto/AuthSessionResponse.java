@@ -5,5 +5,6 @@ import java.time.Instant;
 public record AuthSessionResponse(
     AuthUserDto user,
     String accessToken,
-    Instant expiresAt
+    Instant expiresAt,
+    long expiresIn
 ) {}
