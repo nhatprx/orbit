@@ -4,7 +4,9 @@ import com.orbit.auth.dto.AccountSecurityDto;
 import com.orbit.auth.dto.AuthUserDto;
 import com.orbit.auth.dto.ChangePasswordRequest;
 import com.orbit.auth.dto.DisableTwoFactorRequest;
+import com.orbit.auth.dto.EnableTwoFactorRequest;
 import com.orbit.auth.dto.PasswordResetResponse;
+import com.orbit.auth.dto.StartTwoFactorSetupRequest;
 import com.orbit.auth.dto.TwoFactorEnableResponse;
 import com.orbit.auth.dto.TwoFactorSetupResponse;
 import com.orbit.auth.dto.UpdateAccountProfileRequest;
@@ -67,17 +69,22 @@ public class AccountSecurityController {
 
     @PostMapping("/2fa/setup")
     public ResponseEntity<TwoFactorSetupResponse> beginTwoFactorSetup(
-        @AuthenticationPrincipal AuthenticatedUserPrincipal principal
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+        @Valid @RequestBody StartTwoFactorSetupRequest request
     ) {
-        return ResponseEntity.ok(accountSecurityService.beginTwoFactorSetup(requireUser(principal)));
+        return ResponseEntity.ok(
+            accountSecurityService.beginTwoFactorSetup(requireUser(principal), request.password())
+        );
     }
 
     @PostMapping("/2fa/enable")
     public ResponseEntity<TwoFactorEnableResponse> enableTwoFactor(
         @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
-        @Valid @RequestBody VerifyTotpRequest request
+        @Valid @RequestBody EnableTwoFactorRequest request
     ) {
-        return ResponseEntity.ok(accountSecurityService.enableTwoFactor(requireUser(principal), request.code()));
+        return ResponseEntity.ok(
+            accountSecurityService.enableTwoFactor(requireUser(principal), request.password(), request.code())
+        );
     }
 
     @PostMapping("/2fa/disable")

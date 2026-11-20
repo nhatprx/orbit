@@ -15,8 +15,8 @@ export interface AccountSecurityService {
   getSecurityStatus(): Promise<AccountSecurityStatus>;
   updateProfile(payload: UpdateAccountProfilePayload): Promise<AuthUser>;
   changePassword(currentPassword: string | null, newPassword: string): Promise<{ message: string }>;
-  beginTwoFactorSetup(): Promise<TwoFactorSetupResponse>;
-  enableTwoFactor(code: string): Promise<TwoFactorEnableResponse>;
+  beginTwoFactorSetup(password: string): Promise<TwoFactorSetupResponse>;
+  enableTwoFactor(password: string, code: string): Promise<TwoFactorEnableResponse>;
   disableTwoFactor(password: string | null, code: string): Promise<{ message: string }>;
   regenerateBackupCodes(code: string): Promise<TwoFactorEnableResponse>;
 }
@@ -38,13 +38,15 @@ export const accountSecurityService: AccountSecurityService = {
     });
   },
 
-  beginTwoFactorSetup() {
-    return apiRequest<TwoFactorSetupResponse>('POST', '/api/v1/auth/account/2fa/setup');
+  beginTwoFactorSetup(password) {
+    return apiRequest<TwoFactorSetupResponse>('POST', '/api/v1/auth/account/2fa/setup', {
+      body: { password },
+    });
   },
 
-  enableTwoFactor(code) {
+  enableTwoFactor(password, code) {
     return apiRequest<TwoFactorEnableResponse>('POST', '/api/v1/auth/account/2fa/enable', {
-      body: { code },
+      body: { password, code },
     });
   },
 

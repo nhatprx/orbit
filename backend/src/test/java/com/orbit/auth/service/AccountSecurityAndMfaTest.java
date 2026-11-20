@@ -97,17 +97,27 @@ class AccountSecurityAndMfaTest {
         when(userRepository.save(any(UserEntity.class))).thenAnswer(inv -> inv.getArgument(0));
         when(oauthAccountRepository.findByUserIdOrderByCreatedAtAsc(user.getId())).thenReturn(List.of());
 
-        TwoFactorSetupResponse setup = securityService.beginTwoFactorSetup(user.getId());
+        ApiException wrongPwSetup = assertThrows(ApiException.class, () ->
+            securityService.beginTwoFactorSetup(user.getId(), "Wrong@2026")
+        );
+        assertEquals("INVALID_CURRENT_PASSWORD", wrongPwSetup.getCode());
+
+        TwoFactorSetupResponse setup = securityService.beginTwoFactorSetup(user.getId(), "Orbit@2026");
         assertNotNull(setup.secret());
         assertTrue(setup.otpauthUri().startsWith("otpauth://totp/"));
 
         ApiException badEnable = assertThrows(ApiException.class, () ->
-            securityService.enableTwoFactor(user.getId(), "000000")
+            securityService.enableTwoFactor(user.getId(), "Orbit@2026", "000000")
         );
         assertEquals("INVALID_TOTP_CODE", badEnable.getCode());
 
         String validCode = totpService.generateCurrentCode(setup.secret());
-        TwoFactorEnableResponse enabled = securityService.enableTwoFactor(user.getId(), validCode);
+        ApiException wrongPwEnable = assertThrows(ApiException.class, () ->
+            securityService.enableTwoFactor(user.getId(), "Wrong@2026", validCode)
+        );
+        assertEquals("INVALID_CURRENT_PASSWORD", wrongPwEnable.getCode());
+
+        TwoFactorEnableResponse enabled = securityService.enableTwoFactor(user.getId(), "Orbit@2026", validCode);
         assertTrue(enabled.enabled());
         assertEquals(8, enabled.backupCodes().size());
         assertTrue(user.isTotpEnabled());

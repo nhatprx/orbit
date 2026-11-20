@@ -33,12 +33,28 @@ describe('AccountSettingsSection and Profile Settings Menu', () => {
     expect(settingsItem?.area).toBeUndefined();
   });
 
-  it('allows updating username, setting password, and enabling 2FA with backup codes', async () => {
-    const onUserUpdated = vi.fn();
+  it('guides OAuth-only user to set a password before enabling 2FA', async () => {
     mockedService.getSecurityStatus.mockResolvedValue({
       email: 'nhat@orbit.dev',
       username: 'nhatprx',
       hasPassword: false,
+      totpEnabled: false,
+      backupCodesRemaining: 0,
+      linkedProviders: ['google'],
+    });
+
+    render(<AccountSettingsSection />);
+    await waitFor(() =>
+      expect(screen.getByText(/Set an account password above before enabling two-factor authentication/i)).toBeTruthy()
+    );
+  });
+
+  it('updates username, requires password for 2FA setup, renders QR code, and enables 2FA', async () => {
+    const onUserUpdated = vi.fn();
+    mockedService.getSecurityStatus.mockResolvedValue({
+      email: 'nhat@orbit.dev',
+      username: 'nhatprx',
+      hasPassword: true,
       totpEnabled: false,
       backupCodesRemaining: 0,
       linkedProviders: ['google'],
@@ -51,7 +67,6 @@ describe('AccountSettingsSection and Profile Settings Menu', () => {
       role: 'user',
       workspaceId: 'ws_orbit_core',
     });
-    mockedService.changePassword.mockResolvedValue({ message: 'Password updated successfully.' });
     mockedService.beginTwoFactorSetup.mockResolvedValue({
       secret: 'JBSWY3DPEHPK3PXP',
       otpauthUri: 'otpauth://totp/Orbit:nhatprx?secret=JBSWY3DPEHPK3PXP&issuer=Orbit',
@@ -63,25 +78,25 @@ describe('AccountSettingsSection and Profile Settings Menu', () => {
 
     render(<AccountSettingsSection onUserUpdated={onUserUpdated} />);
 
-    await waitFor(() => expect(screen.getByText('Set account password')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Change password')).toBeTruthy());
 
     fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'Nhat_Dev' } });
     fireEvent.click(screen.getByRole('button', { name: /Update username/i }));
     await waitFor(() => expect(mockedService.updateProfile).toHaveBeenCalledWith({ username: 'nhat_dev' }));
     expect(onUserUpdated).toHaveBeenCalledTimes(1);
 
-    fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'Orbit@2026' } });
-    fireEvent.change(screen.getByLabelText('Confirm new password'), { target: { value: 'Orbit@2026' } });
-    fireEvent.click(screen.getByRole('button', { name: /Set password/i }));
-
-    await waitFor(() => expect(mockedService.changePassword).toHaveBeenCalledWith(null, 'Orbit@2026'));
-
     fireEvent.click(screen.getByRole('button', { name: /Enable 2FA/i }));
-    await waitFor(() => expect(screen.getByText('JBSWY3DPEHPK3PXP')).toBeTruthy());
+    fireEvent.change(screen.getByLabelText('Account password'), { target: { value: 'Orbit@2026' } });
+    fireEvent.click(screen.getByRole('button', { name: /Continue/i }));
+
+    await waitFor(() => expect(mockedService.beginTwoFactorSetup).toHaveBeenCalledWith('Orbit@2026'));
+    await waitFor(() => expect(screen.getByAltText('2FA QR Code')).toBeTruthy());
+    expect(screen.getByText('JBSWY3DPEHPK3PXP')).toBeTruthy();
 
     fireEvent.change(screen.getByLabelText(/Enter the 6-digit code/i), { target: { value: '123456' } });
     fireEvent.click(screen.getByRole('button', { name: /Verify & Enable/i }));
 
+    await waitFor(() => expect(mockedService.enableTwoFactor).toHaveBeenCalledWith('Orbit@2026', '123456'));
     await waitFor(() => expect(screen.getByText('AAAA-BBBB')).toBeTruthy());
     expect(screen.getByText('CCCC-DDDD')).toBeTruthy();
   });

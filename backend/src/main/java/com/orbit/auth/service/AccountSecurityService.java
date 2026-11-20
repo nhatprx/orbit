@@ -9,12 +9,10 @@ import com.orbit.auth.entity.OAuthAccountEntity;
 import com.orbit.auth.entity.UserEntity;
 import com.orbit.auth.repository.OAuthAccountRepository;
 import com.orbit.auth.repository.UserRepository;
+import com.orbit.auth.service.BackupCodeCodec.ConsumeResult;
 import com.orbit.auth.validation.PasswordPolicyValidator;
 import com.orbit.common.ApiException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -54,7 +52,7 @@ public class AccountSecurityService {
             user.getUsername(),
             hasPassword(user),
             user.isTotpEnabled(),
-            parseHashes(user.getTotpBackupCodes()).size(),
+            BackupCodeCodec.parseHashes(user.getTotpBackupCodes()).size(),
             providers
         );
     }
@@ -81,11 +79,12 @@ public class AccountSecurityService {
     }
 
     @Transactional
-    public TwoFactorSetupResponse beginTwoFactorSetup(UUID userId) {
+    public TwoFactorSetupResponse beginTwoFactorSetup(UUID userId, String password) {
         UserEntity user = loadUser(userId);
         if (user.isTotpEnabled()) {
             throw new ApiException(HttpStatus.CONFLICT, "TWO_FACTOR_ALREADY_ENABLED", "Two-factor authentication is already enabled.");
         }
+        requireValidPasswordFor2FA(user, password);
         String secret = totpService.generateSecret();
         user.setTotpPendingSecret(secret);
         userRepository.save(user);
@@ -93,11 +92,12 @@ public class AccountSecurityService {
     }
 
     @Transactional
-    public TwoFactorEnableResponse enableTwoFactor(UUID userId, String code) {
+    public TwoFactorEnableResponse enableTwoFactor(UUID userId, String password, String code) {
         UserEntity user = loadUser(userId);
         if (user.isTotpEnabled()) {
             throw new ApiException(HttpStatus.CONFLICT, "TWO_FACTOR_ALREADY_ENABLED", "Two-factor authentication is already enabled.");
         }
+        requireValidPasswordFor2FA(user, password);
         if (user.getTotpPendingSecret() == null || user.getTotpPendingSecret().isBlank()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "TWO_FACTOR_SETUP_NOT_STARTED", "Start 2FA setup before verifying.");
         }
@@ -108,7 +108,7 @@ public class AccountSecurityService {
         user.setTotpSecret(user.getTotpPendingSecret());
         user.setTotpPendingSecret(null);
         user.setTotpEnabled(true);
-        user.setTotpBackupCodes(encodeBackupCodes(backupCodes));
+        user.setTotpBackupCodes(BackupCodeCodec.encodeAll(backupCodes, passwordEncoder));
         userRepository.save(user);
         return new TwoFactorEnableResponse(true, backupCodes);
     }
@@ -119,10 +119,8 @@ public class AccountSecurityService {
         if (!user.isTotpEnabled()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "TWO_FACTOR_NOT_ENABLED", "Two-factor authentication is not enabled.");
         }
-        if (hasPassword(user)) {
-            if (request.password() == null || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-                throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_CURRENT_PASSWORD", "Password is incorrect.");
-            }
+        if (hasPassword(user) && (request.password() == null || !passwordEncoder.matches(request.password(), user.getPasswordHash()))) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_CURRENT_PASSWORD", "Password is incorrect.");
         }
         if (!verifySecondFactor(user, request.code())) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_TOTP_CODE", "Invalid verification or backup code.");
@@ -144,7 +142,7 @@ public class AccountSecurityService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_TOTP_CODE", "Invalid authenticator code.");
         }
         List<String> backupCodes = totpService.generateBackupCodes(BACKUP_CODE_COUNT);
-        user.setTotpBackupCodes(encodeBackupCodes(backupCodes));
+        user.setTotpBackupCodes(BackupCodeCodec.encodeAll(backupCodes, passwordEncoder));
         userRepository.save(user);
         return backupCodes;
     }
@@ -152,20 +150,27 @@ public class AccountSecurityService {
     @Transactional
     public boolean verifySecondFactor(UserEntity user, String rawCode) {
         if (rawCode == null || rawCode.isBlank()) return false;
-        if (totpService.verifyCode(user.getTotpSecret(), rawCode)) {
+        if (totpService.verifyCode(user.getTotpSecret(), rawCode)) return true;
+        ConsumeResult res = BackupCodeCodec.consumeMatch(user.getTotpBackupCodes(), rawCode, passwordEncoder);
+        if (res.matched()) {
+            user.setTotpBackupCodes(res.remainingEncoded());
+            userRepository.save(user);
             return true;
         }
-        String normalized = rawCode.trim().toUpperCase(Locale.ROOT);
-        List<String> hashes = new ArrayList<>(parseHashes(user.getTotpBackupCodes()));
-        for (int i = 0; i < hashes.size(); i++) {
-            if (passwordEncoder.matches(normalized, hashes.get(i))) {
-                hashes.remove(i);
-                user.setTotpBackupCodes(hashes.isEmpty() ? null : String.join("\n", hashes));
-                userRepository.save(user);
-                return true;
-            }
-        }
         return false;
+    }
+
+    private void requireValidPasswordFor2FA(UserEntity user, String password) {
+        if (!hasPassword(user)) {
+            throw new ApiException(
+                HttpStatus.BAD_REQUEST,
+                "PASSWORD_REQUIRED_FOR_2FA",
+                "Set an account password before enabling two-factor authentication."
+            );
+        }
+        if (password == null || password.isBlank() || !passwordEncoder.matches(password, user.getPasswordHash())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_CURRENT_PASSWORD", "Password is incorrect.");
+        }
     }
 
     private UserEntity loadUser(UUID userId) {
@@ -175,17 +180,5 @@ public class AccountSecurityService {
 
     private boolean hasPassword(UserEntity user) {
         return user.getPasswordHash() != null && !user.getPasswordHash().isBlank();
-    }
-
-    private String encodeBackupCodes(List<String> plainCodes) {
-        return String.join("\n", plainCodes.stream().map(passwordEncoder::encode).toList());
-    }
-
-    private List<String> parseHashes(String stored) {
-        if (stored == null || stored.isBlank()) return List.of();
-        return Arrays.stream(stored.split("\n"))
-            .map(String::trim)
-            .filter(s -> !s.isEmpty())
-            .toList();
     }
 }
