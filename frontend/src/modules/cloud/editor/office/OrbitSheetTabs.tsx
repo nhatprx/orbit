@@ -1,20 +1,23 @@
-import { useState, type KeyboardEvent } from 'react';
+import { useState, type KeyboardEvent, type MutableRefObject } from 'react';
 import { Check, Edit3, Plus, Trash2 } from 'lucide-react';
 import type { SheetTabDto } from './officeTypes';
+import { OrbitSheetFormulaSuggest, type FormulaSuggestDropdownProps } from './OrbitSheetFormulaSuggest';
 import type { SheetSummaryStats } from './OrbitSheetToolbar';
 
 interface OrbitSheetFormulaBarProps {
   rangeCoord: string;
   activeRaw: string;
   readOnly?: boolean;
+  inputRef?: MutableRefObject<HTMLInputElement | null>;
+  suggest?: FormulaSuggestDropdownProps;
   onFocus: () => void;
   onBlur: () => void;
-  onChange: (value: string) => void;
+  onChange: (value: string, selectionStart?: number | null) => void;
   onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void;
 }
 
 export function OrbitSheetFormulaBar({
-  rangeCoord, activeRaw, readOnly = false, onFocus, onBlur, onChange, onKeyDown,
+  rangeCoord, activeRaw, readOnly = false, inputRef, suggest, onFocus, onBlur, onChange, onKeyDown,
 }: OrbitSheetFormulaBarProps) {
   return (
     <div className="flex items-center border-b border-[#30363D] bg-[#161B22]">
@@ -22,21 +25,25 @@ export function OrbitSheetFormulaBar({
         {rangeCoord}
       </div>
       <span className="border-r border-[#30363D] px-2.5 py-1.5 font-mono text-xs italic text-[#8B949E]">fx</span>
-      <input
-        type="text"
-        aria-label="Formula bar"
-        readOnly={readOnly}
-        value={activeRaw}
-        onFocus={onFocus}
-        onBlur={onBlur}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={onKeyDown}
-        placeholder="Enter value or formula (e.g. =SUM(A1:B3))"
-        className="min-w-0 flex-1 rounded-none bg-[#0D1117] px-3 py-1.5 font-mono text-xs text-[#E6EDF3] focus:outline-none"
-      />
+      <div className="relative min-w-0 flex-1">
+        <input
+          ref={(el) => { if (inputRef) inputRef.current = el; }}
+          type="text"
+          aria-label="Formula bar"
+          readOnly={readOnly}
+          value={activeRaw}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          onChange={(e) => onChange(e.target.value, e.target.selectionStart)}
+          onKeyDown={onKeyDown}
+          placeholder="Enter value or formula (e.g. =SUM(A1:B3))"
+          className="w-full rounded-none bg-[#0D1117] px-3 py-1.5 font-mono text-xs text-[#E6EDF3] focus:outline-none"
+        />
+        {suggest && <OrbitSheetFormulaSuggest {...suggest} />}
+      </div>
       {activeRaw.trim().startsWith('=') && (
         <span className="border-l border-[#30363D] bg-[#052E16] px-2.5 py-1.5 font-mono text-[11px] text-[#22C55E]">
-          Pick a cell or type expression, press Enter to apply
+          Pick a cell or drag range, press Enter to apply
         </span>
       )}
     </div>

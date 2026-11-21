@@ -1,4 +1,5 @@
 import type { CSSProperties, KeyboardEvent, MouseEvent, MutableRefObject } from 'react';
+import { OrbitSheetFormulaSuggest, type FormulaSuggestDropdownProps } from './OrbitSheetFormulaSuggest';
 import {
   DEFAULT_SHEET_FONT_SIZE, formatCellDisplay, getSheetCellClasses,
   type SheetAlign, type SheetCellStyleDto, type SheetRangeBounds,
@@ -21,18 +22,20 @@ interface OrbitSheetGridProps {
   freezeHeader: boolean;
   readOnly: boolean;
   cellRefs: MutableRefObject<Record<string, SheetCellElement | null>>;
+  cellSuggest?: FormulaSuggestDropdownProps;
+  onGridKeyDown: (e: KeyboardEvent<HTMLDivElement>) => void;
   onMouseDown: (e: MouseEvent<SheetCellElement>, r: number, c: number, isEditing: boolean) => void;
   onDragEnter: (r: number, c: number) => void;
   onClick: (e: MouseEvent<SheetCellElement>, r: number, c: number, isEditing: boolean) => void;
   onDoubleClick: (r: number, c: number) => void;
   onBlur: (r: number, c: number) => void;
   onKeyDown: (e: KeyboardEvent<SheetCellElement>, r: number, c: number) => void;
-  onChange: (r: number, c: number, value: string) => void;
+  onChange: (r: number, c: number, value: string, selectionStart?: number | null) => void;
 }
 
 export function OrbitSheetGrid({
   rawRows, cellStyles, displayRowCount, displayColCount, activeCell, editingCell, bounds, formulaRefs,
-  zoom, showGridlines, freezeHeader, readOnly, cellRefs,
+  zoom, showGridlines, freezeHeader, readOnly, cellRefs, cellSuggest, onGridKeyDown,
   onMouseDown, onDragEnter, onClick, onDoubleClick, onBlur, onKeyDown, onChange,
 }: OrbitSheetGridProps) {
   const scale = zoom / 100;
@@ -44,10 +47,13 @@ export function OrbitSheetGrid({
 
   return (
     <div
+      tabIndex={0}
+      aria-label="Spreadsheet grid"
       data-zoom={zoom}
       data-gridlines={showGridlines ? 'true' : 'false'}
       data-freeze-header={freezeHeader ? 'true' : 'false'}
-      className="min-h-0 flex-1 overflow-auto bg-[#0D1117]"
+      onKeyDown={onGridKeyDown}
+      className="min-h-0 flex-1 overflow-auto bg-[#0D1117] focus:outline-none"
     >
       <table className="border-collapse font-mono text-xs">
         <thead>
@@ -89,6 +95,7 @@ export function OrbitSheetGrid({
                   const raw = rawRows[rIdx]?.[cIdx] ?? '';
                   const isEditing = editingCell?.r === rIdx && editingCell?.c === cIdx;
                   const isSelected = activeCell.r === rIdx && activeCell.c === cIdx;
+                  const showSuggest = isSelected && isEditing && Boolean(cellSuggest);
                   const inRange = rIdx >= bounds.minR && rIdx <= bounds.maxR && cIdx >= bounds.minC && cIdx <= bounds.maxC;
                   const isFormulaRef = !isSelected && formulaRefs.has(`${rIdx}:${cIdx}`);
                   const fmt = cellStyles[`${rIdx}:${cIdx}`];
@@ -125,7 +132,8 @@ export function OrbitSheetGrid({
                     onDoubleClick: () => onDoubleClick(rIdx, cIdx),
                     onBlur: () => onBlur(rIdx, cIdx),
                     onKeyDown: (e: KeyboardEvent<SheetCellElement>) => onKeyDown(e, rIdx, cIdx),
-                    onChange: (e: { target: { value: string } }) => onChange(rIdx, cIdx, e.target.value),
+                    onChange: (e: { target: { value: string; selectionStart: number | null } }) =>
+                      onChange(rIdx, cIdx, e.target.value, e.target.selectionStart),
                     className: inputCls,
                   };
 
@@ -134,7 +142,7 @@ export function OrbitSheetGrid({
                       key={cIdx}
                       style={tdStyle}
                       onMouseEnter={() => onDragEnter(rIdx, cIdx)}
-                      className={`relative border p-0 ${valignCls} ${isFrozenRow ? 'sticky z-[15] border-b-2 border-b-[#22C55E]/70' : ''} ${tdCls}`}
+                      className={`relative border p-0 ${valignCls} ${isFrozenRow ? 'sticky z-[15] border-b-2 border-b-[#22C55E]/70' : ''} ${tdCls} ${showSuggest ? 'z-30' : ''}`}
                     >
                       {fmt?.wrap ? (
                         <textarea
@@ -151,6 +159,7 @@ export function OrbitSheetGrid({
                           className={`block ${inputCls}`}
                         />
                       )}
+                      {showSuggest && cellSuggest && <OrbitSheetFormulaSuggest {...cellSuggest} />}
                       {rIdx === bounds.maxR && cIdx === bounds.maxC && (
                         <span aria-hidden="true" className="pointer-events-none absolute bottom-0 right-0 h-1.5 w-1.5 bg-[#22C55E]" />
                       )}
