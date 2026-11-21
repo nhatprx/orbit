@@ -15,13 +15,16 @@ describe('fileEditorRegistry', () => {
     expect(getFileExtension('trailing.')).toBe('');
   });
 
-  it('classifies Office, PDF, Text/Code, and unsupported files', () => {
+  it('classifies Office, PDF, Text/Code, and unsupported/legacy files', () => {
     expect(classifyFileEditor('proposal.docx')).toBe('OFFICE');
     expect(classifyFileEditor('budget.xlsx')).toBe('OFFICE');
     expect(classifyFileEditor('deck.pptx')).toBe('OFFICE');
-    expect(classifyFileEditor('legacy.doc')).toBe('OFFICE');
-    expect(classifyFileEditor('legacy.xls')).toBe('OFFICE');
-    expect(classifyFileEditor('legacy.ppt')).toBe('OFFICE');
+    expect(classifyFileEditor('legacy.doc', 'application/msword')).toBe('NONE');
+    expect(classifyFileEditor('legacy.xls', 'application/vnd.ms-excel')).toBe('NONE');
+    expect(classifyFileEditor('legacy.ppt', 'application/vnd.ms-powerpoint')).toBe('NONE');
+    expect(classifyFileEditor('legacy.odt', 'application/vnd.oasis.opendocument.text')).toBe('NONE');
+    expect(classifyFileEditor('legacy.ods', 'application/vnd.oasis.opendocument.spreadsheet')).toBe('NONE');
+    expect(classifyFileEditor('legacy.odp', 'application/vnd.oasis.opendocument.presentation')).toBe('NONE');
 
     expect(classifyFileEditor('manual.pdf', 'application/pdf')).toBe('PDF');
     expect(classifyFileEditor('report.PDF')).toBe('PDF');

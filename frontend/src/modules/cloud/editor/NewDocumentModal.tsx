@@ -9,6 +9,7 @@ interface NewDocumentModalProps {
   open: boolean;
   parentId: string | null;
   api: CloudFilesApi;
+  defaultTemplate?: DocumentTemplateType;
   onClose: () => void;
   onCreated: (node: CloudNodeDto) => void;
 }
@@ -39,20 +40,21 @@ export function NewDocumentModal({
   open,
   parentId,
   api,
+  defaultTemplate = 'MD',
   onClose,
   onCreated,
 }: NewDocumentModalProps) {
-  const [templateType, setTemplateType] = useState<DocumentTemplateType>('MD');
+  const [templateType, setTemplateType] = useState<DocumentTemplateType>(defaultTemplate);
   const [name, setName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
-    setTemplateType('MD');
+    setTemplateType(defaultTemplate);
     setName('');
     setError(null);
-  }, [open]);
+  }, [open, defaultTemplate]);
 
   const activeTemplate =
     TEMPLATES.find((t) => t.type === templateType) ??

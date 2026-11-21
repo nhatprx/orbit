@@ -67,6 +67,7 @@ export function ModuleArea({ module, nav }: ModuleAreaProps) {
             permissions: project.myPermissions,
           }}
           scopeLabel={project.name}
+          modulePreset={module}
         />
       );
     }
@@ -78,6 +79,7 @@ export function ModuleArea({ module, nav }: ModuleAreaProps) {
           permissions: workspace.myPermissions,
         }}
         scopeLabel={workspace.name}
+        modulePreset={module}
       />
     );
   }

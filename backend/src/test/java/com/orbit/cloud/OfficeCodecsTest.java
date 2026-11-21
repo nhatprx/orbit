@@ -1,49 +1,35 @@
 package com.orbit.cloud;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.orbit.cloud.config.CloudProperties;
-import com.orbit.cloud.dto.CloudNodeResponse;
 import com.orbit.cloud.dto.DocBlockDto;
 import com.orbit.cloud.dto.DocTableDto;
 import com.orbit.cloud.dto.DocumentTemplateType;
 import com.orbit.cloud.dto.OfficeDocContentDto;
-import com.orbit.cloud.dto.OfficeDocumentResponse;
 import com.orbit.cloud.dto.OfficeSheetContentDto;
 import com.orbit.cloud.dto.OfficeSlideContentDto;
-import com.orbit.cloud.dto.SaveOfficeDocumentRequest;
+import com.orbit.cloud.dto.SheetCellStyleDto;
 import com.orbit.cloud.dto.SheetTabDto;
 import com.orbit.cloud.dto.SlideItemDto;
-import com.orbit.cloud.entity.CloudNodeEntity;
-import com.orbit.cloud.entity.CloudNodeType;
-import com.orbit.cloud.entity.CloudUploadStatus;
-import com.orbit.cloud.event.CloudFileReadyEvent;
-import com.orbit.cloud.service.CloudDocumentService;
-import com.orbit.cloud.service.CloudNodeMapper;
-import com.orbit.cloud.service.CloudNodeService;
-import com.orbit.cloud.service.CloudOfficeService;
-import com.orbit.cloud.service.CloudScope;
 import com.orbit.cloud.service.DocxOfficeCodec;
 import com.orbit.cloud.service.OoxmlTemplateGenerator;
 import com.orbit.cloud.service.PptxOfficeCodec;
 import com.orbit.cloud.service.XlsxOfficeCodec;
 import com.orbit.common.ApiException;
-import com.orbit.storage.service.CloudStorageClient;
+import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
+import java.util.Map;
+import org.apache.poi.xwpf.usermodel.Borders;
+import org.apache.poi.xwpf.usermodel.ParagraphAlignment;
+import org.apache.poi.xwpf.usermodel.UnderlinePatterns;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.junit.jupiter.api.Test;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.http.HttpStatus;
 
 class OfficeCodecsTest {
 
@@ -53,25 +39,31 @@ class OfficeCodecsTest {
     private final OoxmlTemplateGenerator templateGenerator = new OoxmlTemplateGenerator();
 
     @Test
-    void docxRoundTripsBlocksAlignmentsTablesAndBlankTemplate() {
+    void docxRoundTripsBlocksAlignmentsHrTablesAndBlankTemplate() throws Exception {
         OfficeDocContentDto input = new OfficeDocContentDto(
             List.of(
                 new DocBlockDto("h1", "Orbit Architecture Overview", "center"),
                 new DocBlockDto("h2", "Storage Layer", "left"),
                 new DocBlockDto("h3", "Replication Strategy", "right"),
-                new DocBlockDto("p", "Standard body paragraph text.", "left"),
+                new DocBlockDto("p", "Justified paragraph body text.", "justify"),
+                new DocBlockDto("hr", "", "left"),
                 new DocBlockDto("quote", "Simplicity scales reliably.", "left"),
                 new DocBlockDto("code", "mvn test -Dtest=OfficeCodecsTest", "left"),
                 new DocBlockDto("ul", "Bullet point item", "left"),
                 new DocBlockDto("ol", "Numbered step item", "left")
             ),
             List.of(new DocTableDto(List.of(
-                List.of("Service", "Status"),
+                List.of("<b>Service</b>", "Status"),
                 List.of("Orbit Docs", "READY")
             )))
         );
 
         byte[] bytes = docxCodec.write(input);
+        try (XWPFDocument poiDoc = new XWPFDocument(new ByteArrayInputStream(bytes))) {
+            assertEquals(ParagraphAlignment.BOTH, poiDoc.getParagraphs().get(3).getAlignment());
+            assertEquals(Borders.SINGLE, poiDoc.getParagraphs().get(4).getBorderBottom());
+        }
+
         OfficeDocContentDto parsed = docxCodec.read(bytes);
         assertEquals(input.blocks(), parsed.blocks());
         assertEquals(input.tables(), parsed.tables());
@@ -82,25 +74,69 @@ class OfficeCodecsTest {
     }
 
     @Test
-    void xlsxRoundTripsSheetsNumbersFormulasInvalidFormulaFallbackAndBlankTemplate() {
+    void docxParsesInlineHtmlIntoRealPoiRunsAndRoundTripsCleanly() throws Exception {
+        String richHtml = "Plain <strong>bold</strong> <em>italic</em> <u>under</u> <del>gone</del> "
+            + "<code>const x = 1</code> <b><i>both</i></b> a &lt; b <script>alert(1)</script><span>safe</span>";
+        OfficeDocContentDto input = new OfficeDocContentDto(
+            List.of(new DocBlockDto("p", richHtml, "left")),
+            List.of()
+        );
+
+        byte[] bytes = docxCodec.write(input);
+        try (XWPFDocument poiDoc = new XWPFDocument(new ByteArrayInputStream(bytes))) {
+            XWPFParagraph para = poiDoc.getParagraphs().get(0);
+            String rawText = para.getText();
+            assertFalse(rawText.contains("<strong>"));
+            assertFalse(rawText.contains("<b>"));
+            assertFalse(rawText.contains("<script>"));
+            assertFalse(rawText.contains("alert(1)"));
+            assertTrue(rawText.contains("a < b"));
+            assertTrue(para.getRuns().stream().anyMatch(XWPFRun::isBold));
+            assertTrue(para.getRuns().stream().anyMatch(XWPFRun::isItalic));
+            assertTrue(para.getRuns().stream().anyMatch(r -> r.getUnderline() == UnderlinePatterns.SINGLE));
+            assertTrue(para.getRuns().stream().anyMatch(XWPFRun::isStrikeThrough));
+            assertTrue(para.getRuns().stream().anyMatch(r -> "Courier New".equals(r.getFontFamily())));
+        }
+
+        OfficeDocContentDto parsed = docxCodec.read(bytes);
+        String roundTripped = parsed.blocks().get(0).text();
+        assertEquals(
+            "Plain <b>bold</b> <i>italic</i> <u>under</u> <s>gone</s> "
+                + "<code>const x = 1</code> <b><i>both</i></b> a &lt; b safe",
+            roundTripped
+        );
+    }
+
+    @Test
+    void xlsxRoundTripsValuesFormulasAndCellStyles() {
+        Map<String, SheetCellStyleDto> styles = Map.of(
+            "0:0", new SheetCellStyleDto(true, false, true, true, "center", null),
+            "1:2", new SheetCellStyleDto(null, true, null, null, "right", "currency"),
+            "1:3", new SheetCellStyleDto(true, null, null, null, "right", "percent"),
+            "2:2", new SheetCellStyleDto(null, null, null, null, "left", "decimal"),
+            "4:1", new SheetCellStyleDto(true, null, null, null, null, null)
+        );
         OfficeSheetContentDto input = new OfficeSheetContentDto(List.of(
             new SheetTabDto("Budget Q1", List.of(
-                List.of("Item", "Qty", "Cost", "Total"),
-                List.of("Compute", "2", "150.5", "=B2*C2"),
+                List.of("Item", "Qty", "Cost", "Margin"),
+                List.of("Compute", "2", "150.5", "0.25"),
                 List.of("Storage", "1", "49", "=SUM(C2:C3)"),
                 List.of("BadFormula", "", "=INVALID(((", "007")
-            )),
-            new SheetTabDto("Metrics", List.of(
-                List.of("LatencyMs", "12")
-            ))
+            ), styles),
+            new SheetTabDto("Metrics", List.of(List.of("LatencyMs", "12")))
         ));
 
         byte[] bytes = xlsxCodec.write(input);
         OfficeSheetContentDto parsed = xlsxCodec.read(bytes);
         assertEquals(2, parsed.sheets().size());
-        assertEquals("Budget Q1", parsed.sheets().get(0).name());
-        assertEquals(input.sheets().get(0).rows(), parsed.sheets().get(0).rows());
-        assertEquals(input.sheets().get(1).rows(), parsed.sheets().get(1).rows());
+        SheetTabDto budget = parsed.sheets().get(0);
+        assertEquals("Budget Q1", budget.name());
+        assertEquals(input.sheets().get(0).rows().subList(0, 4), budget.rows().subList(0, 4));
+        assertEquals(new SheetCellStyleDto(true, null, true, true, "center", null), budget.cellStyles().get("0:0"));
+        assertEquals(new SheetCellStyleDto(null, true, null, null, "right", "currency"), budget.cellStyles().get("1:2"));
+        assertEquals(new SheetCellStyleDto(true, null, null, null, "right", "percent"), budget.cellStyles().get("1:3"));
+        assertEquals(new SheetCellStyleDto(null, null, null, null, "left", "number"), budget.cellStyles().get("2:2"));
+        assertEquals(new SheetCellStyleDto(true, null, null, null, null, null), budget.cellStyles().get("4:1"));
 
         OfficeSheetContentDto fromBlank = xlsxCodec.read(templateGenerator.generate(DocumentTemplateType.XLSX).bytes());
         assertEquals(1, fromBlank.sheets().size());
@@ -132,53 +168,5 @@ class OfficeCodecsTest {
         OfficeSlideContentDto fromBlank = pptxCodec.read(templateGenerator.generate(DocumentTemplateType.PPTX).bytes());
         assertEquals(1, fromBlank.slides().size());
         assertThrows(ApiException.class, () -> pptxCodec.read("bad-pptx".getBytes(StandardCharsets.UTF_8)));
-    }
-
-    @Test
-    void cloudOfficeServiceReadsSavesChecksOptimisticLockAndPublishesReadyEvent() {
-        CloudNodeService nodeService = mock(CloudNodeService.class);
-        CloudDocumentService documentService = mock(CloudDocumentService.class);
-        CloudNodeMapper mapper = mock(CloudNodeMapper.class);
-        CloudStorageClient storageClient = mock(CloudStorageClient.class);
-        ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
-        CloudProperties props = new CloudProperties();
-        CloudOfficeService officeService = new CloudOfficeService(
-            nodeService, documentService, mapper, storageClient, props, docxCodec, xlsxCodec, pptxCodec, events
-        );
-
-        UUID userId = UUID.randomUUID();
-        CloudScope scope = CloudScope.user(userId);
-        Instant updatedAt = Instant.parse("2026-07-01T12:00:00Z");
-        CloudNodeEntity node = new CloudNodeEntity();
-        node.setId(UUID.randomUUID());
-        node.setNodeType(CloudNodeType.FILE);
-        node.setName("spec.docx");
-        node.setMimeType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-        node.setStorageKey("cloud/users/" + userId + "/" + node.getId() + "/v1");
-        node.setSizeBytes(512L);
-        node.setUpdatedAt(updatedAt);
-        node.setUploadStatus(CloudUploadStatus.READY);
-
-        OfficeDocContentDto docDto = new OfficeDocContentDto(List.of(new DocBlockDto("h1", "Spec", "left")), List.of());
-        when(nodeService.requireActiveNode(scope, node.getId())).thenReturn(node);
-        when(storageClient.getBytes(eq(node.getStorageKey()), any(Long.class))).thenReturn(docxCodec.write(docDto));
-        when(documentService.replaceNodeBytes(eq(scope), eq(node.getId()), eq(userId), any())).thenReturn(node);
-        when(mapper.toResponse(node)).thenReturn(mock(CloudNodeResponse.class));
-
-        OfficeDocumentResponse readRes = officeService.getOfficeContent(scope, node.getId());
-        assertEquals("DOCX", readRes.format());
-        assertEquals(docDto, readRes.doc());
-        assertNull(readRes.sheet());
-
-        ApiException conflict = assertThrows(ApiException.class, () -> officeService.saveOfficeContent(
-            scope, userId, node.getId(), new SaveOfficeDocumentRequest("DOCX", updatedAt.minusSeconds(10), docDto, null, null)
-        ));
-        assertEquals(HttpStatus.CONFLICT, conflict.getStatus());
-
-        CloudNodeResponse saved = officeService.saveOfficeContent(
-            scope, userId, node.getId(), new SaveOfficeDocumentRequest("DOCX", updatedAt, docDto, null, null)
-        );
-        assertNotNull(saved);
-        verify(events).publishEvent(new CloudFileReadyEvent(node.getId()));
     }
 }

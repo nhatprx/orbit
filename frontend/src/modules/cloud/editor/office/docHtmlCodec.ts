@@ -13,7 +13,9 @@ export interface DocStats {
   tables: number;
 }
 
-export const DOC_BLOCK_CLASSES: Record<Exclude<DocBlockType, 'ul' | 'ol'>, string> = {
+export type EditableDocBlockType = Exclude<DocBlockType, 'ul' | 'ol' | 'hr'>;
+
+export const DOC_BLOCK_CLASSES: Record<EditableDocBlockType, string> = {
   h1: 'mt-5 mb-2 text-2xl font-bold tracking-tight text-[#E6EDF3]',
   h2: 'mt-4 mb-1.5 text-xl font-semibold text-[#E6EDF3]',
   h3: 'mt-3 mb-1 text-base font-semibold uppercase tracking-wider text-[#22C55E]',
@@ -22,21 +24,23 @@ export const DOC_BLOCK_CLASSES: Record<Exclude<DocBlockType, 'ul' | 'ol'>, strin
   code: 'my-3 border border-[#30363D] bg-[#0D1117] p-3 font-mono text-xs text-[#22C55E] whitespace-pre-wrap',
 };
 
-const ALLOWED_INLINE_TAGS = new Set(['b', 'strong', 'i', 'em', 'u', 's', 'strike', 'code', 'br']);
+export const DOC_HR_HTML = '<hr class="my-4 border-0 border-t border-[#30363D]" />';
+
+const ALLOWED_INLINE_TAGS = new Set(['b', 'strong', 'i', 'em', 'u', 's', 'del', 'strike', 'code', 'br']);
+const TAG_TO_TYPE: Record<string, EditableDocBlockType> = {
+  H1: 'h1', H2: 'h2', H3: 'h3', BLOCKQUOTE: 'quote', PRE: 'code', P: 'p',
+};
 
 export function sanitizeInlineHtml(raw: string | null | undefined): string {
   const source = (raw ?? '')
-    .replace(/\u00a0/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
+    .replace(/\u00a0/g, ' ').replace(/&nbsp;/gi, ' ')
     .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, '');
   const tagPattern = /<(\/?)([a-zA-Z0-9]+)(?:\s[^<>]*)?(\/?)>/g;
-  let result = '';
-  let lastIndex = 0;
+  let result = '', lastIndex = 0;
   let match: RegExpExecArray | null;
   while ((match = tagPattern.exec(source)) !== null) {
     result += source.slice(lastIndex, match.index).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const isClosing = match[1] === '/';
-    const tag = (match[2] ?? '').toLowerCase();
+    const isClosing = match[1] === '/', tag = (match[2] ?? '').toLowerCase();
     if (ALLOWED_INLINE_TAGS.has(tag)) {
       result += tag === 'br' ? (isClosing ? '' : '<br>') : isClosing ? `</${tag}>` : `<${tag}>`;
     }
@@ -47,19 +51,17 @@ export function sanitizeInlineHtml(raw: string | null | undefined): string {
 
 export function stripHtmlTags(raw: string | null | undefined): string {
   return (raw ?? '')
-    .replace(/\u00a0/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/<br\s*\/?>/gi, ' ')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, '&');
+    .replace(/\u00a0/g, ' ').replace(/&nbsp;/gi, ' ').replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+}
+
+export function normalizeDocAlign(raw?: string | null): DocAlign {
+  const val = (raw ?? '').trim().toLowerCase();
+  return val === 'center' || val === 'right' || val === 'justify' ? val : 'left';
 }
 
 function alignAttr(align?: DocAlign): string {
-  const normalized = align === 'center' || align === 'right' ? align : 'left';
+  const normalized = normalizeDocAlign(align);
   return ` data-align="${normalized}" style="text-align:${normalized}"`;
 }
 
@@ -77,16 +79,14 @@ export function buildTableHtml(rows: string[][] = [['Header 1', 'Header 2', 'Hea
 }
 
 export function docDtoToHtml(dto: OfficeDocContentDto): string {
-  const blocks = dto.blocks ?? [];
-  const tables = dto.tables ?? [];
-  const parts: string[] = [];
-  let i = 0;
-  while (i < blocks.length) {
+  const blocks = dto.blocks ?? [], tables = dto.tables ?? [], parts: string[] = [];
+  for (let i = 0; i < blocks.length; ) {
     const block = blocks[i];
     if (!block) { i += 1; continue; }
+    if (block.type === 'hr') { parts.push(DOC_HR_HTML); i += 1; continue; }
     if (block.type === 'ul' || block.type === 'ol') {
       const listType = block.type;
-      const listCls = listType === 'ol' ? 'my-2 list-decimal pl-6 space-y-1 text-sm text-[#E6EDF3]' : 'my-2 list-disc pl-6 space-y-1 text-sm text-[#E6EDF3]';
+      const listCls = `my-2 ${listType === 'ol' ? 'list-decimal' : 'list-disc'} pl-6 space-y-1 text-sm text-[#E6EDF3]`;
       const items: string[] = [];
       while (i < blocks.length && blocks[i]?.type === listType) {
         const item = blocks[i];
@@ -100,23 +100,15 @@ export function docDtoToHtml(dto: OfficeDocContentDto): string {
     parts.push(`<${tag} class="${DOC_BLOCK_CLASSES[block.type]}"${alignAttr(block.align)}>${sanitizeInlineHtml(block.text)}</${tag}>`);
     i += 1;
   }
-  for (const table of tables) {
-    if (table.rows.length > 0) parts.push(buildTableHtml(table.rows));
-  }
+  for (const table of tables) if (table.rows.length > 0) parts.push(buildTableHtml(table.rows));
   if (parts.length === 0) parts.push(`<p class="${DOC_BLOCK_CLASSES.p}" data-align="left" style="text-align:left"></p>`);
   return parts.join('');
 }
 
-function readAlign(el: HTMLElement): DocAlign {
-  const raw = (el.getAttribute('data-align') || el.style.textAlign || 'left').toLowerCase();
-  return raw === 'center' || raw === 'right' ? raw : 'left';
-}
-
-const TAG_TO_TYPE: Record<string, DocBlockType> = { H1: 'h1', H2: 'h2', H3: 'h3', BLOCKQUOTE: 'quote', PRE: 'code', P: 'p' };
+const readAlign = (el: HTMLElement): DocAlign => normalizeDocAlign(el.getAttribute('data-align') || el.style.textAlign);
 
 export function htmlToDocDto(root: HTMLElement): OfficeDocContentDto {
-  const blocks: DocBlockDto[] = [];
-  const tables: DocTableDto[] = [];
+  const blocks: DocBlockDto[] = [], tables: DocTableDto[] = [];
   const visitNode = (node: ChildNode) => {
     if (node.nodeType === Node.TEXT_NODE) {
       const txt = sanitizeInlineHtml(node.textContent).trim();
@@ -124,8 +116,7 @@ export function htmlToDocDto(root: HTMLElement): OfficeDocContentDto {
       return;
     }
     if (node.nodeType !== Node.ELEMENT_NODE) return;
-    const el = node as HTMLElement;
-    const tag = el.tagName.toUpperCase();
+    const el = node as HTMLElement, tag = el.tagName.toUpperCase();
     if (tag === 'TABLE') {
       const rows: string[][] = [];
       el.querySelectorAll('tr').forEach((tr) => {
@@ -142,10 +133,10 @@ export function htmlToDocDto(root: HTMLElement): OfficeDocContentDto {
       else items.forEach((li) => blocks.push({ type: listType, text: sanitizeInlineHtml((li as HTMLElement).innerHTML), align: readAlign(li as HTMLElement) }));
       return;
     }
-    if (tag === 'HR') return;
+    if (tag === 'HR') { blocks.push({ type: 'hr', text: '', align: 'left' }); return; }
     const mapped = TAG_TO_TYPE[tag];
     if (mapped) { blocks.push({ type: mapped, text: sanitizeInlineHtml(el.innerHTML), align: readAlign(el) }); return; }
-    if (el.children.length > 0 && el.querySelector('p, h1, h2, h3, blockquote, pre, ul, ol, table')) {
+    if (el.children.length > 0 && el.querySelector('p, h1, h2, h3, blockquote, pre, ul, ol, table, hr')) {
       Array.from(el.childNodes).forEach(visitNode);
       return;
     }
@@ -157,12 +148,13 @@ export function htmlToDocDto(root: HTMLElement): OfficeDocContentDto {
 }
 
 export function computeDocStats(dto: OfficeDocContentDto): DocStats {
+  const contentBlocks = dto.blocks.filter((b) => b.type !== 'hr');
   const allTexts = [
-    ...dto.blocks.map((b) => stripHtmlTags(b.text)),
+    ...contentBlocks.map((b) => stripHtmlTags(b.text)),
     ...dto.tables.flatMap((t) => t.rows.flatMap((r) => r.map((cell) => stripHtmlTags(cell)))),
   ];
   const combined = allTexts.join(' ').trim();
   const words = combined.length === 0 ? 0 : combined.split(/\s+/).filter(Boolean).length;
   const chars = allTexts.reduce((acc, s) => acc + s.length, 0);
-  return { words, chars, paragraphs: dto.blocks.length, tables: dto.tables.length };
+  return { words, chars, paragraphs: contentBlocks.length, tables: dto.tables.length };
 }

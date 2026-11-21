@@ -24,4 +24,7 @@ export interface SaveTextContentRequest {
 export type {
   OfficeDocumentResponse,
   SaveOfficeDocumentPayload,
+  SheetCellStyleDto,
+  SheetNumberFormat,
+  SheetTabDto,
 } from '../modules/cloud/editor/office/officeTypes';

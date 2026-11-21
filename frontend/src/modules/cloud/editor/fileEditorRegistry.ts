@@ -12,9 +12,7 @@ import { EditorView } from '@codemirror/view';
 
 export type EditorKind = 'TEXT' | 'OFFICE' | 'PDF' | 'NONE';
 
-const OFFICE_EXTS = new Set([
-  'docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt', 'odt', 'ods', 'odp',
-]);
+const OFFICE_EXTS = new Set(['docx', 'xlsx', 'pptx']);
 
 const TEXT_EXTS = new Set([
   'txt', 'md', 'markdown', 'csv', 'tsv', 'json', 'jsonc',
@@ -30,15 +28,9 @@ const TEXT_BASENAMES = new Set([
 ]);
 
 const OFFICE_MIMES = new Set([
-  'application/msword',
-  'application/vnd.ms-excel',
-  'application/vnd.ms-powerpoint',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  'application/vnd.oasis.opendocument.text',
-  'application/vnd.oasis.opendocument.spreadsheet',
-  'application/vnd.oasis.opendocument.presentation',
 ]);
 
 const TEXT_MIMES = new Set([
