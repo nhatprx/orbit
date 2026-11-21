@@ -17,6 +17,7 @@ export interface OrbitOfficeHeaderProps {
   error: string | null;
   confirmDiscard: boolean;
   menuBar?: ReactNode;
+  onExportCsv?: () => void;
   onRequestBack: () => void;
   onDownload: () => void;
   onSave: (closeAfter: boolean) => void;
@@ -27,7 +28,7 @@ export interface OrbitOfficeHeaderProps {
 
 export function OrbitOfficeHeader({
   node, format, pdfMode, canWrite, dirty, saving, loading, savedNotice, error, confirmDiscard, menuBar,
-  onRequestBack, onDownload, onSave, onDismissError, onKeepEditing, onDiscard,
+  onExportCsv, onRequestBack, onDownload, onSave, onDismissError, onKeepEditing, onDiscard,
 }: OrbitOfficeHeaderProps) {
   const isSheetMode = !pdfMode && format === 'XLSX';
   const statusLabel = pdfMode || !canWrite ? 'Read-Only' : dirty ? (isSheetMode ? 'Unsaved' : 'Dirty') : 'Saved';
@@ -67,6 +68,11 @@ export function OrbitOfficeHeader({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {onExportCsv && (
+              <Button type="button" variant="secondary" onClick={onExportCsv}>
+                <Download className="h-3.5 w-3.5" strokeWidth={1.5} /> Export CSV
+              </Button>
+            )}
             <Button type="button" variant="secondary" onClick={onDownload}>
               <Download className="h-3.5 w-3.5" strokeWidth={1.5} /> Download
             </Button>

@@ -66,70 +66,36 @@ describe('OrbitOfficeWorkspace', () => {
     expect(onSaved).toHaveBeenCalledTimes(1);
   });
 
-  it('renders compact Sheets header with menu bar, arrow/Shift+Arrow range selection, formula ref highlight, and = calculations', async () => {
+  it('mounts Univer Sheets workspace with compact Orbit header, Export CSV, Download, and read-only guard', async () => {
     const api = createStubApi({
       getOfficeContent: vi.fn().mockResolvedValue({
         nodeId: 'sheet-1', name: 'duynn.xlsx',
         mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         format: 'XLSX', sizeBytes: 2048, updatedAt: BASE_NODE.updatedAt, etag: null, doc: null, slide: null,
-        sheet: { sheets: [{ name: 'Sheet1', rows: [['']] }] },
+        sheet: { sheets: [{ name: 'Sheet1', rows: [['15', '20', '=A1+B1']] }] },
       }),
     });
 
-    const { container } = render(
-      <OrbitOfficeWorkspace node={{ ...BASE_NODE, name: 'duynn.xlsx' }} api={api} canWrite={true} onBack={vi.fn()} onDownload={vi.fn()} onSaved={vi.fn()} />
+    const onDownload = vi.fn();
+    render(
+      <OrbitOfficeWorkspace
+        node={{ ...BASE_NODE, id: 'sheet-1', name: 'duynn.xlsx' }}
+        api={api}
+        canWrite={true}
+        onBack={vi.fn()}
+        onDownload={onDownload}
+        onSaved={vi.fn()}
+      />
     );
 
-    const byLabel = <T extends HTMLElement = HTMLElement>(label: string) => container.querySelector(`[aria-label="${label}"]`) as T;
-    await waitFor(() => expect(byLabel('Cell A1')).toBeTruthy());
-    expect(screen.queryByText('ORBIT SHEETS')).toBeNull();
+    const univerHost = await screen.findByTestId('orbit-univer-host');
+    expect(univerHost.getAttribute('data-readonly')).toBe('false');
     expect(screen.getByText('duynn.xlsx')).toBeTruthy();
-    expect(screen.getByRole('menubar', { name: 'Spreadsheet menu bar' })).toBeTruthy();
-    const cellA1 = byLabel<HTMLInputElement>('Cell A1');
-    const cellB1 = byLabel<HTMLInputElement>('Cell B1');
-    const cellC1 = byLabel<HTMLInputElement>('Cell C1');
-    const cellD1 = byLabel<HTMLInputElement>('Cell D1');
-    const formulaBar = byLabel<HTMLInputElement>('Formula bar');
-    expect(byLabel('Cell Z50')).toBeTruthy();
+    expect(screen.getByText('Saved')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Export CSV/i })).toBeTruthy();
 
-    fireEvent.click(cellA1);
-    fireEvent.keyDown(cellA1, { key: 'ArrowRight' });
-    expect(byLabel('Active cell address').textContent).toBe('B1');
-    fireEvent.keyDown(cellB1, { key: 'ArrowLeft' });
-    expect(byLabel('Active cell address').textContent).toBe('A1');
-    fireEvent.keyDown(cellA1, { key: 'ArrowRight', shiftKey: true });
-    fireEvent.keyDown(cellA1, { key: 'ArrowDown', shiftKey: true });
-    expect(byLabel('Active cell address').textContent).toBe('A1:B2');
-
-    fireEvent.click(cellD1);
-    fireEvent.change(cellD1, { target: { value: '=10+25*2' } });
-    fireEvent.keyDown(cellD1, { key: 'Enter' });
-    expect(cellD1.value).toBe('60');
-    expect(byLabel('Active cell address').textContent).toBe('D2');
-    fireEvent.click(cellD1);
-    expect(formulaBar.value).toBe('=10+25*2');
-
-    fireEvent.change(cellA1, { target: { value: '15' } });
-    fireEvent.change(cellB1, { target: { value: '20' } });
-    fireEvent.click(cellC1);
-    fireEvent.change(cellC1, { target: { value: '=' } });
-    fireEvent.mouseDown(cellA1);
-    fireEvent.click(cellA1);
-    fireEvent.change(cellC1, { target: { value: '=A1+' } });
-    fireEvent.mouseDown(cellB1);
-    fireEvent.click(cellB1);
-    expect(formulaBar.value).toBe('=A1+B1');
-    expect(cellA1.parentElement?.className).toContain('outline-dashed');
-    expect(cellB1.parentElement?.className).toContain('outline-dashed');
-    fireEvent.keyDown(cellC1, { key: 'Enter' });
-    expect(cellC1.value).toBe('35');
-
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Insert' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Insert column' }));
-    expect(byLabel('Cell AA1')).toBeTruthy();
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Insert' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Insert row' }));
-    expect(byLabel('Cell A51')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Download/i }));
+    expect(onDownload).toHaveBeenCalledTimes(1);
   }, 15000);
 
   it('renders PDF VIEWER badge and OrbitPdfViewer inline iframe when isPdf is true', async () => {

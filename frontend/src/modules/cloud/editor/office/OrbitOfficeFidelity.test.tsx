@@ -1,9 +1,12 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { CloudFilesApi } from '../../../../services/cloud/cloudApi';
 import type { CloudNodeDto } from '../../../../types/cloud.types';
 import { OrbitOfficeWorkspace } from './OrbitOfficeWorkspace';
+import { OrbitSheetEditor } from './OrbitSheetEditor';
+import type { UniverSheetCanvasHandle } from './UniverSheetCanvas';
 import { docDtoToHtml, htmlToDocDto } from './docHtmlCodec';
+import type { OfficeSheetContentDto } from './officeTypes';
 
 const BASE_NODE: CloudNodeDto = {
   id: 'node-fidelity-1', scopeType: 'USER', scopeId: 'user-1', parentId: null, nodeType: 'FILE',
@@ -67,74 +70,67 @@ describe('OrbitOfficeFidelity', () => {
     expect(payload.doc.blocks[1]).toEqual({ type: 'hr', text: '', align: 'left' });
   });
 
-  it('loads and persists XLSX cellStyles (bold, italic, underline, align, currency, percent) on save', async () => {
-    const api = stubApi({
-      getOfficeContent: vi.fn().mockResolvedValue({
-        nodeId: 'sheet-style-1', name: 'budget.xlsx',
-        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        format: 'XLSX', sizeBytes: 2048, updatedAt: BASE_NODE.updatedAt, etag: null, doc: null, slide: null,
-        sheet: {
-          sheets: [{
-            name: 'Budget',
-            rows: [['125', '0.5']],
-            cellStyles: { '0:1': { bold: true, numFmt: 'percent' } },
-          }],
-        },
-      }),
-    });
+  it('mounts Univer Sheets engine, loads and mutates formulas and styles, and syncs live snapshot to onChange', async () => {
+    const initialDto: OfficeSheetContentDto = {
+      sheets: [{
+        name: 'Budget',
+        rows: [['125', '0.5', '=A1*B1']],
+        cellStyles: { '0:1': { bold: true, numFmt: 'percent', decimals: 1 } },
+      }],
+    };
+    const onChange = vi.fn();
+    let handle: UniverSheetCanvasHandle | null = null;
 
-    const { container } = render(
-      <OrbitOfficeWorkspace
-        node={{ ...BASE_NODE, id: 'sheet-style-1', name: 'budget.xlsx' }}
-        api={api} canWrite={true} onBack={vi.fn()} onDownload={vi.fn()} onSaved={vi.fn()}
+    render(
+      <OrbitSheetEditor
+        value={initialDto}
+        onChange={onChange}
+        onReady={(h) => { handle = h; }}
       />
     );
 
-    const byLabel = <T extends HTMLElement = HTMLElement>(label: string) =>
-      container.querySelector(`[aria-label="${label}"]`) as T;
+    await waitFor(() => expect(handle?.getWorkbookApi()).toBeTruthy());
+    const wb = handle!.getWorkbookApi()!;
+    const sheet = wb.getActiveSheet();
+    expect(sheet.getSheetName()).toBe('Budget');
 
-    await waitFor(() => expect(byLabel('Cell A1')).toBeTruthy());
-    const cellA1 = byLabel<HTMLInputElement>('Cell A1');
-    const cellB1 = byLabel<HTMLInputElement>('Cell B1');
-
-    // Preloaded style from backend renders formatted percent & bold class
-    expect(cellB1.value).toBe('50.0%');
-    expect(cellB1.className).toContain('font-bold');
-
-    // Apply rich Google Sheets formatting on A1
-    fireEvent.click(cellA1);
-    fireEvent.click(byLabel('Bold'));
-    fireEvent.click(byLabel('Italic'));
-    fireEvent.click(byLabel('Underline'));
-    fireEvent.click(byLabel('Strikethrough'));
-    fireEvent.click(byLabel('Increase font size'));
-    fireEvent.click(byLabel('Text color'));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Text color Orbit green' }));
-    fireEvent.click(byLabel('Fill color'));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Fill color Deep green' }));
-    fireEvent.click(byLabel('Borders'));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'All borders' }));
-    fireEvent.click(byLabel('Horizontal align'));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Align center' }));
-    fireEvent.click(byLabel('Vertical align'));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Align top' }));
-    fireEvent.click(byLabel('Currency $'));
-    fireEvent.click(byLabel('Increase decimal places'));
-
-    expect(cellA1.value).toBe('$125.000');
-    expect(cellA1.className).toContain('font-bold');
-    expect(cellA1.className).toContain('italic');
-    expect(cellA1.className).toContain('underline');
-    expect(cellA1.className).toContain('line-through');
-
-    fireEvent.click(screen.getByRole('button', { name: /Save/i }));
-    await waitFor(() => expect(api.saveOfficeContent).toHaveBeenCalledTimes(1));
-    const payload = (api.saveOfficeContent as ReturnType<typeof vi.fn>).mock.calls[0]?.[1];
-    expect(payload.sheet.sheets[0].cellStyles['0:0']).toEqual({
-      bold: true, italic: true, underline: true, strike: true,
-      fontSize: 11, textColor: '#22C55E', bgColor: '#052E16',
-      border: 'all', align: 'center', valign: 'top', numFmt: 'currency', decimals: 3,
+    act(() => {
+      const cellA1 = sheet.getRange(0, 0);
+      cellA1.setFontWeight('bold');
+      cellA1.setFontStyle('italic');
+      cellA1.setFontLine('underline');
+      cellA1.setFontSize(14);
+      cellA1.setFontColor('#22C55E');
+      cellA1.setBackgroundColor('#052E16');
+      cellA1.setHorizontalAlignment('center');
+      cellA1.setVerticalAlignment('top');
+      cellA1.setWrap(true);
+      cellA1.setNumberFormat('$#,##0.000');
+      sheet.getRange(0, 2).setValue('=SUM(A1:B1)');
     });
-    expect(payload.sheet.sheets[0].cellStyles['0:1']).toEqual({ bold: true, numFmt: 'percent' });
+
+    const flushed = handle!.flushNow();
+    expect(flushed).toBeTruthy();
+    expect(onChange).toHaveBeenCalled();
+    expect(flushed!.sheets[0]?.rows[0]).toEqual(['125', '0.5', '=SUM(A1:B1)']);
+    expect(flushed!.sheets[0]?.cellStyles?.['0:0']).toEqual({
+      bold: true,
+      italic: true,
+      underline: true,
+      highlight: true,
+      fontSize: 14,
+      textColor: '#22C55E',
+      bgColor: '#052E16',
+      align: 'center',
+      valign: 'top',
+      wrap: true,
+      numFmt: 'currency',
+      decimals: 3,
+    });
+    expect(flushed!.sheets[0]?.cellStyles?.['0:1']).toEqual({
+      bold: true,
+      numFmt: 'percent',
+      decimals: 1,
+    });
   }, 15000);
 });
