@@ -5,11 +5,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.orbit.auth.entity.UserEntity;
 import com.orbit.auth.repository.UserRepository;
+import com.orbit.chat.dto.ChatMessageDeletedDto;
 import com.orbit.chat.dto.ChatMessageDto;
 import com.orbit.chat.dto.SendChatMessageRequest;
 import com.orbit.chat.entity.ChatChannelEntity;
@@ -26,6 +29,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpStatus;
 
 class ChatMessageServiceTest {
@@ -38,6 +42,7 @@ class ChatMessageServiceTest {
 
     private final UUID workspaceId = UUID.randomUUID();
     private final UUID channelId = UUID.randomUUID();
+    private final UUID voiceChannelId = UUID.randomUUID();
     private final UUID ownerId = UUID.randomUUID();
     private final UUID memberId = UUID.randomUUID();
     private ChatChannelEntity channel;
@@ -51,12 +56,15 @@ class ChatMessageServiceTest {
         service = new ChatMessageService(messageRepo, users, guard, broadcaster, userId -> { });
 
         channel = new ChatChannelEntity(ChatScopeType.WORKSPACE, workspaceId, "general", "", ChatChannelType.TEXT, null, ownerId);
-        Field idField = ChatChannelEntity.class.getDeclaredField("id");
-        idField.setAccessible(true);
-        idField.set(channel, channelId);
+        setChannelId(channel, channelId);
+        ChatChannelEntity voiceChannel = new ChatChannelEntity(
+            ChatScopeType.WORKSPACE, workspaceId, "lounge", "", ChatChannelType.VOICE, null, ownerId
+        );
+        setChannelId(voiceChannel, voiceChannelId);
 
         when(guard.requireAccess(any(), eq(channelId), eq(true))).thenReturn(channel);
         when(guard.requireAccess(any(), eq(channelId), eq(false))).thenReturn(channel);
+        when(guard.requireAccess(any(), eq(voiceChannelId), eq(true))).thenReturn(voiceChannel);
         when(users.findById(ownerId)).thenReturn(Optional.of(user(ownerId, "owner", "Owner One")));
         when(users.findById(memberId)).thenReturn(Optional.of(user(memberId, "member", "Member Two")));
         when(messageRepo.save(any())).thenAnswer(inv -> {
@@ -67,7 +75,7 @@ class ChatMessageServiceTest {
     }
 
     @Test
-    void sendValidatesReplyTargetAndAttachments() throws Exception {
+    void sendValidatesReplyTargetAttachmentsAndAllowsVoiceChannelText() throws Exception {
         UUID parentId = UUID.randomUUID();
         ChatMessageEntity parent = new ChatMessageEntity(channelId, ownerId, "a".repeat(250));
         setId(parent, parentId);
@@ -88,6 +96,11 @@ class ChatMessageServiceTest {
         ));
         assertEquals("/api/v1/files/123", relative.attachmentUrl());
 
+        // Text messages inside VOICE channels are explicitly permitted.
+        ChatMessageDto inVoice = service.send(memberId, voiceChannelId, new SendChatMessageRequest("voice chat msg"));
+        assertEquals(voiceChannelId, inVoice.channelId());
+        verify(broadcaster).broadcast(inVoice);
+
         assertEquals(HttpStatus.BAD_REQUEST, assertThrows(ApiException.class, () ->
             service.send(memberId, channelId, new SendChatMessageRequest("x", null, "bad", "javascript:alert(1)"))
         ).getStatus());
@@ -100,19 +113,20 @@ class ChatMessageServiceTest {
     }
 
     @Test
-    void deleteMessageEnforcesSenderOrManagerRbacAndChannelMatch() throws Exception {
+    void deleteMessageEnforcesRbacAndBroadcastsDeletionEvent() throws Exception {
         UUID msgId = UUID.randomUUID();
         ChatMessageEntity message = new ChatMessageEntity(channelId, ownerId, "hello");
         setId(message, msgId);
         when(messageRepo.findByIdAndChannelId(msgId, channelId)).thenReturn(Optional.of(message));
 
-        // Non-sender without manage permission is rejected.
+        // Non-sender without manage permission is rejected and does NOT broadcast.
         when(guard.canManage(memberId, channel)).thenReturn(false);
         assertEquals(HttpStatus.FORBIDDEN, assertThrows(ApiException.class, () ->
             service.deleteMessage(memberId, channelId, msgId)
         ).getStatus());
+        verify(broadcaster, never()).broadcastDeletion(any());
 
-        // Manager can delete another user's message.
+        // Manager can delete another user's message and emits MESSAGE_DELETED event.
         when(guard.canManage(memberId, channel)).thenReturn(true);
         service.deleteMessage(memberId, channelId, msgId);
         verify(messageRepo).delete(message);
@@ -121,14 +135,28 @@ class ChatMessageServiceTest {
         when(guard.canManage(ownerId, channel)).thenReturn(false);
         service.deleteMessage(ownerId, channelId, msgId);
 
-        // Missing or cross-channel message returns 404.
+        ArgumentCaptor<ChatMessageDeletedDto> captor = ArgumentCaptor.forClass(ChatMessageDeletedDto.class);
+        verify(broadcaster, times(2)).broadcastDeletion(captor.capture());
+        ChatMessageDeletedDto deletedEvent = captor.getValue();
+        assertEquals(ChatMessageDeletedDto.EVENT_TYPE, deletedEvent.eventType());
+        assertEquals(channelId, deletedEvent.channelId());
+        assertEquals(msgId, deletedEvent.messageId());
+
+        // Missing or cross-channel message returns 404 without broadcasting.
         assertEquals(HttpStatus.NOT_FOUND, assertThrows(ApiException.class, () ->
             service.deleteMessage(ownerId, channelId, UUID.randomUUID())
         ).getStatus());
+        verify(broadcaster, times(2)).broadcastDeletion(any());
     }
 
     private static void setId(ChatMessageEntity entity, UUID id) throws Exception {
         Field field = ChatMessageEntity.class.getDeclaredField("id");
+        field.setAccessible(true);
+        field.set(entity, id);
+    }
+
+    private static void setChannelId(ChatChannelEntity entity, UUID id) throws Exception {
+        Field field = ChatChannelEntity.class.getDeclaredField("id");
         field.setAccessible(true);
         field.set(entity, id);
     }

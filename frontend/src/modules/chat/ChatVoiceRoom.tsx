@@ -11,6 +11,7 @@ interface ChatVoiceRoomProps {
   voice: VoiceSessionState;
   currentUserId: string | null;
   canManageChannels: boolean;
+  canWriteChat?: boolean;
   showMembers: boolean;
   onToggleMembers: () => void;
 }
@@ -20,6 +21,7 @@ export function ChatVoiceRoom({
   voice,
   currentUserId,
   canManageChannels,
+  canWriteChat = true,
   showMembers,
   onToggleMembers,
 }: ChatVoiceRoomProps) {
@@ -28,6 +30,7 @@ export function ChatVoiceRoom({
   const participants = voice.participantsByChannel[channel.id] ?? [];
 
   async function handleJoinAndShare() {
+    if (!canWriteChat) return;
     await voice.joinChannel(channel.id);
     await voice.toggleScreenShare();
   }
@@ -110,6 +113,7 @@ export function ChatVoiceRoom({
               voice.activeChannel && voice.activeChannelId !== channel.id ? voice.activeChannel.name : null
             }
             joining={voice.joining}
+            canWriteChat={canWriteChat}
             onJoin={() => void voice.joinChannel(channel.id)}
             onJoinAndShare={() => void handleJoinAndShare()}
           />
@@ -129,6 +133,7 @@ export function ChatVoiceRoom({
           channel={channel}
           currentUserId={currentUserId}
           canManageChannels={canManageChannels}
+          canWriteChat={canWriteChat}
           onClose={() => setShowSideChat(false)}
         />
       )}

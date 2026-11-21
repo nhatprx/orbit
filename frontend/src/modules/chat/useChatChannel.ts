@@ -21,10 +21,18 @@ export function useChatChannel(channelId: string) {
     setError(null);
     setLoading(true);
 
-    // Subscribe first so nothing sent while history loads is missed; merging de-duplicates by id.
-    const unsubscribe = chatService.subscribeChannel(channelId, (message) => {
-      if (active) setMessages((current) => mergeMessage(current, message));
-    });
+    // Subscribe first so nothing sent or deleted while history loads is missed.
+    const unsubscribe = chatService.subscribeChannel(
+      channelId,
+      (message) => {
+        if (active) setMessages((current) => mergeMessage(current, message));
+      },
+      (deleted) => {
+        if (active && deleted.channelId === channelId) {
+          setMessages((current) => removeMessage(current, deleted.messageId));
+        }
+      }
+    );
     chatService
       .listMessages(channelId, undefined, PAGE_SIZE)
       .then((page) => {

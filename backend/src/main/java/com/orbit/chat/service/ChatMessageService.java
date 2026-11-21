@@ -2,6 +2,7 @@ package com.orbit.chat.service;
 
 import com.orbit.auth.entity.UserEntity;
 import com.orbit.auth.repository.UserRepository;
+import com.orbit.chat.dto.ChatMessageDeletedDto;
 import com.orbit.chat.dto.ChatMessageDto;
 import com.orbit.chat.dto.SendChatMessageRequest;
 import com.orbit.chat.entity.ChatChannelEntity;
@@ -123,5 +124,6 @@ public class ChatMessageService {
             throw ApiException.forbidden("FORBIDDEN", "You can only delete your own messages.");
         }
         messages.delete(message);
+        broadcaster.broadcastDeletion(ChatMessageDeletedDto.of(channelId, messageId));
     }
 }

@@ -1,12 +1,14 @@
 import { API_BASE_URL, getStoredSession } from '../auth.storage';
 import type {
   ChatChannelDto,
+  ChatMessageDeletedEvent,
   ChatMessageDto,
   CreateChatChannelRequest,
   CursorPageResponse,
   SendChatMessageRequest,
   UpdateChatChannelRequest,
   VoiceEventDto,
+  VoiceIceServerDto,
   VoiceParticipantDto,
   VoiceSignalRequest,
   VoiceStateRequest,
@@ -96,14 +98,34 @@ class HttpChatService implements ChatService {
     );
   }
 
-  subscribeChannel(channelId: string, onMessage: (message: ChatMessageDto) => void): () => void {
+  subscribeChannel(
+    channelId: string,
+    onMessage: (message: ChatMessageDto) => void,
+    onDeleted?: (event: ChatMessageDeletedEvent) => void
+  ): () => void {
     return chatConnection.subscribe(`${TOPIC_PREFIX}${channelId}`, (frame) => {
       try {
-        onMessage(JSON.parse(frame.body) as ChatMessageDto);
+        const payload = JSON.parse(frame.body) as Record<string, unknown>;
+        if (payload.eventType === 'MESSAGE_DELETED' && typeof payload.messageId === 'string') {
+          onDeleted?.({
+            eventType: 'MESSAGE_DELETED',
+            channelId: typeof payload.channelId === 'string' ? payload.channelId : channelId,
+            messageId: payload.messageId,
+            deletedAt: typeof payload.deletedAt === 'string' ? payload.deletedAt : undefined,
+          });
+          return;
+        }
+        if (typeof payload.id === 'string') {
+          onMessage(payload as unknown as ChatMessageDto);
+        }
       } catch {
         // Ignore a malformed broadcast rather than tearing down the subscription.
       }
     });
+  }
+
+  getVoiceIceServers() {
+    return apiRequest<VoiceIceServerDto[]>('GET', '/api/v1/chat/voice/ice-servers');
   }
 
   listVoiceParticipants(channelId: string) {

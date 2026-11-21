@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.orbit.auth.security.AuthenticatedUserPrincipal;
 import com.orbit.auth.service.JwtService;
 import com.orbit.auth.service.RedisSessionService;
+import com.orbit.chat.dto.ChatMessageDeletedDto;
 import com.orbit.chat.dto.SendChatMessageRequest;
 import com.orbit.chat.dto.VoiceEventDto;
 import com.orbit.chat.dto.VoiceSignalRequest;
@@ -100,6 +101,10 @@ class ChatStompVoiceAuthTest {
 
         relay.deliverVoice(event);
         verify(template).convertAndSend("/topic/chat." + channelId + ".voice", event);
+
+        ChatMessageDeletedDto deleted = ChatMessageDeletedDto.of(channelId, UUID.randomUUID());
+        relay.deliverDeletion(deleted);
+        verify(template).convertAndSend("/topic/chat." + channelId, deleted);
     }
 
     private static Message<byte[]> stompFrame(StompCommand command, String destination, UUID userId) {

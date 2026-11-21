@@ -1,10 +1,13 @@
 package com.orbit.chat.controller;
 
 import com.orbit.auth.security.AuthenticatedUserPrincipal;
+import com.orbit.chat.dto.VoiceIceServerDto;
 import com.orbit.chat.dto.VoiceParticipantDto;
 import com.orbit.chat.dto.VoiceSignalRequest;
 import com.orbit.chat.dto.VoiceStateRequest;
 import com.orbit.chat.service.ChatVoiceService;
+import com.orbit.chat.service.VoiceIceServerService;
+import com.orbit.common.ApiException;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -19,16 +22,26 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/chat/channels/{channelId}/voice")
+@RequestMapping("/api/v1/chat")
 public class ChatVoiceController {
 
     private final ChatVoiceService voice;
+    private final VoiceIceServerService iceServers;
 
-    public ChatVoiceController(ChatVoiceService voice) {
+    public ChatVoiceController(ChatVoiceService voice, VoiceIceServerService iceServers) {
         this.voice = voice;
+        this.iceServers = iceServers;
     }
 
-    @GetMapping("/participants")
+    @GetMapping("/voice/ice-servers")
+    public List<VoiceIceServerDto> iceServers(@AuthenticationPrincipal AuthenticatedUserPrincipal principal) {
+        if (principal == null) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "Authentication required.");
+        }
+        return iceServers.getIceServers();
+    }
+
+    @GetMapping("/channels/{channelId}/voice/participants")
     public List<VoiceParticipantDto> participants(
         @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
         @PathVariable UUID channelId
@@ -36,7 +49,7 @@ public class ChatVoiceController {
         return voice.listParticipants(principal.userId(), channelId);
     }
 
-    @PostMapping("/join")
+    @PostMapping("/channels/{channelId}/voice/join")
     public List<VoiceParticipantDto> join(
         @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
         @PathVariable UUID channelId,
@@ -45,7 +58,7 @@ public class ChatVoiceController {
         return voice.join(principal.userId(), channelId, request);
     }
 
-    @PutMapping("/state")
+    @PutMapping("/channels/{channelId}/voice/state")
     public List<VoiceParticipantDto> updateState(
         @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
         @PathVariable UUID channelId,
@@ -54,7 +67,7 @@ public class ChatVoiceController {
         return voice.updateState(principal.userId(), channelId, request);
     }
 
-    @PostMapping("/leave")
+    @PostMapping("/channels/{channelId}/voice/leave")
     public List<VoiceParticipantDto> leave(
         @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
         @PathVariable UUID channelId
@@ -62,7 +75,7 @@ public class ChatVoiceController {
         return voice.leave(principal.userId(), channelId);
     }
 
-    @PostMapping("/signal")
+    @PostMapping("/channels/{channelId}/voice/signal")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void signal(
         @AuthenticationPrincipal AuthenticatedUserPrincipal principal,

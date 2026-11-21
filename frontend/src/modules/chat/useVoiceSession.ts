@@ -5,6 +5,7 @@ import type { ChatChannelDto } from '../../types/workspace.types';
 import type { VoiceCurrentUser, VoiceRemoteMedia, VoiceSessionState } from './chatVoiceTypes';
 import { useVoiceMediaControls } from './useVoiceMediaControls';
 import { useVoicePresence } from './useVoicePresence';
+import { loadVoiceIceServers } from './voiceIceServers';
 import { VoicePeerMesh } from './webrtcMesh';
 
 /** Coordinates voice presence, WebRTC mesh peers, and local media controls across voice channels. */
@@ -64,7 +65,10 @@ export function useVoiceSession(
 
       const nextControls = await media.ensureMicForJoin();
       try {
-        const participants = await chatService.joinVoiceChannel(channelId, nextControls);
+        const [participants, iceServers] = await Promise.all([
+          chatService.joinVoiceChannel(channelId, nextControls),
+          loadVoiceIceServers(),
+        ]);
         activeIdRef.current = channelId;
         media.applyControls(nextControls);
         setActiveChannelId(channelId);
@@ -73,6 +77,7 @@ export function useVoiceSession(
 
         const mesh = new VoicePeerMesh({
           selfUserId: currentUser.id,
+          iceServers,
           sendSignal: (signal) => chatService.sendVoiceSignal(channelId, signal),
           onRemoteMediaChange: setRemoteMedia,
         });

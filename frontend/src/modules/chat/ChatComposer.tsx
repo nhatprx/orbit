@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { CornerUpLeft, Paperclip, Send, X } from 'lucide-react';
+import { CornerUpLeft, Lock, Paperclip, Send, X } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { errorMessage } from '../../services/workspace/httpClient';
 import type { ChatMessageDto, SendChatMessageRequest } from '../../types/workspace.types';
@@ -8,6 +8,7 @@ import { MAX_MESSAGE_LENGTH, checkDraft } from './chatMessages';
 interface ChatComposerProps {
   placeholder: string;
   disabled?: boolean;
+  readOnlyNotice?: string | null;
   replyTo?: ChatMessageDto | null;
   onClearReply?: () => void;
   onSend: (request: SendChatMessageRequest) => Promise<void>;
@@ -21,6 +22,7 @@ function isValidAttachmentUrl(url: string): boolean {
 export function ChatComposer({
   placeholder,
   disabled = false,
+  readOnlyNotice = null,
   replyTo = null,
   onClearReply,
   onSend,
@@ -34,6 +36,7 @@ export function ChatComposer({
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (disabled) return;
     const check = checkDraft(draft);
     if (!check.ok) return setError(check.error);
 
@@ -66,6 +69,15 @@ export function ChatComposer({
 
   return (
     <form onSubmit={(e) => void handleSubmit(e)} className="border-t border-[#30363D] bg-[#161B22] p-3">
+      {readOnlyNotice && (
+        <div
+          role="status"
+          className="mb-2 flex items-center gap-2 border border-[#EAB308] bg-[#0D1117] px-2.5 py-1.5 text-xs text-[#EAB308]"
+        >
+          <Lock className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
+          <span>{readOnlyNotice}</span>
+        </div>
+      )}
       {replyTo && (
         <div className="mb-2 flex items-center justify-between gap-2 border border-[#22C55E] bg-[#052E16] px-2.5 py-1.5 text-xs">
           <div className="flex min-w-0 items-center gap-1.5 text-[#E6EDF3]">

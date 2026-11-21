@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -21,38 +22,37 @@ import com.orbit.chat.entity.ChatChannelEntity;
 import com.orbit.chat.entity.ChatChannelType;
 import com.orbit.chat.entity.ChatScopeType;
 import com.orbit.chat.service.ChatAccessGuard;
-import com.orbit.chat.service.ChatRelay;
+import com.orbit.chat.service.ChatBroadcaster;
+import com.orbit.chat.service.ChatRateLimiter;
 import com.orbit.chat.service.ChatVoiceService;
+import com.orbit.chat.service.InMemoryVoicePresenceStore;
 import com.orbit.common.ApiException;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.http.HttpStatus;
 
 class ChatVoiceServiceTest {
 
     private ChatAccessGuard guard;
-    private UserRepository users;
-    private ChatRelay relay;
+    private ChatBroadcaster broadcaster;
+    private ChatRateLimiter rateLimiter;
     private ChatVoiceService voice;
-
-    private UUID scopeId;
-    private UUID voiceAId;
-    private UUID voiceBId;
-    private UUID otherScopeVoiceId;
-    private UUID textChannelId;
-    private UserEntity alice;
-    private UserEntity bob;
+    private UUID scopeId, voiceAId, voiceBId, otherScopeVoiceId, textChannelId;
+    private UserEntity alice, bob, reader;
 
     @BeforeEach
     void setUp() throws Exception {
         guard = mock(ChatAccessGuard.class);
-        users = mock(UserRepository.class);
-        relay = mock(ChatRelay.class);
-        voice = new ChatVoiceService(guard, users, relay);
+        UserRepository users = mock(UserRepository.class);
+        broadcaster = mock(ChatBroadcaster.class);
+        rateLimiter = mock(ChatRateLimiter.class);
+        voice = new ChatVoiceService(guard, users, broadcaster, rateLimiter, new InMemoryVoicePresenceStore());
 
         scopeId = UUID.randomUUID();
         voiceAId = UUID.randomUUID();
@@ -62,90 +62,92 @@ class ChatVoiceServiceTest {
 
         alice = user(UUID.randomUUID(), "alice", "Alice A");
         bob = user(UUID.randomUUID(), "bob", "Bob B");
-        when(users.findById(alice.getId())).thenReturn(Optional.of(alice));
-        when(users.findById(bob.getId())).thenReturn(Optional.of(bob));
+        reader = user(UUID.randomUUID(), "reader", "Read Only");
+        for (UserEntity u : List.of(alice, bob, reader)) when(users.findById(u.getId())).thenReturn(Optional.of(u));
 
         ChatChannelEntity voiceA = channel(voiceAId, ChatScopeType.WORKSPACE, scopeId, "lounge", ChatChannelType.VOICE);
         ChatChannelEntity voiceB = channel(voiceBId, ChatScopeType.WORKSPACE, scopeId, "standup", ChatChannelType.VOICE);
-        ChatChannelEntity otherVoice = channel(
-            otherScopeVoiceId, ChatScopeType.PROJECT, UUID.randomUUID(), "project-room", ChatChannelType.VOICE
-        );
+        ChatChannelEntity other = channel(otherScopeVoiceId, ChatScopeType.PROJECT, UUID.randomUUID(), "room", ChatChannelType.VOICE);
         ChatChannelEntity text = channel(textChannelId, ChatScopeType.WORKSPACE, scopeId, "general", ChatChannelType.TEXT);
 
         for (UUID uid : List.of(alice.getId(), bob.getId())) {
-            when(guard.requireAccess(uid, voiceAId, false)).thenReturn(voiceA);
-            when(guard.requireAccess(uid, voiceBId, false)).thenReturn(voiceB);
-            when(guard.requireAccess(uid, otherScopeVoiceId, false)).thenReturn(otherVoice);
-            when(guard.requireAccess(uid, textChannelId, false)).thenReturn(text);
+            for (boolean w : List.of(false, true)) {
+                when(guard.requireAccess(uid, voiceAId, w)).thenReturn(voiceA);
+                when(guard.requireAccess(uid, voiceBId, w)).thenReturn(voiceB);
+                when(guard.requireAccess(uid, otherScopeVoiceId, w)).thenReturn(other);
+                when(guard.requireAccess(uid, textChannelId, w)).thenReturn(text);
+            }
         }
+        when(guard.requireAccess(reader.getId(), voiceAId, false)).thenReturn(voiceA);
+        when(guard.requireAccess(reader.getId(), voiceAId, true))
+            .thenThrow(ApiException.forbidden("FORBIDDEN", "Write access required."));
     }
 
     @Test
-    void joinUpdateSwitchRoomLeaveAndClearBroadcastParticipants() {
+    void joinUpdateSwitchRoomLeaveClearAndDisconnectBroadcastParticipants() {
         List<VoiceParticipantDto> joined = voice.join(alice.getId(), voiceAId, null);
         assertEquals(1, joined.size());
-        assertEquals(1, voice.participantCount(voiceAId));
         assertFalse(joined.getFirst().muted());
 
-        // Idempotent re-join preserves joinedAt and forces muted when deafened.
-        List<VoiceParticipantDto> rejoined = voice.join(
-            alice.getId(), voiceAId, new VoiceStateRequest(false, true, true, false, false)
-        );
-        assertEquals(1, rejoined.size());
+        List<VoiceParticipantDto> rejoined = voice.join(alice.getId(), voiceAId, new VoiceStateRequest(false, true, true, false, false));
         assertEquals(joined.getFirst().joinedAt(), rejoined.getFirst().joinedAt());
-        assertTrue(rejoined.getFirst().deafened());
-        assertTrue(rejoined.getFirst().muted());
-        assertTrue(rejoined.getFirst().cameraOn());
+        assertTrue(rejoined.getFirst().deafened() && rejoined.getFirst().muted() && rejoined.getFirst().cameraOn());
 
-        // Updating state enforces deafened => muted.
-        List<VoiceParticipantDto> updated = voice.updateState(
-            alice.getId(), voiceAId, new VoiceStateRequest(false, true, false, true, false)
-        );
-        assertTrue(updated.getFirst().muted());
-        assertTrue(updated.getFirst().screenSharing());
+        List<VoiceParticipantDto> updated = voice.updateState(alice.getId(), voiceAId, new VoiceStateRequest(false, true, false, true, false));
+        assertTrue(updated.getFirst().muted() && updated.getFirst().screenSharing());
 
-        // Joining a different scope does NOT remove Alice from voiceA.
         voice.join(alice.getId(), otherScopeVoiceId, null);
-        assertEquals(1, voice.participantCount(voiceAId));
-        assertEquals(1, voice.participantCount(otherScopeVoiceId));
-
-        // Joining voiceB in the SAME scope automatically removes Alice from voiceA.
         voice.join(bob.getId(), voiceAId, null);
         voice.join(alice.getId(), voiceBId, null);
         assertEquals(1, voice.participantCount(voiceAId));
         assertEquals(bob.getId(), voice.listParticipants(bob.getId(), voiceAId).getFirst().userId());
         assertEquals(1, voice.participantCount(voiceBId));
+        assertEquals(1, voice.participantCount(otherScopeVoiceId));
 
-        // Leaving removes participant; second leave is idempotent.
         assertTrue(voice.leave(alice.getId(), voiceBId).isEmpty());
-        assertEquals(0, voice.participantCount(voiceBId));
         assertTrue(voice.leave(alice.getId(), voiceBId).isEmpty());
 
-        // Clearing channel empties participants and broadcasts empty list.
+        voice.leaveAllOnDisconnect(alice.getId(), Set.of());
+        assertEquals(0, voice.participantCount(otherScopeVoiceId));
+
         voice.clearChannel(voiceAId);
         assertEquals(0, voice.participantCount(voiceAId));
     }
 
     @Test
-    void signalValidationAndTextChannelRejection() {
+    void rbacMembershipRateLimitSignalValidationAndTextRejection() {
         VoiceSignalRequest offer = new VoiceSignalRequest("offer", bob.getId(), "v=0...", null, null, null);
+        assertTrue(voice.listParticipants(reader.getId(), voiceAId).isEmpty());
+        for (Runnable call : List.<Runnable>of(
+            () -> voice.join(reader.getId(), voiceAId, null),
+            () -> voice.updateState(reader.getId(), voiceAId, new VoiceStateRequest(true, false, false, false, false)),
+            () -> voice.relaySignal(reader.getId(), voiceAId, offer)
+        )) {
+            assertEquals(HttpStatus.FORBIDDEN, assertThrows(ApiException.class, call::run).getStatus());
+        }
+
+        assertEquals("NOT_IN_VOICE", assertThrows(ApiException.class, () -> voice.relaySignal(alice.getId(), voiceAId, offer)).getCode());
+        assertEquals("NOT_IN_VOICE", assertThrows(ApiException.class, () ->
+            voice.updateState(alice.getId(), voiceAId, new VoiceStateRequest(true, false, false, false, false))
+        ).getCode());
+
+        voice.join(alice.getId(), voiceAId, null);
         voice.relaySignal(alice.getId(), voiceAId, offer);
+        verify(rateLimiter, times(1)).check(alice.getId());
 
         ArgumentCaptor<VoiceEventDto> captor = ArgumentCaptor.forClass(VoiceEventDto.class);
-        verify(relay, times(1)).deliverVoice(captor.capture());
-        assertEquals("SIGNAL", captor.getValue().eventType());
-        assertEquals("OFFER", captor.getValue().signalType());
-        assertEquals(bob.getId(), captor.getValue().targetUserId());
+        verify(broadcaster, times(2)).broadcastVoice(captor.capture());
+        VoiceEventDto sig = captor.getAllValues().getLast();
+        assertEquals("SIGNAL", sig.eventType());
+        assertEquals("OFFER", sig.signalType());
+        assertEquals(bob.getId(), sig.targetUserId());
 
-        ApiException badSig = assertThrows(ApiException.class, () ->
+        assertEquals("INVALID_SIGNAL", assertThrows(ApiException.class, () ->
             voice.relaySignal(alice.getId(), voiceAId, new VoiceSignalRequest("UNKNOWN", null, null, null, null, null))
-        );
-        assertEquals("INVALID_SIGNAL", badSig.getCode());
+        ).getCode());
 
-        ApiException notInVoice = assertThrows(ApiException.class, () ->
-            voice.updateState(alice.getId(), voiceAId, new VoiceStateRequest(true, false, false, false, false))
-        );
-        assertEquals("NOT_IN_VOICE", notInVoice.getCode());
+        doThrow(new ApiException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMITED", "Slow down")).when(rateLimiter).check(alice.getId());
+        assertEquals("RATE_LIMITED", assertThrows(ApiException.class, () -> voice.relaySignal(alice.getId(), voiceAId, offer)).getCode());
 
         for (Runnable call : List.<Runnable>of(
             () -> voice.listParticipants(alice.getId(), textChannelId),
@@ -154,10 +156,9 @@ class ChatVoiceServiceTest {
             () -> voice.leave(alice.getId(), textChannelId),
             () -> voice.relaySignal(alice.getId(), textChannelId, offer)
         )) {
-            ApiException ex = assertThrows(ApiException.class, call::run);
-            assertEquals("NOT_VOICE_CHANNEL", ex.getCode());
+            assertEquals("NOT_VOICE_CHANNEL", assertThrows(ApiException.class, call::run).getCode());
         }
-        verify(relay, never()).deliver(any());
+        verify(broadcaster, never()).broadcast(any());
     }
 
     private static UserEntity user(UUID id, String username, String displayName) {
@@ -168,9 +169,7 @@ class ChatVoiceServiceTest {
         return entity;
     }
 
-    private static ChatChannelEntity channel(
-        UUID id, ChatScopeType scope, UUID scopeId, String name, ChatChannelType type
-    ) throws Exception {
+    private static ChatChannelEntity channel(UUID id, ChatScopeType scope, UUID scopeId, String name, ChatChannelType type) throws Exception {
         ChatChannelEntity entity = new ChatChannelEntity(scope, scopeId, name, "", type, null, null);
         Field idField = ChatChannelEntity.class.getDeclaredField("id");
         idField.setAccessible(true);

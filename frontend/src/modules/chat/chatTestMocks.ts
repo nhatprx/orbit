@@ -123,8 +123,10 @@ export class MockRTCPeerConnection {
   closed = false;
   senders: Array<{ track: MediaStreamTrack | null }> = [];
   iceCandidates: RTCIceCandidateInit[] = [];
+  config?: RTCConfiguration;
 
-  constructor() {
+  constructor(config?: RTCConfiguration) {
+    this.config = config;
     MockRTCPeerConnection.instances.push(this);
   }
   getSenders() {

@@ -11,6 +11,7 @@ interface VoiceSideChatProps {
   channel: ChatChannelDto;
   currentUserId: string | null;
   canManageChannels: boolean;
+  canWriteChat?: boolean;
   onClose: () => void;
 }
 
@@ -18,11 +19,14 @@ export function VoiceSideChat({
   channel,
   currentUserId,
   canManageChannels,
+  canWriteChat = true,
   onClose,
 }: VoiceSideChatProps) {
   const chat = useChatChannel(channel.id);
   const [replyTo, setReplyTo] = useState<ChatMessageDto | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const activeReplyTo =
+    canWriteChat && replyTo && chat.messages.some((m) => m.id === replyTo.id) ? replyTo : null;
 
   async function handleDelete(messageId: string) {
     setDeleteError(null);
@@ -67,6 +71,7 @@ export function VoiceSideChat({
           messages={chat.messages}
           currentUserId={currentUserId}
           canManageChannels={canManageChannels}
+          canWriteChat={canWriteChat}
           hasOlder={chat.hasOlder}
           loadingOlder={chat.loadingOlder}
           onLoadOlder={() => void chat.loadOlder()}
@@ -76,8 +81,10 @@ export function VoiceSideChat({
       )}
 
       <ChatComposer
-        placeholder={`Message ${channel.name}`}
-        replyTo={replyTo}
+        placeholder={canWriteChat ? `Message ${channel.name}` : 'Read-only access'}
+        disabled={!canWriteChat}
+        readOnlyNotice={canWriteChat ? null : 'Read-only access: you cannot send messages.'}
+        replyTo={activeReplyTo}
         onClearReply={() => setReplyTo(null)}
         onSend={chat.send}
       />

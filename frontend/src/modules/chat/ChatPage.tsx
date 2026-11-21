@@ -30,15 +30,12 @@ interface ChatPageProps {
 export function ChatPage({ workspace, project }: ChatPageProps) {
   const permissions = project ? project.myPermissions : workspace.myPermissions;
   const canManageChannels = permissions.includes(project ? 'pchat.manage' : 'chat.manage');
+  const canWriteChat = permissions.includes(project ? 'pchat.write' : 'chat.write');
 
   const currentUser = useMemo(() => {
     const user = authService.getSession()?.user ?? null;
     if (!user) return null;
-    return {
-      id: user.id,
-      username: user.username ?? user.email.split('@')[0] ?? 'member',
-      displayName: user.name,
-    };
+    return { id: user.id, username: user.username ?? user.email.split('@')[0] ?? 'member', displayName: user.name };
   }, []);
 
   const chatChannels = useChatChannels(workspace.id, project?.id ?? null);
@@ -67,7 +64,7 @@ export function ChatPage({ workspace, project }: ChatPageProps) {
 
   function handleSelectChannel(channel: ChatChannelDto) {
     setSelectedId(channel.id);
-    if (channel.channelType === 'VOICE' && voice.activeChannelId !== channel.id) {
+    if (canWriteChat && channel.channelType === 'VOICE' && voice.activeChannelId !== channel.id) {
       void voice.joinChannel(channel.id);
     }
   }
@@ -110,6 +107,7 @@ export function ChatPage({ workspace, project }: ChatPageProps) {
         voice={voice}
         currentUser={currentUser}
         canManageChannels={canManageChannels}
+        canWriteChat={canWriteChat}
         onSelectChannel={handleSelectChannel}
         onOpenCreateChannel={() => { setEditingChannel(null); setModalMode('create'); }}
         onEditChannel={(channel) => { setEditingChannel(channel); setModalMode('edit'); }}
@@ -128,6 +126,7 @@ export function ChatPage({ workspace, project }: ChatPageProps) {
           voice={voice}
           currentUserId={currentUser?.id ?? null}
           canManageChannels={canManageChannels}
+          canWriteChat={canWriteChat}
           showMembers={showMembers}
           onToggleMembers={() => setShowMembers((prev) => !prev)}
         />
@@ -139,6 +138,7 @@ export function ChatPage({ workspace, project }: ChatPageProps) {
           connection={connection}
           currentUserId={currentUser?.id ?? null}
           canManageChannels={canManageChannels}
+          canWriteChat={canWriteChat}
           showMembers={showMembers}
           onToggleMembers={() => setShowMembers((prev) => !prev)}
         />
