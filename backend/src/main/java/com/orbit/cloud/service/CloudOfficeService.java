@@ -17,12 +17,15 @@ import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 import java.util.UUID;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Service reading and writing structured Orbit Native Office (.docx, .xlsx, .pptx) documents via Apache POI. */
 @Service
 public class CloudOfficeService {
+
+    public static final long MAX_OFFICE_BYTES = 26_214_400L;
 
     private final CloudNodeService nodeService;
     private final CloudDocumentService documentService;
@@ -35,14 +38,9 @@ public class CloudOfficeService {
     private final ApplicationEventPublisher eventPublisher;
 
     public CloudOfficeService(
-        CloudNodeService nodeService,
-        CloudDocumentService documentService,
-        CloudNodeMapper mapper,
-        CloudStorageClient storageClient,
-        CloudProperties cloudProperties,
-        DocxOfficeCodec docxCodec,
-        XlsxOfficeCodec xlsxCodec,
-        PptxOfficeCodec pptxCodec,
+        CloudNodeService nodeService, CloudDocumentService documentService, CloudNodeMapper mapper,
+        CloudStorageClient storageClient, CloudProperties cloudProperties,
+        DocxOfficeCodec docxCodec, XlsxOfficeCodec xlsxCodec, PptxOfficeCodec pptxCodec,
         ApplicationEventPublisher eventPublisher
     ) {
         this.nodeService = nodeService;
@@ -59,9 +57,12 @@ public class CloudOfficeService {
     @Transactional(readOnly = true)
     public OfficeDocumentResponse getOfficeContent(CloudScope scope, UUID nodeId) {
         CloudNodeEntity node = requireActiveFile(scope, nodeId);
-        String format = resolveFormat(null, node.getName(), node.getMimeType());
-        byte[] bytes = storageClient.getBytes(node.getStorageKey(), cloudProperties.getMaxFileSizeBytes());
-
+        String format = detectNodeFormat(node.getName(), node.getMimeType());
+        long maxBytes = effectiveOfficeSizeCap();
+        if (node.getSizeBytes() > maxBytes) {
+            throw officeTooLarge();
+        }
+        byte[] bytes = storageClient.getBytes(node.getStorageKey(), maxBytes);
         OfficeDocContentDto doc = null;
         OfficeSheetContentDto sheet = null;
         OfficeSlideContentDto slide = null;
@@ -72,16 +73,8 @@ public class CloudOfficeService {
             default -> throw unsupportedFormat();
         }
         return new OfficeDocumentResponse(
-            node.getId(),
-            node.getName(),
-            node.getMimeType(),
-            format,
-            node.getSizeBytes(),
-            node.getUpdatedAt(),
-            node.getEtag(),
-            doc,
-            sheet,
-            slide
+            node.getId(), node.getName(), node.getMimeType(), format,
+            node.getSizeBytes(), node.getUpdatedAt(), node.getEtag(), doc, sheet, slide
         );
     }
 
@@ -94,16 +87,24 @@ public class CloudOfficeService {
         }
         CloudNodeEntity node = requireActiveFile(scope, nodeId);
         verifyExpectedUpdatedAt(node.getUpdatedAt(), req.expectedUpdatedAt());
-        String format = resolveFormat(req.format(), node.getName(), node.getMimeType());
+        String format = validateSaveFormat(req.format(), node.getName(), node.getMimeType());
         byte[] bytes = switch (format) {
             case "DOCX" -> docxCodec.write(req.doc());
             case "XLSX" -> xlsxCodec.write(req.sheet());
             case "PPTX" -> pptxCodec.write(req.slide());
             default -> throw unsupportedFormat();
         };
+        if (bytes.length > effectiveOfficeSizeCap()) {
+            throw officeTooLarge();
+        }
         CloudNodeEntity saved = documentService.replaceNodeBytes(scope, nodeId, userId, bytes);
         eventPublisher.publishEvent(new CloudFileReadyEvent(saved.getId()));
         return mapper.toResponse(saved);
+    }
+
+    private long effectiveOfficeSizeCap() {
+        long configured = cloudProperties.getMaxOfficeFileSizeBytes();
+        return configured > 0 ? Math.min(configured, MAX_OFFICE_BYTES) : MAX_OFFICE_BYTES;
     }
 
     private CloudNodeEntity requireActiveFile(CloudScope scope, UUID nodeId) {
@@ -120,21 +121,27 @@ public class CloudOfficeService {
             Instant expectedMs = expected.truncatedTo(ChronoUnit.MILLIS);
             if (!currentMs.equals(expectedMs)) {
                 throw ApiException.conflict(
-                    "CONFLICT_MODIFIED",
-                    "This file was modified elsewhere. Reload before saving."
+                    "CONFLICT_MODIFIED", "This file was modified elsewhere. Reload before saving."
                 );
             }
         }
     }
 
-    private static String resolveFormat(String explicitFormat, String name, String mimeType) {
+    private static String validateSaveFormat(String explicitFormat, String name, String mimeType) {
+        String nodeFormat = detectNodeFormat(name, mimeType);
         if (explicitFormat != null && !explicitFormat.isBlank()) {
             String upper = explicitFormat.trim().toUpperCase(Locale.ROOT);
-            if (upper.equals("DOCX") || upper.equals("XLSX") || upper.equals("PPTX")) {
-                return upper;
+            if (!upper.equals(nodeFormat)) {
+                throw ApiException.badRequest(
+                    "OFFICE_FORMAT_MISMATCH",
+                    "Requested format " + upper + " does not match file format " + nodeFormat + "."
+                );
             }
-            throw unsupportedFormat();
         }
+        return nodeFormat;
+    }
+
+    private static String detectNodeFormat(String name, String mimeType) {
         String lowerName = name != null ? name.toLowerCase(Locale.ROOT) : "";
         String lowerMime = mimeType != null ? mimeType.toLowerCase(Locale.ROOT) : "";
         if (lowerName.endsWith(".docx") || lowerMime.contains("wordprocessingml")) return "DOCX";
@@ -145,8 +152,13 @@ public class CloudOfficeService {
 
     private static ApiException unsupportedFormat() {
         return ApiException.badRequest(
-            "UNSUPPORTED_OFFICE_FORMAT",
-            "Only DOCX, XLSX, and PPTX documents are supported by Orbit Native Office."
+            "UNSUPPORTED_OFFICE_FORMAT", "Only DOCX, XLSX, and PPTX documents are supported by Orbit Native Office."
+        );
+    }
+
+    private static ApiException officeTooLarge() {
+        return new ApiException(
+            HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE", "Orbit Native Office supports files up to 25 MB."
         );
     }
 }

@@ -84,4 +84,17 @@ describe('NewDocumentModal', () => {
 
     expect(await screen.findByText('Storage quota exceeded')).toBeTruthy();
   });
+
+  it('honors defaultTemplate prop for docs (.docx) and sheets (.xlsx) presets', () => {
+    const api = { createDocument: vi.fn() } as unknown as CloudFilesApi;
+    const { rerender } = render(
+      <NewDocumentModal open parentId={null} api={api} defaultTemplate="DOCX" onClose={vi.fn()} onCreated={vi.fn()} />
+    );
+    expect(screen.getByRole('radio', { name: /Word Document/i }).getAttribute('aria-checked')).toBe('true');
+
+    rerender(
+      <NewDocumentModal open parentId={null} api={api} defaultTemplate="XLSX" onClose={vi.fn()} onCreated={vi.fn()} />
+    );
+    expect(screen.getByRole('radio', { name: /Spreadsheet/i }).getAttribute('aria-checked')).toBe('true');
+  });
 });

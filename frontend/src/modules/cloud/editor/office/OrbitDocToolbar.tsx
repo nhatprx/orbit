@@ -2,35 +2,36 @@ import {
   AlignCenter, AlignJustify, AlignLeft, AlignRight, Bold, Eraser,
   Italic, List, ListOrdered, Minus, Plus, Redo2, Strikethrough, Table, Trash2, Underline, Undo2,
 } from 'lucide-react';
-import type { DocAlign, DocBlockType } from './officeTypes';
+import type { EditableDocBlockType } from './docHtmlCodec';
+import type { DocAlign } from './officeTypes';
 
 export interface DocActiveFormatState {
   bold: boolean;
   italic: boolean;
   underline: boolean;
   strike: boolean;
-  align: DocAlign | 'justify';
+  align: DocAlign;
   insideTable: boolean;
 }
 
-const BLOCK_BY_TAG: Record<string, Exclude<DocBlockType, 'ul' | 'ol'>> = {
+const BLOCK_BY_TAG: Record<string, EditableDocBlockType> = {
   P: 'p', H1: 'h1', H2: 'h2', H3: 'h3', BLOCKQUOTE: 'quote', PRE: 'code',
 };
 
 export function inspectDocCursor(
   root: HTMLElement,
   startNode: Node | null
-): { formats: DocActiveFormatState; blockType?: Exclude<DocBlockType, 'ul' | 'ol'>; table: HTMLTableElement | null } {
+): { formats: DocActiveFormatState; blockType?: EditableDocBlockType; table: HTMLTableElement | null } {
   let node = startNode, bold = false, italic = false, underline = false, strike = false;
-  let align: DocAlign | 'justify' = 'left', table: HTMLTableElement | null = null;
-  let blockType: Exclude<DocBlockType, 'ul' | 'ol'> | undefined;
+  let align: DocAlign = 'left', table: HTMLTableElement | null = null;
+  let blockType: EditableDocBlockType | undefined;
   while (node && node !== root) {
     if (node.nodeType === Node.ELEMENT_NODE) {
       const el = node as HTMLElement, tag = el.tagName.toUpperCase();
       if (tag === 'B' || tag === 'STRONG') bold = true;
       if (tag === 'I' || tag === 'EM') italic = true;
       if (tag === 'U') underline = true;
-      if (tag === 'S' || tag === 'STRIKE') strike = true;
+      if (tag === 'S' || tag === 'STRIKE' || tag === 'DEL') strike = true;
       if (tag === 'TABLE') table = el as HTMLTableElement;
       if (el.parentElement === root) {
         if (BLOCK_BY_TAG[tag]) blockType = BLOCK_BY_TAG[tag];
@@ -42,25 +43,28 @@ export function inspectDocCursor(
   }
   const q = (cmd: string) => { try { return typeof document.queryCommandState === 'function' && document.queryCommandState(cmd); } catch { return false; } };
   return {
-    formats: { bold: bold || q('bold'), italic: italic || q('italic'), underline: underline || q('underline'), strike: strike || q('strikeThrough'), align, insideTable: Boolean(table) },
+    formats: {
+      bold: bold || q('bold'),
+      italic: italic || q('italic'),
+      underline: underline || q('underline'),
+      strike: strike || q('strikeThrough'),
+      align,
+      insideTable: Boolean(table),
+    },
     blockType,
     table,
   };
 }
 
 export interface OrbitDocToolbarProps {
-  blockType: Exclude<DocBlockType, 'ul' | 'ol'>;
-  fontFamily: string;
-  fontSize: string;
+  blockType: EditableDocBlockType;
   zoom: number;
   activeFormats?: DocActiveFormatState;
   onUndo: () => void;
   onRedo: () => void;
-  onBlockTypeChange: (type: Exclude<DocBlockType, 'ul' | 'ol'>) => void;
-  onFontFamilyChange: (family: string) => void;
-  onFontSizeChange: (size: string) => void;
+  onBlockTypeChange: (type: EditableDocBlockType) => void;
   onInlineCommand: (command: 'bold' | 'italic' | 'underline' | 'strikeThrough') => void;
-  onAlignChange: (align: DocAlign | 'justify') => void;
+  onAlignChange: (align: DocAlign) => void;
   onToggleList: (type: 'ul' | 'ol') => void;
   onInsertTable: () => void;
   onAddTableRow?: () => void;
@@ -71,7 +75,7 @@ export interface OrbitDocToolbarProps {
   onZoomChange: (zoom: number) => void;
 }
 
-const BLOCK_OPTIONS: Array<{ value: Exclude<DocBlockType, 'ul' | 'ol'>; label: string }> = [
+const BLOCK_OPTIONS: Array<{ value: EditableDocBlockType; label: string }> = [
   { value: 'p', label: 'Normal text' },
   { value: 'h1', label: 'Heading 1' },
   { value: 'h2', label: 'Heading 2' },
@@ -80,10 +84,7 @@ const BLOCK_OPTIONS: Array<{ value: Exclude<DocBlockType, 'ul' | 'ol'>; label: s
   { value: 'code', label: 'Code block' },
 ];
 
-const FONT_FAMILIES = ['Outfit', 'JetBrains Mono', 'Georgia', 'Arial'];
-const FONT_SIZES = ['10pt', '11pt', '12pt', '14pt', '18pt', '24pt'];
 const ZOOM_LEVELS = [75, 100, 125];
-
 const BTN_BASE = 'inline-flex h-7 w-7 items-center justify-center rounded-none border transition-colors focus:outline-none';
 const BTN_IDLE = 'border-transparent text-[#8B949E] hover:border-[#30363D] hover:bg-[#21262D] hover:text-[#E6EDF3]';
 const BTN_ACTIVE = 'border-[#22C55E] bg-[#052E16] text-[#22C55E]';
@@ -93,8 +94,8 @@ const TABLE_ACT_BTN = 'inline-flex h-7 items-center gap-1 rounded-none border bo
 const DIVIDER = <span className="mx-1 h-4 w-px shrink-0 bg-[#30363D]" aria-hidden="true" />;
 
 export function OrbitDocToolbar({
-  blockType, fontFamily, fontSize, zoom, activeFormats,
-  onUndo, onRedo, onBlockTypeChange, onFontFamilyChange, onFontSizeChange,
+  blockType, zoom, activeFormats,
+  onUndo, onRedo, onBlockTypeChange,
   onInlineCommand, onAlignChange, onToggleList, onInsertTable,
   onAddTableRow, onAddTableCol, onDeleteTable,
   onInsertHorizontalRule, onClearFormatting, onZoomChange,
@@ -108,15 +109,8 @@ export function OrbitDocToolbar({
       <button type="button" aria-label="Undo" title="Undo" onClick={onUndo} className={btnClass()}><Undo2 className="h-3.5 w-3.5" strokeWidth={1.5} /></button>
       <button type="button" aria-label="Redo" title="Redo" onClick={onRedo} className={btnClass()}><Redo2 className="h-3.5 w-3.5" strokeWidth={1.5} /></button>
       {DIVIDER}
-      <select aria-label="Block style" value={blockType} onChange={(e) => onBlockTypeChange(e.target.value as Exclude<DocBlockType, 'ul' | 'ol'>)} className={`${SELECT_CLASS} w-32`}>
+      <select aria-label="Block style" value={blockType} onChange={(e) => onBlockTypeChange(e.target.value as EditableDocBlockType)} className={`${SELECT_CLASS} w-32`}>
         {BLOCK_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-      </select>
-      {DIVIDER}
-      <select aria-label="Font family" value={fontFamily} onChange={(e) => onFontFamilyChange(e.target.value)} className={`${SELECT_CLASS} w-32`}>
-        {FONT_FAMILIES.map((family) => <option key={family} value={family}>{family}</option>)}
-      </select>
-      <select aria-label="Font size" value={fontSize} onChange={(e) => onFontSizeChange(e.target.value)} className={`${SELECT_CLASS} w-20 font-mono`}>
-        {FONT_SIZES.map((size) => <option key={size} value={size}>{size}</option>)}
       </select>
       {DIVIDER}
       <button type="button" aria-label="Bold" aria-pressed={fmt.bold} title="Bold" onClick={() => onInlineCommand('bold')} className={btnClass(fmt.bold)}><Bold className="h-3.5 w-3.5" strokeWidth={1.5} /></button>
