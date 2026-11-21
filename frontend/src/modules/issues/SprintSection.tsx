@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle2, Play, Plus, Trash2 } from 'lucide-react';
+import { CheckCircle2, Pencil, Play, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import type { IssueDto, IssueStatus, SprintDto } from '../../types/issues.types';
 import { formatSprintDates, SPRINT_STATUS_META } from './issueVisuals';
@@ -17,9 +17,10 @@ interface SprintSectionProps {
   onMoveStatus: (issueId: string, status: IssueStatus) => void;
   onAssignSprint: (issueId: string, sprintId: string | null) => void;
   onCreateInSprint: (sprintId: string) => void;
+  onEditSprint: (sprint: SprintDto) => void;
   onStartSprint: (sprintId: string) => void;
-  onCompleteSprint: (sprintId: string) => void;
-  onDeleteSprint: (sprintId: string) => void;
+  onCompleteSprint: (sprint: SprintDto) => void;
+  onDeleteSprint: (sprint: SprintDto) => void;
 }
 
 const SLICE_STEP = 50;
@@ -36,6 +37,7 @@ export function SprintSection({
   onMoveStatus,
   onAssignSprint,
   onCreateInSprint,
+  onEditSprint,
   onStartSprint,
   onCompleteSprint,
   onDeleteSprint,
@@ -69,12 +71,8 @@ export function SprintSection({
           </div>
           {sprint.goal && <p className="text-xs text-[#8B949E]">{sprint.goal}</p>}
           <div className="flex flex-wrap items-center gap-3 pt-1 font-mono text-[11px] text-[#8B949E]">
-            <span>
-              {sprint.completedStoryPoints} / {sprint.totalStoryPoints} SP
-            </span>
-            <span>
-              {sprint.completedIssues}/{sprint.totalIssues} done
-            </span>
+            <span>{sprint.completedStoryPoints} / {sprint.totalStoryPoints} SP</span>
+            <span>{sprint.completedIssues}/{sprint.totalIssues} done</span>
             <div className="h-1.5 w-32 bg-[#21262D]">
               <div className="h-full bg-[#22C55E]" style={{ width: `${pct}%` }} />
             </div>
@@ -90,7 +88,7 @@ export function SprintSection({
             </Button>
           )}
           {canWrite && sprint.status === 'ACTIVE' && (
-            <Button type="button" variant="secondary" disabled={mutating} onClick={() => onCompleteSprint(sprint.id)}>
+            <Button type="button" variant="secondary" disabled={mutating} onClick={() => onCompleteSprint(sprint)}>
               <CheckCircle2 className="h-3.5 w-3.5 text-[#22C55E]" strokeWidth={1.5} />
               Complete Sprint
             </Button>
@@ -101,13 +99,24 @@ export function SprintSection({
               Add Issue to Sprint
             </Button>
           )}
+          {canWrite && (
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={mutating}
+              aria-label={`Edit ${sprint.name}`}
+              onClick={() => onEditSprint(sprint)}
+            >
+              <Pencil className="h-3.5 w-3.5 text-[#8B949E]" strokeWidth={1.5} />
+            </Button>
+          )}
           {canDelete && sprint.status !== 'ACTIVE' && (
             <Button
               type="button"
               variant="ghost"
               disabled={mutating}
               aria-label={`Delete ${sprint.name}`}
-              onClick={() => onDeleteSprint(sprint.id)}
+              onClick={() => onDeleteSprint(sprint)}
             >
               <Trash2 className="h-3.5 w-3.5 text-[#EF4444]" strokeWidth={1.5} />
             </Button>

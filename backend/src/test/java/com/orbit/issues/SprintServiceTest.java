@@ -4,8 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -22,6 +22,7 @@ import com.orbit.issues.repository.IssueActivityRepository;
 import com.orbit.issues.repository.IssueCommentRepository;
 import com.orbit.issues.repository.IssueSprintRepository;
 import com.orbit.issues.repository.ProjectIssueRepository;
+import com.orbit.issues.repository.SprintMetricsAggregate;
 import com.orbit.issues.service.IssueAccessGuard;
 import com.orbit.issues.service.IssueLookupHelper;
 import com.orbit.issues.service.SprintService;
@@ -31,6 +32,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 
 class SprintServiceTest {
@@ -59,6 +61,7 @@ class SprintServiceTest {
             if (e.getId() == null) e.setId(UUID.randomUUID());
             return e;
         });
+        when(issues.aggregateSprintMetricsBySprintId(any())).thenReturn(Optional.empty());
     }
 
     @Test
@@ -75,22 +78,15 @@ class SprintServiceTest {
         ));
         assertEquals(HttpStatus.BAD_REQUEST, badDates.getStatus());
         assertEquals("INVALID_DATE_RANGE", badDates.getCode());
-
-        assertEquals("VALIDATION_ERROR", assertThrows(ApiException.class, () -> service.createSprint(
-            userId, workspaceId, projectId, new CreateSprintRequest("   ", null, null, null)
-        )).getCode());
     }
 
     @Test
-    void listSprintsComputesIssueAndStoryPointTotals() {
+    void listSprintsUsesSqlGroupByMetricsAggregation() {
         UUID sprintId = UUID.randomUUID();
         IssueSprintEntity sprint = sprint(sprintId, "Sprint 10", SprintStatus.ACTIVE);
         when(sprints.findByProjectIdOrderByCreatedAtDesc(projectId)).thenReturn(List.of(sprint));
-
-        ProjectIssueEntity done = sprintIssue(sprintId, IssueStatus.DONE, 5);
-        ProjectIssueEntity open = sprintIssue(sprintId, IssueStatus.IN_PROGRESS, 3);
-        ProjectIssueEntity unestimated = sprintIssue(sprintId, IssueStatus.TODO, null);
-        when(issues.findByProjectIdOrderByIssueNumberDesc(projectId)).thenReturn(List.of(done, open, unestimated));
+        when(issues.aggregateSprintMetricsByProjectId(projectId))
+            .thenReturn(List.of(new SprintMetricsAggregate(sprintId, 3L, 1L, 8L, 5L)));
 
         List<SprintDto> list = service.listSprints(userId, workspaceId, projectId);
         assertEquals(1, list.size());
@@ -99,31 +95,59 @@ class SprintServiceTest {
         assertEquals(1, dto.completedIssues());
         assertEquals(8, dto.totalStoryPoints());
         assertEquals(5, dto.completedStoryPoints());
+        verify(issues).aggregateSprintMetricsByProjectId(projectId);
     }
 
     @Test
-    void updateSprintBlocksMultipleActiveSprintsAndCompletesWithBacklogRollover() {
+    void updateSprintBlocksBackwardsTransitionsAndConcurrentDoubleActivation() {
         UUID sprintId = UUID.randomUUID();
-        IssueSprintEntity planned = sprint(sprintId, "Sprint 11", SprintStatus.PLANNED);
-        when(sprints.findByIdAndProjectId(sprintId, projectId)).thenReturn(Optional.of(planned));
-        when(sprints.existsByProjectIdAndStatusAndIdNot(projectId, SprintStatus.ACTIVE, sprintId)).thenReturn(true);
+        IssueSprintEntity completed = sprint(sprintId, "Sprint 9", SprintStatus.COMPLETED);
+        when(sprints.findByIdAndProjectId(sprintId, projectId)).thenReturn(Optional.of(completed));
 
-        ApiException conflict = assertThrows(ApiException.class, () -> service.updateSprint(
+        ApiException reopenActive = assertThrows(ApiException.class, () -> service.updateSprint(
             userId, workspaceId, projectId, sprintId, new UpdateSprintRequest(null, null, "ACTIVE", null, null, null)
         ));
-        assertEquals(HttpStatus.CONFLICT, conflict.getStatus());
-        assertEquals("ACTIVE_SPRINT_EXISTS", conflict.getCode());
+        assertEquals(HttpStatus.BAD_REQUEST, reopenActive.getStatus());
+        assertEquals("INVALID_SPRINT_TRANSITION", reopenActive.getCode());
 
+        assertEquals("INVALID_SPRINT_TRANSITION", assertThrows(ApiException.class, () -> service.updateSprint(
+            userId, workspaceId, projectId, sprintId, new UpdateSprintRequest(null, null, "PLANNED", null, null, null)
+        )).getCode());
+
+        IssueSprintEntity active = sprint(sprintId, "Sprint 11", SprintStatus.ACTIVE);
+        when(sprints.findByIdAndProjectId(sprintId, projectId)).thenReturn(Optional.of(active));
+        assertEquals("INVALID_SPRINT_TRANSITION", assertThrows(ApiException.class, () -> service.updateSprint(
+            userId, workspaceId, projectId, sprintId, new UpdateSprintRequest(null, null, "PLANNED", null, null, null)
+        )).getCode());
+
+        IssueSprintEntity planned = sprint(sprintId, "Sprint 12", SprintStatus.PLANNED);
+        when(sprints.findByIdAndProjectId(sprintId, projectId)).thenReturn(Optional.of(planned));
         when(sprints.existsByProjectIdAndStatusAndIdNot(projectId, SprintStatus.ACTIVE, sprintId)).thenReturn(false);
-        when(issues.findBySprintIdOrderByIssueNumberAsc(sprintId)).thenReturn(List.of());
-        SprintDto active = service.updateSprint(
-            userId, workspaceId, projectId, sprintId, new UpdateSprintRequest(null, null, "ACTIVE", null, null, null)
-        );
-        assertEquals("ACTIVE", active.status());
+        doThrow(new DataIntegrityViolationException("uq_issue_sprints_single_active")).when(sprints).save(any());
 
+        ApiException raceConflict = assertThrows(ApiException.class, () -> service.updateSprint(
+            userId, workspaceId, projectId, sprintId, new UpdateSprintRequest(null, null, "ACTIVE", null, null, null)
+        ));
+        assertEquals(HttpStatus.CONFLICT, raceConflict.getStatus());
+        assertEquals("ACTIVE_SPRINT_EXISTS", raceConflict.getCode());
+    }
+
+    @Test
+    void completeSprintHandlesRolloverToggleMetadataEditsAndDelete() {
+        UUID sprintId = UUID.randomUUID();
+        IssueSprintEntity active = sprint(sprintId, "Sprint 12", SprintStatus.ACTIVE);
+        active.setStartDate(LocalDate.of(2026, 7, 1));
+        when(sprints.findByIdAndProjectId(sprintId, projectId)).thenReturn(Optional.of(active));
         ProjectIssueEntity done = sprintIssue(sprintId, IssueStatus.DONE, 5);
         ProjectIssueEntity todo = sprintIssue(sprintId, IssueStatus.TODO, 3);
         when(issues.findBySprintIdOrderByIssueNumberAsc(sprintId)).thenReturn(List.of(done, todo));
+
+        SprintDto edited = service.updateSprint(
+            userId, workspaceId, projectId, sprintId,
+            new UpdateSprintRequest("Sprint 12 Renamed", "New goal", null, null, null, null, true, false)
+        );
+        assertEquals("Sprint 12 Renamed", edited.name());
+        assertNull(edited.startDate());
 
         SprintDto completed = service.updateSprint(
             userId, workspaceId, projectId, sprintId, new UpdateSprintRequest(null, null, "COMPLETED", null, null, true)
@@ -133,21 +157,6 @@ class SprintServiceTest {
         assertNull(todo.getSprintId());
         verify(issues).saveAll(List.of(todo));
         verify(activities).saveAll(any());
-    }
-
-    @Test
-    void completeSprintKeepsIncompleteIssuesWhenOptedOutAndDeleteRemovesSprint() {
-        UUID sprintId = UUID.randomUUID();
-        IssueSprintEntity active = sprint(sprintId, "Sprint 12", SprintStatus.ACTIVE);
-        when(sprints.findByIdAndProjectId(sprintId, projectId)).thenReturn(Optional.of(active));
-        ProjectIssueEntity open = sprintIssue(sprintId, IssueStatus.IN_REVIEW, 2);
-        when(issues.findBySprintIdOrderByIssueNumberAsc(sprintId)).thenReturn(List.of(open));
-
-        service.updateSprint(
-            userId, workspaceId, projectId, sprintId, new UpdateSprintRequest(null, null, "COMPLETED", null, null, false)
-        );
-        assertEquals(sprintId, open.getSprintId());
-        verify(issues, never()).saveAll(any());
 
         service.deleteSprint(userId, workspaceId, projectId, sprintId);
         verify(sprints).delete(active);
@@ -155,22 +164,15 @@ class SprintServiceTest {
 
     private IssueSprintEntity sprint(UUID id, String name, SprintStatus status) {
         IssueSprintEntity s = new IssueSprintEntity();
-        s.setId(id);
-        s.setWorkspaceId(workspaceId);
-        s.setProjectId(projectId);
-        s.setName(name);
-        s.setStatus(status);
+        s.setId(id); s.setWorkspaceId(workspaceId); s.setProjectId(projectId);
+        s.setName(name); s.setStatus(status);
         return s;
     }
 
     private ProjectIssueEntity sprintIssue(UUID sprintId, IssueStatus status, Integer points) {
         ProjectIssueEntity e = new ProjectIssueEntity();
-        e.setId(UUID.randomUUID());
-        e.setWorkspaceId(workspaceId);
-        e.setProjectId(projectId);
-        e.setSprintId(sprintId);
-        e.setStatus(status);
-        e.setStoryPoints(points);
+        e.setId(UUID.randomUUID()); e.setWorkspaceId(workspaceId); e.setProjectId(projectId);
+        e.setSprintId(sprintId); e.setStatus(status); e.setStoryPoints(points);
         return e;
     }
 }

@@ -12,7 +12,6 @@ import type {
   WorkspaceIssuePortfolioDto,
 } from '../../types/issues.types';
 import { createHttpIssuesService, httpIssuesService } from './httpIssues.service';
-import { MockIssuesService, mockIssuesService } from './mockIssues.service';
 
 export interface IssuesService {
   listIssues(workspaceId: string, projectId: string, filters?: IssueFilterParams): Promise<IssueDto[]>;
@@ -26,8 +25,8 @@ export interface IssuesService {
   createSprint(workspaceId: string, projectId: string, request: CreateSprintRequest): Promise<SprintDto>;
   updateSprint(workspaceId: string, projectId: string, sprintId: string, request: UpdateSprintRequest): Promise<SprintDto>;
   deleteSprint(workspaceId: string, projectId: string, sprintId: string): Promise<void>;
-  getWorkspacePortfolio(workspaceId: string): Promise<WorkspaceIssuePortfolioDto>;
+  getWorkspacePortfolio(workspaceId: string, limit?: number, offset?: number): Promise<WorkspaceIssuePortfolioDto>;
 }
 
 export const issuesService: IssuesService = httpIssuesService;
-export { createHttpIssuesService, httpIssuesService, MockIssuesService, mockIssuesService };
+export { createHttpIssuesService, httpIssuesService };

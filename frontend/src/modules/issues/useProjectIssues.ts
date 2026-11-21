@@ -8,6 +8,7 @@ import type {
   IssueStatus,
   SprintDto,
   UpdateIssueRequest,
+  UpdateSprintRequest,
 } from '../../types/issues.types';
 import {
   INITIAL_ISSUE_FILTERS,
@@ -119,6 +120,12 @@ export function useProjectIssues(
     [runAction, service, workspaceId, projectId]
   );
 
+  const updateSprint = useCallback(
+    async (sprintId: string, req: UpdateSprintRequest) =>
+      (await runAction(() => service.updateSprint(workspaceId, projectId, sprintId, req), 'Could not update sprint.', true)) as SprintDto,
+    [runAction, service, workspaceId, projectId]
+  );
+
   const startSprint = useCallback(
     async (sprintId: string) => {
       await runAction(() => service.updateSprint(workspaceId, projectId, sprintId, { status: 'ACTIVE' }), 'Could not start sprint.');
@@ -130,7 +137,8 @@ export function useProjectIssues(
     async (sprintId: string, moveIncompleteToBacklog = true) => {
       await runAction(
         () => service.updateSprint(workspaceId, projectId, sprintId, { status: 'COMPLETED', moveIncompleteToBacklog }),
-        'Could not complete sprint.'
+        'Could not complete sprint.',
+        true
       );
     },
     [runAction, service, workspaceId, projectId]
@@ -138,7 +146,7 @@ export function useProjectIssues(
 
   const deleteSprint = useCallback(
     async (sprintId: string) => {
-      await runAction(() => service.deleteSprint(workspaceId, projectId, sprintId), 'Could not delete sprint.');
+      await runAction(() => service.deleteSprint(workspaceId, projectId, sprintId), 'Could not delete sprint.', true);
     },
     [runAction, service, workspaceId, projectId]
   );
@@ -155,6 +163,6 @@ export function useProjectIssues(
     filters, setFilter, setFilters, resetFilters,
     filteredIssues, epics, activeSprint,
     refresh, createIssue, updateIssue, moveIssueStatus, assignIssueSprint,
-    createSprint, startSprint, completeSprint, deleteSprint,
+    createSprint, updateSprint, startSprint, completeSprint, deleteSprint,
   };
 }

@@ -14,20 +14,27 @@ import com.orbit.issues.entity.ProjectIssueEntity;
 import com.orbit.issues.repository.IssueActivityRepository;
 import com.orbit.issues.repository.IssueCommentRepository;
 import com.orbit.issues.repository.IssueSprintRepository;
+import com.orbit.issues.repository.OffsetLimitPageRequest;
+import com.orbit.issues.repository.ProjectIssueCounterRepository;
 import com.orbit.issues.repository.ProjectIssueRepository;
 import com.orbit.project.entity.ProjectEntity;
 import com.orbit.workspace.permission.Permissions;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Core CRUD, filtering, hierarchy validation, and audit logging for project issues. */
+/** Core CRUD, bounded filtering, hierarchy validation, and audit logging for project issues. */
 @Service
 public class IssueService {
 
+    private static final Sort ISSUE_NUMBER_DESC = Sort.by(Sort.Direction.DESC, "issueNumber");
+
     private final ProjectIssueRepository issues;
+    private final ProjectIssueCounterRepository counters;
     private final IssueSprintRepository sprints;
     private final IssueCommentRepository comments;
     private final IssueActivityRepository activities;
@@ -36,6 +43,7 @@ public class IssueService {
 
     public IssueService(
         ProjectIssueRepository issues,
+        ProjectIssueCounterRepository counters,
         IssueSprintRepository sprints,
         IssueCommentRepository comments,
         IssueActivityRepository activities,
@@ -43,6 +51,7 @@ public class IssueService {
         IssueUpdateApplier updateApplier
     ) {
         this.issues = issues;
+        this.counters = counters;
         this.sprints = sprints;
         this.comments = comments;
         this.activities = activities;
@@ -54,14 +63,16 @@ public class IssueService {
     public List<IssueDto> listIssues(
         UUID userId, UUID workspaceId, UUID projectId,
         String type, String status, String priority,
-        UUID sprintId, Boolean backlogOnly, UUID parentId, UUID assigneeId, String q
+        UUID sprintId, Boolean backlogOnly, UUID parentId, UUID assigneeId, String q,
+        Integer limit, Integer offset
     ) {
         ProjectEntity project = lookup.requireProjectPermission(userId, workspaceId, projectId, Permissions.PISSUES_READ);
-        List<ProjectIssueEntity> filtered = IssueFilterMatcher.filter(
-            issues.findByProjectIdOrderByIssueNumberDesc(projectId),
-            type, status, priority, sprintId, backlogOnly, parentId, assigneeId, q
+        OffsetLimitPageRequest pageRequest = OffsetLimitPageRequest.of(offset, limit, ISSUE_NUMBER_DESC);
+        Specification<ProjectIssueEntity> spec = IssueFilterMatcher.toSpecification(
+            projectId, type, status, priority, sprintId, backlogOnly, parentId, assigneeId, q
         );
-        return lookup.toIssueDtos(filtered, Map.of(project.getId(), project.getName()));
+        List<ProjectIssueEntity> page = issues.findAll(spec, pageRequest).getContent();
+        return lookup.toIssueDtos(page, Map.of(project.getId(), project.getName()));
     }
 
     @Transactional
@@ -81,8 +92,9 @@ public class IssueService {
         if (request.parentId() != null) {
             updateApplier.validateParentAssignment(projectId, null, type, request.parentId());
         }
+        lookup.requireValidAssignee(workspaceId, projectId, request.assigneeId());
 
-        int issueNumber = issues.findMaxIssueNumberByProjectId(projectId) + 1;
+        int issueNumber = counters.incrementAndGet(projectId);
         String issueKey = IssueKeyGenerator.formatKey(project.getSlug(), project.getName(), issueNumber);
 
         ProjectIssueEntity entity = new ProjectIssueEntity();

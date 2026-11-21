@@ -4,9 +4,11 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { ErrorView, LoadingView } from '../../components/ui/StateViews';
+import { authService } from '../../services/auth.service';
 import { issuesService } from '../../services/issues/issues.service';
 import { errorMessage } from '../../services/workspace/httpClient';
 import type { IssueDetailDto, IssueDto, SprintDto, UpdateIssueRequest } from '../../types/issues.types';
+import type { MemberDto } from '../../types/workspace.types';
 import { formatDateTime } from '../../utils/format';
 import { IssueCommentsActivity } from './IssueCommentsActivity';
 import { IssueMetadataForm } from './IssueMetadataForm';
@@ -19,28 +21,26 @@ export interface IssueDetailDrawerProps {
   issueId: string | null;
   sprints: SprintDto[];
   epics: IssueDto[];
+  allIssues?: IssueDto[];
+  members?: MemberDto[];
   canWrite: boolean;
   canDelete: boolean;
+  canManage?: boolean;
+  currentUserId?: string | null;
   onClose: () => void;
   onChanged: () => void;
 }
 
 export function IssueDetailDrawer({
-  workspaceId,
-  projectId,
-  issueId,
-  sprints,
-  epics,
-  canWrite,
-  canDelete,
-  onClose,
-  onChanged,
+  workspaceId, projectId, issueId, sprints, epics, allIssues, members = [],
+  canWrite, canDelete, canManage = false, currentUserId, onClose, onChanged,
 }: IssueDetailDrawerProps) {
   const [detail, setDetail] = useState<IssueDetailDto | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const resolvedUserId = currentUserId !== undefined ? currentUserId : (authService.getSession()?.user?.id ?? null);
 
   const loadDetail = useCallback(async () => {
     if (!issueId) return;
@@ -150,22 +150,26 @@ export function IssueDetailDrawer({
                 <span>Assignee: <strong className="font-normal text-[#E6EDF3]">{detail.issue.assigneeName ?? 'Unassigned'}</strong></span>
                 <span>Updated: <strong className="font-normal text-[#E6EDF3]">{formatDateTime(detail.issue.updatedAt)}</strong></span>
               </div>
-              <IssueMetadataForm issue={detail.issue} sprints={sprints} epics={epics} canWrite={canWrite} saving={saving} onSave={handleSave} />
+              <IssueMetadataForm
+                issue={detail.issue} sprints={sprints} epics={epics} allIssues={allIssues}
+                members={members} canWrite={canWrite} saving={saving} onSave={handleSave}
+              />
               <IssueSubtasksPanel workspaceId={workspaceId} projectId={projectId} parentIssue={detail.issue} subtasks={detail.subtasks} canWrite={canWrite} onMutated={handleSubMutation} />
-              <IssueCommentsActivity workspaceId={workspaceId} projectId={projectId} issueId={detail.issue.id} comments={detail.comments} activities={detail.activities} canWrite={canWrite} canDelete={canDelete} onMutated={handleSubMutation} />
+              <IssueCommentsActivity
+                workspaceId={workspaceId} projectId={projectId} issueId={detail.issue.id}
+                comments={detail.comments} activities={detail.activities}
+                canWrite={canWrite} canManage={canManage} currentUserId={resolvedUserId}
+                onMutated={handleSubMutation}
+              />
             </>
           )}
         </div>
       </aside>
 
       <ConfirmDialog
-        open={confirmDeleteOpen}
-        title="Delete Issue"
+        open={confirmDeleteOpen} title="Delete Issue"
         message={`Delete ${issue?.issueKey ?? 'this issue'} permanently? Linked comments and activity history will be removed.`}
-        confirmLabel="Delete Issue"
-        danger
-        onConfirm={handleDeleteIssue}
-        onClose={() => setConfirmDeleteOpen(false)}
+        confirmLabel="Delete Issue" danger onConfirm={handleDeleteIssue} onClose={() => setConfirmDeleteOpen(false)}
       />
     </div>
   );

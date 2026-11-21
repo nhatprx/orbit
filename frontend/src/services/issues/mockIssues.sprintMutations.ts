@@ -39,13 +39,30 @@ export function applySprintUpdate(
   sprint: SprintDto,
   request: UpdateSprintRequest
 ): SprintDto {
-  const nextStart = request.startDate !== undefined ? request.startDate : sprint.startDate;
-  const nextEnd = request.endDate !== undefined ? request.endDate : sprint.endDate;
+  const nextStart = request.clearStartDate
+    ? null
+    : request.startDate !== undefined
+      ? request.startDate
+      : sprint.startDate;
+  const nextEnd = request.clearEndDate
+    ? null
+    : request.endDate !== undefined
+      ? request.endDate
+      : sprint.endDate;
   assertValidDateRange(nextStart, nextEnd);
   if (request.name !== undefined) sprint.name = assertValidSprintName(request.name);
   if (request.goal !== undefined) sprint.goal = request.goal?.trim() || null;
   sprint.startDate = nextStart;
   sprint.endDate = nextEnd;
+
+  if (request.status !== undefined) {
+    if (sprint.status === 'COMPLETED' && request.status !== 'COMPLETED') {
+      throw new ApiError(400, 'INVALID_SPRINT_TRANSITION', 'Completed sprints cannot be reopened.');
+    }
+    if (sprint.status === 'ACTIVE' && request.status === 'PLANNED') {
+      throw new ApiError(400, 'INVALID_SPRINT_TRANSITION', 'Active sprints cannot be moved back to PLANNED.');
+    }
+  }
 
   if (request.status === 'ACTIVE' && sprint.status !== 'ACTIVE') {
     const otherActive = seed.sprints.find((s) => s.id !== sprint.id && s.status === 'ACTIVE');

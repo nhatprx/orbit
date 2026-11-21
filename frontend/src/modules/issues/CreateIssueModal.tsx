@@ -1,31 +1,23 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Button } from '../../components/ui/Button';
 import { SelectField, TextAreaField, TextField } from '../../components/ui/Field';
 import { Modal } from '../../components/ui/Modal';
 import { errorMessage } from '../../services/workspace/httpClient';
 import type {
-  CreateIssueRequest,
-  IssueDto,
-  IssuePriority,
-  IssueStatus,
-  IssueType,
-  SprintDto,
+  CreateIssueRequest, IssueDto, IssuePriority, IssueStatus, IssueType, SprintDto,
 } from '../../types/issues.types';
+import type { MemberDto } from '../../types/workspace.types';
 import {
-  ISSUE_PRIORITIES,
-  ISSUE_STATUSES,
-  ISSUE_TYPES,
-  PRIORITY_LABELS,
-  STATUS_LABELS,
-  TYPE_LABELS,
-  parseLabelsInput,
-  parseStoryPoints,
+  ISSUE_PRIORITIES, ISSUE_STATUSES, ISSUE_TYPES, PRIORITY_LABELS, STATUS_LABELS, TYPE_LABELS,
+  parseLabelsInput, parseStoryPoints,
 } from './issueDetailMeta';
 
 export interface CreateIssueModalProps {
   open: boolean;
   sprints: SprintDto[];
   epics: IssueDto[];
+  issues?: IssueDto[];
+  members?: MemberDto[];
   defaultStatus?: IssueStatus;
   defaultSprintId?: string | null;
   defaultParentId?: string | null;
@@ -43,40 +35,24 @@ interface IssueFormState {
   storyPoints: string;
   sprintId: string;
   parentId: string;
+  assigneeId: string;
   labels: string;
   dueDate: string;
 }
 
 function initialForm(
-  type: IssueType,
-  status: IssueStatus,
-  sprintId: string | null,
-  parentId: string | null
+  type: IssueType, status: IssueStatus, sprintId: string | null, parentId: string | null
 ): IssueFormState {
   return {
-    type,
-    title: '',
-    description: '',
-    status,
-    priority: 'MEDIUM',
-    storyPoints: '',
-    sprintId: sprintId ?? '',
-    parentId: parentId ?? '',
-    labels: '',
-    dueDate: '',
+    type, title: '', description: '', status, priority: 'MEDIUM', storyPoints: '',
+    sprintId: sprintId ?? '', parentId: parentId ?? '', assigneeId: '', labels: '', dueDate: '',
   };
 }
 
 export function CreateIssueModal({
-  open,
-  sprints,
-  epics,
-  defaultStatus = 'TODO',
-  defaultSprintId = null,
-  defaultParentId = null,
-  defaultType = 'TASK',
-  onClose,
-  onSubmit,
+  open, sprints, epics, issues, members = [],
+  defaultStatus = 'TODO', defaultSprintId = null, defaultParentId = null, defaultType = 'TASK',
+  onClose, onSubmit,
 }: CreateIssueModalProps) {
   const [form, setForm] = useState<IssueFormState>(() =>
     initialForm(defaultType, defaultStatus, defaultSprintId, defaultParentId)
@@ -90,35 +66,39 @@ export function CreateIssueModal({
     setError(null);
   }, [open, defaultType, defaultStatus, defaultSprintId, defaultParentId]);
 
+  const parentOptions = useMemo(() => {
+    if (form.type === 'SUBTASK') {
+      const pool = issues ?? epics;
+      return pool.filter((item) => item.type !== 'SUBTASK');
+    }
+    return epics;
+  }, [form.type, issues, epics]);
+
   function patch<K extends keyof IssueFormState>(key: K, value: IssueFormState[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [key]: value };
+      if (key === 'type' && prev.parentId) {
+        const nextPool = value === 'SUBTASK' ? (issues ?? epics).filter((i) => i.type !== 'SUBTASK') : epics;
+        if (!nextPool.some((item) => item.id === prev.parentId)) next.parentId = '';
+      }
+      return next;
+    });
   }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const title = form.title.trim();
-    if (!title) {
-      setError('Title is required.');
-      return;
-    }
+    if (!title) { setError('Title is required.'); return; }
     const points = parseStoryPoints(form.storyPoints);
-    if (points.error) {
-      setError(points.error);
-      return;
-    }
+    if (points.error) { setError(points.error); return; }
     setSubmitting(true);
     setError(null);
     try {
       await onSubmit({
-        type: form.type,
-        title,
-        description: form.description.trim() || null,
-        status: form.status,
-        priority: form.priority,
-        storyPoints: points.value,
-        sprintId: form.sprintId || null,
-        parentId: form.parentId || null,
-        labels: parseLabelsInput(form.labels),
+        type: form.type, title, description: form.description.trim() || null,
+        status: form.status, priority: form.priority, storyPoints: points.value,
+        sprintId: form.sprintId || null, parentId: form.parentId || null,
+        assigneeId: form.assigneeId || null, labels: parseLabelsInput(form.labels),
         dueDate: form.dueDate || null,
       });
       onClose();
@@ -128,6 +108,8 @@ export function CreateIssueModal({
       setSubmitting(false);
     }
   }
+
+  const parentLabel = form.type === 'SUBTASK' ? 'Parent Issue' : 'Parent Epic';
 
   return (
     <Modal open={open} title="Create Issue" subtitle="Track an epic, story, task, bug, or subtask" size="lg" onClose={onClose}>
@@ -154,16 +136,24 @@ export function CreateIssueModal({
             <option value="">Backlog (No Sprint)</option>
             {sprints.map((sp) => <option key={sp.id} value={sp.id}>{sp.name} ({sp.status})</option>)}
           </SelectField>
-          <SelectField label="Parent Epic" value={form.parentId} onChange={(e) => patch('parentId', e.target.value)}>
+          <SelectField label={parentLabel} value={form.parentId} onChange={(e) => patch('parentId', e.target.value)}>
             <option value="">None</option>
-            {defaultParentId && !epics.some((ep) => ep.id === defaultParentId) && (
+            {defaultParentId && !parentOptions.some((p) => p.id === defaultParentId) && (
               <option value={defaultParentId}>Selected Parent</option>
             )}
-            {epics.map((ep) => <option key={ep.id} value={ep.id}>{ep.issueKey} — {ep.title}</option>)}
+            {parentOptions.map((item) => (
+              <option key={item.id} value={item.id}>
+                {form.type === 'SUBTASK' ? `[${TYPE_LABELS[item.type]}] ` : ''}{item.issueKey} — {item.title}
+              </option>
+            ))}
           </SelectField>
+          <SelectField label="Assignee" value={form.assigneeId} onChange={(e) => patch('assigneeId', e.target.value)}>
+            <option value="">Unassigned</option>
+            {members.map((m) => <option key={m.userId} value={m.userId}>{m.displayName || m.username}</option>)}
+          </SelectField>
+          <TextField label="Labels" value={form.labels} onChange={(e) => patch('labels', e.target.value)} placeholder="Comma-separated labels (e.g. auth, backend)" />
         </div>
 
-        <TextField label="Labels" value={form.labels} onChange={(e) => patch('labels', e.target.value)} placeholder="Comma-separated labels (e.g. auth, backend)" />
         {error && <p role="alert" className="text-xs text-[#EF4444]">{error}</p>}
 
         <div className="flex justify-end gap-2 border-t border-[#30363D] pt-3">

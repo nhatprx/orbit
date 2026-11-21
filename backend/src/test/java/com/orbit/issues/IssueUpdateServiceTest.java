@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -23,6 +24,7 @@ import com.orbit.issues.entity.ProjectIssueEntity;
 import com.orbit.issues.repository.IssueActivityRepository;
 import com.orbit.issues.repository.IssueCommentRepository;
 import com.orbit.issues.repository.IssueSprintRepository;
+import com.orbit.issues.repository.ProjectIssueCounterRepository;
 import com.orbit.issues.repository.ProjectIssueRepository;
 import com.orbit.issues.service.IssueAccessGuard;
 import com.orbit.issues.service.IssueLookupHelper;
@@ -47,6 +49,7 @@ class IssueUpdateServiceTest {
     private ProjectIssueRepository issues;
     private IssueSprintRepository sprints;
     private IssueActivityRepository activities;
+    private IssueAccessGuard accessGuard;
     private IssueService service;
 
     @BeforeEach
@@ -56,7 +59,7 @@ class IssueUpdateServiceTest {
         IssueCommentRepository comments = mock(IssueCommentRepository.class);
         activities = mock(IssueActivityRepository.class);
         UserRepository users = mock(UserRepository.class);
-        IssueAccessGuard accessGuard = mock(IssueAccessGuard.class);
+        accessGuard = mock(IssueAccessGuard.class);
 
         ProjectEntity project = new ProjectEntity();
         project.setId(projectId);
@@ -75,7 +78,10 @@ class IssueUpdateServiceTest {
         when(users.findAllById(any())).thenReturn(List.of(reporter));
 
         IssueLookupHelper lookup = new IssueLookupHelper(users, sprints, issues, comments, accessGuard);
-        service = new IssueService(issues, sprints, comments, activities, lookup, new IssueUpdateApplier(issues, sprints, lookup));
+        service = new IssueService(
+            issues, mock(ProjectIssueCounterRepository.class), sprints, comments, activities, lookup,
+            new IssueUpdateApplier(issues, sprints, lookup)
+        );
     }
 
     @Test
@@ -115,10 +121,21 @@ class IssueUpdateServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void generalEditLogsUpdatedAndCircularParentIsRejected() {
+    void updateValidatesAssigneeMembershipAndRejectsCircularParents() {
         UUID issueId = UUID.randomUUID();
+        UUID outsiderId = UUID.randomUUID();
         ProjectIssueEntity entity = issue(issueId, 3, "PA-3", IssueType.STORY, IssueStatus.TODO, IssuePriority.MEDIUM);
         when(issues.findByIdAndProjectId(issueId, projectId)).thenReturn(Optional.of(entity));
+        doThrow(ApiException.badRequest("INVALID_ASSIGNEE", "Assignee not in workspace."))
+            .when(accessGuard).requireValidAssignee(workspaceId, projectId, outsiderId);
+
+        ApiException badAssignee = assertThrows(ApiException.class, () -> service.updateIssue(
+            userId, workspaceId, projectId, issueId, new UpdateIssueRequest(
+                null, null, null, null, null, null, null, null, null, null, null, outsiderId, null, null, null, null
+            )
+        ));
+        assertEquals(HttpStatus.BAD_REQUEST, badAssignee.getStatus());
+        assertEquals("INVALID_ASSIGNEE", badAssignee.getCode());
 
         service.updateIssue(userId, workspaceId, projectId, issueId, new UpdateIssueRequest(
             null, "Renamed Story", "Better description", null, null, null, null,
@@ -149,16 +166,9 @@ class IssueUpdateServiceTest {
 
     private ProjectIssueEntity issue(UUID id, int num, String key, IssueType type, IssueStatus status, IssuePriority priority) {
         ProjectIssueEntity e = new ProjectIssueEntity();
-        e.setId(id);
-        e.setWorkspaceId(workspaceId);
-        e.setProjectId(projectId);
-        e.setIssueNumber(num);
-        e.setIssueKey(key);
-        e.setType(type);
-        e.setTitle("Issue " + num);
-        e.setStatus(status);
-        e.setPriority(priority);
-        e.setReporterId(userId);
+        e.setId(id); e.setWorkspaceId(workspaceId); e.setProjectId(projectId);
+        e.setIssueNumber(num); e.setIssueKey(key); e.setType(type);
+        e.setTitle("Issue " + num); e.setStatus(status); e.setPriority(priority); e.setReporterId(userId);
         return e;
     }
 }

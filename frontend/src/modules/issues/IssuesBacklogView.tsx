@@ -16,9 +16,10 @@ interface IssuesBacklogViewProps {
   onMoveStatus: (issueId: string, status: IssueStatus) => void;
   onAssignSprint: (issueId: string, sprintId: string | null) => void;
   onCreateInSprint: (sprintId: string | null) => void;
+  onEditSprint: (sprint: SprintDto) => void;
   onStartSprint: (sprintId: string) => void;
-  onCompleteSprint: (sprintId: string) => void;
-  onDeleteSprint: (sprintId: string) => void;
+  onCompleteSprint: (sprint: SprintDto) => void;
+  onDeleteSprint: (sprint: SprintDto) => void;
 }
 
 const SPRINT_ORDER: Record<SprintStatus, number> = { ACTIVE: 0, PLANNED: 1, COMPLETED: 2 };
@@ -52,6 +53,7 @@ export function IssuesBacklogView(props: IssuesBacklogViewProps) {
           onMoveStatus={props.onMoveStatus}
           onAssignSprint={props.onAssignSprint}
           onCreateInSprint={(id) => props.onCreateInSprint(id)}
+          onEditSprint={props.onEditSprint}
           onStartSprint={props.onStartSprint}
           onCompleteSprint={props.onCompleteSprint}
           onDeleteSprint={props.onDeleteSprint}

@@ -5,17 +5,21 @@ import com.orbit.issues.entity.IssuePriority;
 import com.orbit.issues.entity.IssueStatus;
 import com.orbit.issues.entity.IssueType;
 import com.orbit.issues.entity.ProjectIssueEntity;
+import jakarta.persistence.criteria.Predicate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.function.Function;
+import org.springframework.data.jpa.domain.Specification;
 
-/** Applies optional query filters to a project's issue list. */
+/** Translates validated query filters into database-level JPA Specifications for project issues. */
 public final class IssueFilterMatcher {
 
     private IssueFilterMatcher() {}
 
-    public static List<ProjectIssueEntity> filter(
-        List<ProjectIssueEntity> items,
+    public static Specification<ProjectIssueEntity> toSpecification(
+        UUID projectId,
         String type,
         String status,
         String priority,
@@ -29,22 +33,35 @@ public final class IssueFilterMatcher {
         IssueStatus parsedStatus = parseOptionalFilter(status, raw -> IssueValidationHelper.parseStatus(raw, null));
         IssuePriority parsedPriority = parseOptionalFilter(priority, raw -> IssueValidationHelper.parsePriority(raw, null));
         String query = InputRules.blankToNull(q);
-        String loweredQuery = query == null ? null : query.toLowerCase(Locale.ROOT);
+        String likePattern = query == null ? null : "%" + escapeLike(query.toLowerCase(Locale.ROOT)) + "%";
         boolean onlyBacklog = Boolean.TRUE.equals(backlogOnly);
 
-        return items.stream()
-            .filter(i -> parsedType == null || i.getType() == parsedType)
-            .filter(i -> parsedStatus == null || i.getStatus() == parsedStatus)
-            .filter(i -> parsedPriority == null || i.getPriority() == parsedPriority)
-            .filter(i -> !onlyBacklog || i.getSprintId() == null)
-            .filter(i -> onlyBacklog || sprintId == null || sprintId.equals(i.getSprintId()))
-            .filter(i -> parentId == null || parentId.equals(i.getParentId()))
-            .filter(i -> assigneeId == null || assigneeId.equals(i.getAssigneeId()))
-            .filter(i -> loweredQuery == null || matchesText(i, loweredQuery))
-            .toList();
+        return (root, criteriaQuery, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("projectId"), projectId));
+            if (parsedType != null) predicates.add(cb.equal(root.get("type"), parsedType));
+            if (parsedStatus != null) predicates.add(cb.equal(root.get("status"), parsedStatus));
+            if (parsedPriority != null) predicates.add(cb.equal(root.get("priority"), parsedPriority));
+            if (onlyBacklog) {
+                predicates.add(cb.isNull(root.get("sprintId")));
+            } else if (sprintId != null) {
+                predicates.add(cb.equal(root.get("sprintId"), sprintId));
+            }
+            if (parentId != null) predicates.add(cb.equal(root.get("parentId"), parentId));
+            if (assigneeId != null) predicates.add(cb.equal(root.get("assigneeId"), assigneeId));
+            if (likePattern != null) {
+                predicates.add(cb.or(
+                    cb.like(cb.lower(root.get("issueKey")), likePattern, '\\'),
+                    cb.like(cb.lower(root.get("title")), likePattern, '\\'),
+                    cb.like(cb.lower(cb.coalesce(root.get("description"), "")), likePattern, '\\'),
+                    cb.like(cb.lower(cb.coalesce(root.get("labels"), "")), likePattern, '\\')
+                ));
+            }
+            return cb.and(predicates.toArray(Predicate[]::new));
+        };
     }
 
-    private static <T> T parseOptionalFilter(String raw, java.util.function.Function<String, T> parser) {
+    private static <T> T parseOptionalFilter(String raw, Function<String, T> parser) {
         String trimmed = InputRules.blankToNull(raw);
         if (trimmed == null || "ALL".equalsIgnoreCase(trimmed)) {
             return null;
@@ -52,14 +69,10 @@ public final class IssueFilterMatcher {
         return parser.apply(trimmed);
     }
 
-    private static boolean matchesText(ProjectIssueEntity issue, String loweredQuery) {
-        return containsIgnoreCase(issue.getIssueKey(), loweredQuery)
-            || containsIgnoreCase(issue.getTitle(), loweredQuery)
-            || containsIgnoreCase(issue.getDescription(), loweredQuery)
-            || containsIgnoreCase(issue.getLabels(), loweredQuery);
-    }
-
-    private static boolean containsIgnoreCase(String field, String loweredQuery) {
-        return field != null && field.toLowerCase(Locale.ROOT).contains(loweredQuery);
+    private static String escapeLike(String value) {
+        return value
+            .replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_");
     }
 }

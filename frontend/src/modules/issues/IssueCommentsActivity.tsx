@@ -16,7 +16,8 @@ export interface IssueCommentsActivityProps {
   comments: IssueCommentDto[];
   activities: IssueActivityDto[];
   canWrite: boolean;
-  canDelete: boolean;
+  canManage: boolean;
+  currentUserId: string | null;
   onMutated: () => Promise<void> | void;
 }
 
@@ -29,7 +30,8 @@ export function IssueCommentsActivity({
   comments,
   activities,
   canWrite,
-  canDelete,
+  canManage,
+  currentUserId,
   onMutated,
 }: IssueCommentsActivityProps) {
   const [activeTab, setActiveTab] = useState<ActivityTab>('comments');
@@ -89,37 +91,36 @@ export function IssueCommentsActivity({
             <p className="text-xs text-[#8B949E]">No comments yet. Start the discussion below.</p>
           ) : (
             <div className="space-y-2">
-              {comments.map((comment) => (
-                <article
-                  key={comment.id}
-                  className="border border-[#30363D] bg-[#0D1117] p-3"
-                >
-                  <div className="mb-1.5 flex items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-xs font-semibold text-[#E6EDF3]">
-                        {comment.authorName}
-                      </span>
-                      <span className="font-mono text-[11px] text-[#8B949E]">
-                        {formatDateTime(comment.createdAt)}
-                      </span>
+              {comments.map((comment) => {
+                const canDeleteComment =
+                  canManage || (Boolean(currentUserId) && comment.authorId === currentUserId && canWrite);
+                return (
+                  <article key={comment.id} className="border border-[#30363D] bg-[#0D1117] p-3">
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-semibold text-[#E6EDF3]">{comment.authorName}</span>
+                        <span className="font-mono text-[11px] text-[#8B949E]">
+                          {formatDateTime(comment.createdAt)}
+                        </span>
+                      </div>
+                      {canDeleteComment && (
+                        <button
+                          type="button"
+                          aria-label={`Delete comment by ${comment.authorName}`}
+                          disabled={deletingId === comment.id}
+                          onClick={() => void handleDeleteComment(comment.id)}
+                          className="text-[#8B949E] hover:text-[#EF4444] disabled:opacity-40"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                        </button>
+                      )}
                     </div>
-                    {(canWrite || canDelete) && (
-                      <button
-                        type="button"
-                        aria-label={`Delete comment by ${comment.authorName}`}
-                        disabled={deletingId === comment.id}
-                        onClick={() => void handleDeleteComment(comment.id)}
-                        className="text-[#8B949E] hover:text-[#EF4444] disabled:opacity-40"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
-                      </button>
-                    )}
-                  </div>
-                  <p className="whitespace-pre-wrap text-xs leading-relaxed text-[#E6EDF3]">
-                    {comment.body}
-                  </p>
-                </article>
-              ))}
+                    <p className="whitespace-pre-wrap text-xs leading-relaxed text-[#E6EDF3]">
+                      {comment.body}
+                    </p>
+                  </article>
+                );
+              })}
             </div>
           )}
 

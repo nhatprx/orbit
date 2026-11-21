@@ -90,6 +90,8 @@ export interface IssueFilterParams {
   parentId?: string;
   assigneeId?: string;
   q?: string;
+  limit?: number;
+  offset?: number;
 }
 
 export interface CreateIssueRequest {
@@ -143,6 +145,8 @@ export interface UpdateSprintRequest {
   startDate?: string | null;
   endDate?: string | null;
   moveIncompleteToBacklog?: boolean;
+  clearStartDate?: boolean;
+  clearEndDate?: boolean;
 }
 
 export interface ProjectIssueSummaryDto {
