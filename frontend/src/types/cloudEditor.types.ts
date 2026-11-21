@@ -24,7 +24,10 @@ export interface SaveTextContentRequest {
 export type {
   OfficeDocumentResponse,
   SaveOfficeDocumentPayload,
+  SheetAlign,
+  SheetBorderStyle,
   SheetCellStyleDto,
   SheetNumberFormat,
   SheetTabDto,
+  SheetVerticalAlign,
 } from '../modules/cloud/editor/office/officeTypes';

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { CloudFilesApi } from '../../../../services/cloud/cloudApi';
 import type { CloudNodeDto } from '../../../../types/cloud.types';
 import { OrbitDocEditor } from './OrbitDocEditor';
-import { OrbitOfficeHeader } from './OrbitOfficeHeader';
+import { OrbitOfficeHeader, type OrbitOfficeHeaderProps } from './OrbitOfficeHeader';
 import { OrbitPdfViewer } from './OrbitPdfViewer';
 import { OrbitSheetEditor } from './OrbitSheetEditor';
 import { OrbitSlideEditor } from './OrbitSlideEditor';
@@ -99,7 +99,7 @@ export function OrbitOfficeWorkspace({
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
         event.preventDefault();
         void handleSave(false);
-      } else if (event.key === 'Escape' && dirty && canWrite) {
+      } else if (!event.defaultPrevented && event.key === 'Escape' && dirty && canWrite) {
         event.preventDefault();
         setConfirmDiscard(true);
       }
@@ -108,23 +108,32 @@ export function OrbitOfficeWorkspace({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [pdfMode, handleSave, dirty, canWrite]);
 
+  const sharedHeaderProps: Omit<OrbitOfficeHeaderProps, 'menuBar'> = {
+    node, format, pdfMode, canWrite, dirty, saving, loading, savedNotice, error, confirmDiscard,
+    onRequestBack: requestBack,
+    onDownload: () => onDownload(node),
+    onSave: (closeAfter) => void handleSave(closeAfter),
+    onDismissError: () => setError(null),
+    onKeepEditing: () => setConfirmDiscard(false),
+    onDiscard: () => { setConfirmDiscard(false); onBack(); },
+  };
+  const renderSheetInline = !pdfMode && !loading && format === 'XLSX' && Boolean(sheet);
+
   return (
     <div className="flex h-full w-full flex-col bg-[#0D1117]">
-      <OrbitOfficeHeader
-        node={node} format={format} pdfMode={pdfMode} canWrite={canWrite}
-        dirty={dirty} saving={saving} loading={loading} savedNotice={savedNotice}
-        error={error} confirmDiscard={confirmDiscard}
-        onRequestBack={requestBack} onDownload={() => onDownload(node)}
-        onSave={(closeAfter) => void handleSave(closeAfter)} onDismissError={() => setError(null)}
-        onKeepEditing={() => setConfirmDiscard(false)} onDiscard={() => { setConfirmDiscard(false); onBack(); }}
-      />
+      {!renderSheetInline && <OrbitOfficeHeader {...sharedHeaderProps} />}
       <div className="min-h-0 flex-1 overflow-hidden">
         {pdfMode ? (
           <OrbitPdfViewer node={node} api={api} onDownload={onDownload} />
         ) : loading ? (
           <div className="flex h-full items-center justify-center font-mono text-xs text-[#8B949E]">Loading Orbit Office workspace...</div>
         ) : format === 'XLSX' && sheet ? (
-          <OrbitSheetEditor value={sheet} readOnly={!canWrite} onChange={(next) => { setSheet(next); setDirty(true); setSavedNotice(false); }} />
+          <OrbitSheetEditor
+            value={sheet}
+            readOnly={!canWrite}
+            headerProps={sharedHeaderProps}
+            onChange={(next) => { setSheet(next); setDirty(true); setSavedNotice(false); }}
+          />
         ) : format === 'PPTX' && slide ? (
           <OrbitSlideEditor value={slide} readOnly={!canWrite} onChange={(next) => { setSlide(next); setDirty(true); setSavedNotice(false); }} />
         ) : (

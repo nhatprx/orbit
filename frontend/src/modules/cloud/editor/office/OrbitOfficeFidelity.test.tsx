@@ -101,24 +101,39 @@ describe('OrbitOfficeFidelity', () => {
     expect(cellB1.value).toBe('50.0%');
     expect(cellB1.className).toContain('font-bold');
 
-    // Apply bold, italic, underline, center align, currency on A1
+    // Apply rich Google Sheets formatting on A1
     fireEvent.click(cellA1);
     fireEvent.click(byLabel('Bold'));
     fireEvent.click(byLabel('Italic'));
     fireEvent.click(byLabel('Underline'));
-    fireEvent.click(byLabel('Align center'));
+    fireEvent.click(byLabel('Strikethrough'));
+    fireEvent.click(byLabel('Increase font size'));
+    fireEvent.click(byLabel('Text color'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Text color Orbit green' }));
+    fireEvent.click(byLabel('Fill color'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Fill color Deep green' }));
+    fireEvent.click(byLabel('Borders'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'All borders' }));
+    fireEvent.click(byLabel('Horizontal align'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Align center' }));
+    fireEvent.click(byLabel('Vertical align'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Align top' }));
     fireEvent.click(byLabel('Currency $'));
+    fireEvent.click(byLabel('Increase decimal places'));
 
-    expect(cellA1.value).toBe('$125.00');
+    expect(cellA1.value).toBe('$125.000');
     expect(cellA1.className).toContain('font-bold');
     expect(cellA1.className).toContain('italic');
     expect(cellA1.className).toContain('underline');
+    expect(cellA1.className).toContain('line-through');
 
     fireEvent.click(screen.getByRole('button', { name: /Save/i }));
     await waitFor(() => expect(api.saveOfficeContent).toHaveBeenCalledTimes(1));
     const payload = (api.saveOfficeContent as ReturnType<typeof vi.fn>).mock.calls[0]?.[1];
     expect(payload.sheet.sheets[0].cellStyles['0:0']).toEqual({
-      bold: true, italic: true, underline: true, align: 'center', numFmt: 'currency',
+      bold: true, italic: true, underline: true, strike: true,
+      fontSize: 11, textColor: '#22C55E', bgColor: '#052E16',
+      border: 'all', align: 'center', valign: 'top', numFmt: 'currency', decimals: 3,
     });
     expect(payload.sheet.sheets[0].cellStyles['0:1']).toEqual({ bold: true, numFmt: 'percent' });
   }, 15000);
