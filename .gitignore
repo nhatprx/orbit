@@ -2,6 +2,7 @@
 node_modules/
 frontend/dist/
 backend/target/
+*.tsbuildinfo
 *.log
 
 # Environment & Secrets
