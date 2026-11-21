@@ -9,6 +9,7 @@ export type { LocalVoiceStreams };
 
 export interface VoicePeerMeshOptions {
   selfUserId: string;
+  iceServers?: RTCIceServer[];
   sendSignal: (signal: VoiceSignalRequest) => Promise<void> | void;
   onRemoteMediaChange: (media: Record<string, VoiceRemoteMedia>) => void;
 }
@@ -137,12 +138,17 @@ export class VoicePeerMesh {
   private ensurePeer(peerId: string): PeerEntry {
     const existing = this.peers.get(peerId);
     if (existing) return existing;
-    const entry = createPeerEntry(peerId, this.localStreams, {
-      isDestroyed: () => this.destroyed,
-      getFlags: () => this.meta.get(peerId),
-      sendSignal: (sig) => this.options.sendSignal(sig),
-      onMediaChange: () => this.emitRemoteMedia(),
-    });
+    const entry = createPeerEntry(
+      peerId,
+      this.localStreams,
+      {
+        isDestroyed: () => this.destroyed,
+        getFlags: () => this.meta.get(peerId),
+        sendSignal: (sig) => this.options.sendSignal(sig),
+        onMediaChange: () => this.emitRemoteMedia(),
+      },
+      this.options.iceServers
+    );
     this.peers.set(peerId, entry);
     return entry;
   }

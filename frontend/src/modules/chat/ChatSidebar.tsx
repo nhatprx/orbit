@@ -16,6 +16,7 @@ interface ChatSidebarProps {
   voice: VoiceSessionState;
   currentUser: { id: string; username: string; displayName: string } | null;
   canManageChannels: boolean;
+  canWriteChat?: boolean;
   onSelectChannel: (channel: ChatChannelDto) => void;
   onOpenCreateChannel: () => void;
   onEditChannel: (channel: ChatChannelDto) => void;
@@ -39,6 +40,7 @@ export function ChatSidebar({
   voice,
   currentUser,
   canManageChannels,
+  canWriteChat = true,
   onSelectChannel,
   onOpenCreateChannel,
   onEditChannel,
@@ -58,10 +60,15 @@ export function ChatSidebar({
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <h2 className="truncate text-sm font-semibold text-[#E6EDF3]">{scopeName}</h2>
-            <div className="mt-1 flex items-center gap-2">
+            <div className="mt-1 flex flex-wrap items-center gap-2">
               <span className="border border-[#30363D] bg-[#21262D] px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-wider text-[#BDBDBD]">
                 {scopeType}
               </span>
+              {!canWriteChat && (
+                <span className="border border-[#EAB308] bg-[#0D1117] px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-wider text-[#EAB308]">
+                  READ-ONLY
+                </span>
+              )}
               <span className="flex items-center gap-1.5 font-mono text-[11px] text-[#8A8A8A]">
                 <span className={`h-1.5 w-1.5 ${badge.dot}`} />
                 {badge.label}
@@ -130,12 +137,8 @@ export function ChatSidebar({
             {initialsOf(currentUser?.displayName ?? 'Orbit User')}
           </div>
           <div className="min-w-0">
-            <p className="truncate text-xs font-semibold text-[#E6EDF3]">
-              {currentUser?.displayName ?? 'Member'}
-            </p>
-            <p className="truncate font-mono text-[11px] text-[#8A8A8A]">
-              @{currentUser?.username ?? 'member'}
-            </p>
+            <p className="truncate text-xs font-semibold text-[#E6EDF3]">{currentUser?.displayName ?? 'Member'}</p>
+            <p className="truncate font-mono text-[11px] text-[#8A8A8A]">@{currentUser?.username ?? 'member'}</p>
           </div>
         </div>
 

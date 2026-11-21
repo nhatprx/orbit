@@ -1,4 +1,4 @@
-import { MonitorUp, PhoneCall, Volume2 } from 'lucide-react';
+import { Lock, MonitorUp, PhoneCall, Volume2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import type { ChatChannelDto, VoiceParticipantDto } from '../../types/workspace.types';
 import { initialsOf } from '../../utils/format';
@@ -8,6 +8,7 @@ interface VoicePreJoinCardProps {
   participants: VoiceParticipantDto[];
   activeOtherChannelName: string | null;
   joining: boolean;
+  canWriteChat?: boolean;
   onJoin: () => void;
   onJoinAndShare: () => void;
 }
@@ -17,6 +18,7 @@ export function VoicePreJoinCard({
   participants,
   activeOtherChannelName,
   joining,
+  canWriteChat = true,
   onJoin,
   onJoinAndShare,
 }: VoicePreJoinCardProps) {
@@ -28,6 +30,16 @@ export function VoicePreJoinCard({
         <p className="mt-1 text-xs text-[#8A8A8A]">
           {channel.description || 'Voice, video, and live screen sharing channel.'}
         </p>
+
+        {!canWriteChat && (
+          <div
+            role="status"
+            className="mt-3 flex items-center justify-center gap-2 border border-[#EAB308] bg-[#0D1117] px-3 py-2 text-xs text-[#EAB308]"
+          >
+            <Lock className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
+            <span>Read-only access: you do not have permission to join voice channels.</span>
+          </div>
+        )}
 
         {activeOtherChannelName && (
           <p className="mt-3 border border-[#30363D] bg-[#0D1117] px-3 py-2 font-mono text-[11px] text-[#EAB308]">
@@ -59,11 +71,11 @@ export function VoicePreJoinCard({
         </div>
 
         <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-          <Button type="button" variant="primary" disabled={joining} onClick={onJoin}>
+          <Button type="button" variant="primary" disabled={joining || !canWriteChat} onClick={onJoin}>
             <PhoneCall className="h-4 w-4" strokeWidth={1.5} />
             {joining ? 'Connecting...' : 'Join Voice Channel'}
           </Button>
-          <Button type="button" variant="secondary" disabled={joining} onClick={onJoinAndShare}>
+          <Button type="button" variant="secondary" disabled={joining || !canWriteChat} onClick={onJoinAndShare}>
             <MonitorUp className="h-4 w-4" strokeWidth={1.5} />
             Join &amp; Share Screen
           </Button>

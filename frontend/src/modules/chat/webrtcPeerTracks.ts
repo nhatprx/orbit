@@ -1,5 +1,6 @@
 import type { VoiceSignalRequest } from '../../types/workspace.types';
 import type { VoiceRemoteMedia } from './chatVoiceTypes';
+import { DEFAULT_VOICE_ICE_SERVERS } from './voiceIceServers';
 
 export interface LocalVoiceStreams {
   audio: MediaStream | null;
@@ -17,10 +18,6 @@ export interface PeerEntry {
   pendingIce: RTCIceCandidateInit[];
   media: VoiceRemoteMedia;
 }
-
-const RTC_CONFIG: RTCConfiguration = {
-  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
-};
 
 /** Reconciles RTCRtpSenders on a peer connection with the active local streams. */
 export function syncPeerTracks(pc: RTCPeerConnection, local: LocalVoiceStreams): boolean {
@@ -101,9 +98,12 @@ export function createPeerEntry(
     getFlags: () => PeerMediaFlags | undefined;
     sendSignal: (signal: VoiceSignalRequest) => Promise<void> | void;
     onMediaChange: () => void;
-  }
+  },
+  iceServers?: RTCIceServer[]
 ): PeerEntry {
-  const pc = new RTCPeerConnection(RTC_CONFIG);
+  const pc = new RTCPeerConnection({
+    iceServers: iceServers && iceServers.length > 0 ? iceServers : DEFAULT_VOICE_ICE_SERVERS,
+  });
   const entry: PeerEntry = {
     pc,
     pendingIce: [],

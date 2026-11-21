@@ -8,6 +8,7 @@ interface ChatMessageListProps {
   messages: ChatMessageDto[];
   currentUserId: string | null;
   canManageChannels: boolean;
+  canWriteChat?: boolean;
   searchQuery?: string;
   hasOlder: boolean;
   loadingOlder: boolean;
@@ -25,6 +26,7 @@ export function ChatMessageList({
   messages,
   currentUserId,
   canManageChannels,
+  canWriteChat = true,
   searchQuery = '',
   hasOlder,
   loadingOlder,
@@ -130,7 +132,14 @@ export function ChatMessageList({
             </div>
 
             <div className="absolute right-2 top-1.5 flex items-center gap-0.5 border border-[#30363D] bg-[#21262D] p-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
-              <button type="button" aria-label={`Reply to ${message.senderName}`} title="Reply" onClick={() => onReply(message)} className="p-1 text-[#BDBDBD] hover:bg-[#161B22] hover:text-[#22C55E]">
+              <button
+                type="button"
+                disabled={!canWriteChat}
+                aria-label={`Reply to ${message.senderName}`}
+                title={canWriteChat ? 'Reply' : 'Read-only access'}
+                onClick={() => onReply(message)}
+                className="p-1 text-[#BDBDBD] hover:bg-[#161B22] hover:text-[#22C55E] disabled:cursor-not-allowed disabled:opacity-40"
+              >
                 <Reply className="h-3.5 w-3.5" strokeWidth={1.5} />
               </button>
               <button type="button" aria-label={`Copy message from ${message.senderName}`} title="Copy" onClick={() => handleCopy(message)} className="p-1 text-[#BDBDBD] hover:bg-[#161B22] hover:text-[#E6EDF3]">

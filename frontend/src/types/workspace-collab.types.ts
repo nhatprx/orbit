@@ -48,6 +48,19 @@ export interface SendChatMessageRequest {
   attachmentUrl?: string | null;
 }
 
+export interface ChatMessageDeletedEvent {
+  eventType: 'MESSAGE_DELETED';
+  channelId: string;
+  messageId: string;
+  deletedAt?: string;
+}
+
+export interface VoiceIceServerDto {
+  urls: string[];
+  username?: string;
+  credential?: string;
+}
+
 export interface VoiceParticipantDto {
   userId: string;
   username: string;

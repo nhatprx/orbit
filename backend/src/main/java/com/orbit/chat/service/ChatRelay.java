@@ -1,5 +1,6 @@
 package com.orbit.chat.service;
 
+import com.orbit.chat.dto.ChatMessageDeletedDto;
 import com.orbit.chat.dto.ChatMessageDto;
 import com.orbit.chat.dto.VoiceEventDto;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
@@ -7,7 +8,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
-/** Delivers messages and voice events to the STOMP subscribers connected to this API instance. */
+/** Delivers messages, deletions, and voice events to the STOMP subscribers connected to this instance. */
 @Component
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class ChatRelay {
@@ -23,6 +24,10 @@ public class ChatRelay {
 
     public void deliver(ChatMessageDto message) {
         template.convertAndSend(TOPIC_PREFIX + message.channelId(), message);
+    }
+
+    public void deliverDeletion(ChatMessageDeletedDto event) {
+        template.convertAndSend(TOPIC_PREFIX + event.channelId(), event);
     }
 
     public void deliverVoice(VoiceEventDto event) {

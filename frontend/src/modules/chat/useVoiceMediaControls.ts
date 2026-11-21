@@ -44,10 +44,7 @@ export function useVoiceMediaControls(deps: MediaControlDeps) {
 
   const pushState = useCallback(async (patch: Partial<VoiceStateRequest>) => {
     const next: VoiceStateRequest = { ...controlsRef.current, ...patch };
-    if (next.deafened) {
-      next.muted = true;
-      next.speaking = false;
-    }
+    if (next.deafened) { next.muted = true; next.speaking = false; }
     applyControls(next);
     const chId = activeIdRef.current;
     if (!chId) return;
@@ -99,14 +96,16 @@ export function useVoiceMediaControls(deps: MediaControlDeps) {
     teardownMedia();
   }, [applyControls, teardownMedia]);
 
-  const stopScreenShare = useCallback(async () => {
-    stopMediaStream(streamsRef.current.screen);
-    streamsRef.current.screen = null;
-    setLocalScreenStream(null);
+  const stopVideoSlot = useCallback(async (slot: 'camera' | 'screen') => {
+    stopMediaStream(streamsRef.current[slot]);
+    streamsRef.current[slot] = null;
+    if (slot === 'camera') setLocalCameraStream(null);
+    else setLocalScreenStream(null);
     syncMeshStreams();
-    const chId = activeIdRef.current;
-    if (chId) void chatService.sendVoiceSignal(chId, { type: 'SCREEN_SHARE_STOPPED' }).catch(() => {});
-    await pushState({ screenSharing: false });
+    if (slot === 'screen' && activeIdRef.current) {
+      void chatService.sendVoiceSignal(activeIdRef.current, { type: 'SCREEN_SHARE_STOPPED' }).catch(() => {});
+    }
+    await pushState(slot === 'camera' ? { cameraOn: false } : { screenSharing: false });
   }, [activeIdRef, pushState, syncMeshStreams]);
 
   const toggleMute = useCallback(async () => {
@@ -125,7 +124,7 @@ export function useVoiceMediaControls(deps: MediaControlDeps) {
       deafened: wantMuted ? controlsRef.current.deafened : false,
       speaking: wantMuted ? false : controlsRef.current.speaking,
     });
-  }, [pushState, setMediaNotice, startVad, syncMeshStreams]);
+  }, [activeIdRef, pushState, setMediaNotice, startVad, syncMeshStreams]);
 
   const toggleDeafen = useCallback(async () => {
     const wantDeafened = !controlsRef.current.deafened;
@@ -140,45 +139,28 @@ export function useVoiceMediaControls(deps: MediaControlDeps) {
     await pushState({ deafened: false, muted: restoredMuted });
   }, [pushState]);
 
-  const stopCamera = useCallback(async () => {
-    stopMediaStream(streamsRef.current.camera);
-    streamsRef.current.camera = null;
-    setLocalCameraStream(null);
-    syncMeshStreams();
-    await pushState({ cameraOn: false });
-  }, [pushState, syncMeshStreams]);
-
-  const toggleCamera = useCallback(async () => {
-    if (controlsRef.current.cameraOn) { await stopCamera(); return; }
+  const toggleVideoSlot = useCallback(async (slot: 'camera' | 'screen') => {
+    const isOn = slot === 'camera' ? controlsRef.current.cameraOn : controlsRef.current.screenSharing;
+    if (isOn) { await stopVideoSlot(slot); return; }
     if (!activeIdRef.current) return;
-    const res = await requestCameraStream();
+    const res = slot === 'camera' ? await requestCameraStream() : await requestScreenShareStream();
     if (!res.stream) { setMediaNotice(res.error); return; }
     if (!activeIdRef.current) { stopMediaStream(res.stream); return; }
-    streamsRef.current.camera = res.stream;
-    setLocalCameraStream(res.stream);
+    streamsRef.current[slot] = res.stream;
+    if (slot === 'camera') setLocalCameraStream(res.stream);
+    else setLocalScreenStream(res.stream);
     onPrimaryVideoTrackEnded(res.stream, () => {
-      if (streamsRef.current.camera === res.stream) void stopCamera();
+      if (streamsRef.current[slot] === res.stream) void stopVideoSlot(slot);
     });
     syncMeshStreams();
-    await pushState({ cameraOn: true });
-  }, [activeIdRef, pushState, setMediaNotice, stopCamera, syncMeshStreams]);
+    if (slot === 'screen' && activeIdRef.current) {
+      void chatService.sendVoiceSignal(activeIdRef.current, { type: 'SCREEN_SHARE_STARTED' }).catch(() => {});
+    }
+    await pushState(slot === 'camera' ? { cameraOn: true } : { screenSharing: true });
+  }, [activeIdRef, pushState, setMediaNotice, stopVideoSlot, syncMeshStreams]);
 
-  const toggleScreenShare = useCallback(async () => {
-    if (controlsRef.current.screenSharing) { await stopScreenShare(); return; }
-    if (!activeIdRef.current) return;
-    const res = await requestScreenShareStream();
-    if (!res.stream) { setMediaNotice(res.error); return; }
-    if (!activeIdRef.current) { stopMediaStream(res.stream); return; }
-    streamsRef.current.screen = res.stream;
-    setLocalScreenStream(res.stream);
-    onPrimaryVideoTrackEnded(res.stream, () => {
-      if (streamsRef.current.screen === res.stream) void stopScreenShare();
-    });
-    syncMeshStreams();
-    const chId = activeIdRef.current;
-    if (chId) void chatService.sendVoiceSignal(chId, { type: 'SCREEN_SHARE_STARTED' }).catch(() => {});
-    await pushState({ screenSharing: true });
-  }, [activeIdRef, pushState, setMediaNotice, stopScreenShare, syncMeshStreams]);
+  const toggleCamera = useCallback(() => toggleVideoSlot('camera'), [toggleVideoSlot]);
+  const toggleScreenShare = useCallback(() => toggleVideoSlot('screen'), [toggleVideoSlot]);
 
   return {
     controls, localCameraStream, localScreenStream, applyControls, syncMeshStreams,

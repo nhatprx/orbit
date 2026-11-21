@@ -14,6 +14,7 @@ interface ChatThreadViewProps {
   connection: ConnectionState;
   currentUserId: string | null;
   canManageChannels: boolean;
+  canWriteChat?: boolean;
   showMembers: boolean;
   onToggleMembers: () => void;
 }
@@ -31,6 +32,7 @@ export function ChatThreadView({
   connection,
   currentUserId,
   canManageChannels,
+  canWriteChat = true,
   showMembers,
   onToggleMembers,
 }: ChatThreadViewProps) {
@@ -39,6 +41,8 @@ export function ChatThreadView({
   const [replyTo, setReplyTo] = useState<ChatMessageDto | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const state = STATE_LABEL[connection];
+  const activeReplyTo =
+    canWriteChat && replyTo && chat.messages.some((m) => m.id === replyTo.id) ? replyTo : null;
 
   async function handleDeleteMessage(messageId: string) {
     setActionError(null);
@@ -128,6 +132,7 @@ export function ChatThreadView({
           messages={chat.messages}
           currentUserId={currentUserId}
           canManageChannels={canManageChannels}
+          canWriteChat={canWriteChat}
           searchQuery={searchQuery}
           hasOlder={chat.hasOlder}
           loadingOlder={chat.loadingOlder}
@@ -138,8 +143,12 @@ export function ChatThreadView({
       )}
 
       <ChatComposer
-        placeholder={`Message #${channel.name}`}
-        replyTo={replyTo}
+        placeholder={canWriteChat ? `Message #${channel.name}` : 'Read-only access'}
+        disabled={!canWriteChat}
+        readOnlyNotice={
+          canWriteChat ? null : 'Read-only access: you do not have permission to send messages or reply.'
+        }
+        replyTo={activeReplyTo}
         onClearReply={() => setReplyTo(null)}
         onSend={chat.send}
       />
