@@ -70,8 +70,9 @@ public class XlsxOfficeCodec {
                     if (rowCells == null) continue;
                     for (int c = 0; c < rowCells.size(); c++) {
                         XSSFCell cell = row.createCell(c);
-                        writeCell(cell, rowCells.get(c));
-                        styleCodec.applyStyle(cell, styles.get(r + ":" + c));
+                        SheetCellStyleDto cellStyle = styles.get(r + ":" + c);
+                        writeCell(cell, rowCells.get(c), cellStyle);
+                        styleCodec.applyStyle(cell, cellStyle);
                     }
                 }
                 styleCodec.applyExtraCellStyles(sheet, styles);
@@ -126,9 +127,13 @@ public class XlsxOfficeCodec {
         };
     }
 
-    private static void writeCell(XSSFCell cell, String raw) {
+    private static void writeCell(XSSFCell cell, String raw, SheetCellStyleDto style) {
         if (raw == null || raw.isEmpty()) {
             cell.setBlank();
+            return;
+        }
+        if (style != null && "text".equalsIgnoreCase(style.numFmt() != null ? style.numFmt().trim() : "")) {
+            cell.setCellValue(raw);
             return;
         }
         if (raw.startsWith("=") && raw.length() > 1) {

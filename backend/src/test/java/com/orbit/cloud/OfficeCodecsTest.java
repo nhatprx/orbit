@@ -110,11 +110,11 @@ class OfficeCodecsTest {
     @Test
     void xlsxRoundTripsValuesFormulasAndCellStyles() {
         Map<String, SheetCellStyleDto> styles = Map.of(
-            "0:0", new SheetCellStyleDto(true, false, true, true, "center", null),
-            "1:2", new SheetCellStyleDto(null, true, null, null, "right", "currency"),
-            "1:3", new SheetCellStyleDto(true, null, null, null, "right", "percent"),
-            "2:2", new SheetCellStyleDto(null, null, null, null, "left", "decimal"),
-            "4:1", new SheetCellStyleDto(true, null, null, null, null, null)
+            "0:0", basicStyle(true, false, true, true, null, "center", null, null),
+            "1:2", basicStyle(null, true, null, null, null, "right", "currency", null),
+            "1:3", basicStyle(true, null, null, null, null, "right", "percent", null),
+            "2:2", basicStyle(null, null, null, null, null, "left", "decimal", null),
+            "4:1", basicStyle(true, null, null, null, null, null, null, null)
         );
         OfficeSheetContentDto input = new OfficeSheetContentDto(List.of(
             new SheetTabDto("Budget Q1", List.of(
@@ -132,16 +132,22 @@ class OfficeCodecsTest {
         SheetTabDto budget = parsed.sheets().get(0);
         assertEquals("Budget Q1", budget.name());
         assertEquals(input.sheets().get(0).rows().subList(0, 4), budget.rows().subList(0, 4));
-        assertEquals(new SheetCellStyleDto(true, null, true, true, "center", null), budget.cellStyles().get("0:0"));
-        assertEquals(new SheetCellStyleDto(null, true, null, null, "right", "currency"), budget.cellStyles().get("1:2"));
-        assertEquals(new SheetCellStyleDto(true, null, null, null, "right", "percent"), budget.cellStyles().get("1:3"));
-        assertEquals(new SheetCellStyleDto(null, null, null, null, "left", "number"), budget.cellStyles().get("2:2"));
-        assertEquals(new SheetCellStyleDto(true, null, null, null, null, null), budget.cellStyles().get("4:1"));
+        assertEquals(basicStyle(true, null, true, true, "#052E16", "center", null, null), budget.cellStyles().get("0:0"));
+        assertEquals(basicStyle(null, true, null, null, null, "right", "currency", 2), budget.cellStyles().get("1:2"));
+        assertEquals(basicStyle(true, null, null, null, null, "right", "percent", 1), budget.cellStyles().get("1:3"));
+        assertEquals(basicStyle(null, null, null, null, null, "left", "number", 2), budget.cellStyles().get("2:2"));
+        assertEquals(basicStyle(true, null, null, null, null, null, null, null), budget.cellStyles().get("4:1"));
 
         OfficeSheetContentDto fromBlank = xlsxCodec.read(templateGenerator.generate(DocumentTemplateType.XLSX).bytes());
         assertEquals(1, fromBlank.sheets().size());
         assertEquals("Sheet1", fromBlank.sheets().get(0).name());
         assertThrows(ApiException.class, () -> xlsxCodec.read("corrupt".getBytes(StandardCharsets.UTF_8)));
+    }
+
+    private static SheetCellStyleDto basicStyle(
+        Boolean b, Boolean i, Boolean u, Boolean hl, String bg, String align, String fmt, Integer dec
+    ) {
+        return new SheetCellStyleDto(b, i, u, null, hl, null, null, bg, null, align, null, null, fmt, dec);
     }
 
     @Test
