@@ -96,3 +96,25 @@
   border: 1px solid #30363D !important;
   color: #E6EDF3 !important;
 }
+
+.orbit-univer-doc-host,
+.orbit-univer-doc-host [data-u-comp],
+.orbit-univer-doc-host button,
+.orbit-univer-doc-host input,
+.orbit-univer-doc-host span,
+.orbit-univer-doc-host div,
+[data-radix-popper-content-wrapper] [role="menuitem"],
+[data-radix-popper-content-wrapper] [role="option"] {
+  color: #E6EDF3;
+  caret-color: #22C55E;
+}
+
+.orbit-univer-doc-host [placeholder]::placeholder,
+.orbit-univer-doc-host [data-placeholder] {
+  color: #8B949E !important;
+}
+
+.orbit-univer-doc-host svg,
+[data-radix-popper-content-wrapper] svg {
+  color: #E6EDF3;
+}

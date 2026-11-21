@@ -34,9 +34,41 @@ describe('univerDocAdapter', () => {
     const h1Run = docData.body?.textRuns?.[0];
     expect(h1Run?.ts?.fs).toBe(22);
     expect(h1Run?.ts?.bl).toBe(BooleanNumber.TRUE);
+    expect(h1Run?.ts?.cl?.rgb).toBe('#E6EDF3');
+
+    // Verify plain paragraphs, headings, and lists explicitly carry bright readable text color (#E6EDF3)
+    const runs = docData.body?.textRuns ?? [];
+    expect(runs.length).toBeGreaterThanOrEqual(8);
+    const nonQuoteCodeRuns = runs.filter((r) => r.ts?.cl?.rgb !== '#8B949E' && r.ts?.cl?.rgb !== '#22C55E');
+    expect(nonQuoteCodeRuns.length).toBeGreaterThan(0);
+    for (const run of nonQuoteCodeRuns) {
+      expect(run.ts?.cl?.rgb).toBe('#E6EDF3');
+    }
 
     const roundTripped = fromUniverDocData(docData);
     expect(roundTripped).toEqual(dto);
+  });
+
+  it('assigns explicit #E6EDF3 textRuns to plain p, h1..h3, ul, and ol blocks without inline tags', () => {
+    const plainDto: OfficeDocContentDto = {
+      blocks: [
+        { type: 'p', text: 'Plain paragraph text', align: 'left' },
+        { type: 'h1', text: 'Plain H1', align: 'left' },
+        { type: 'h2', text: 'Plain H2', align: 'left' },
+        { type: 'h3', text: 'Plain H3', align: 'left' },
+        { type: 'ul', text: 'Plain bullet', align: 'left' },
+        { type: 'ol', text: 'Plain numbered', align: 'left' },
+      ],
+      tables: [],
+    };
+    const docData = toUniverDocData(plainDto);
+    const runs = docData.body?.textRuns ?? [];
+    expect(runs).toHaveLength(6);
+    for (const run of runs) {
+      expect(run.ts?.cl?.rgb).toBe('#E6EDF3');
+      expect(run.ts?.ff).toBe('Outfit');
+    }
+    expect(fromUniverDocData(docData)).toEqual(plainDto);
   });
 
   it('normalizes <strong/>, <em/>, <del/>, <br/>, strips unsafe tags and control chars, and preserves fallback tables', () => {

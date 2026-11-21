@@ -8,8 +8,29 @@ import type { UniverSheetCanvasHandle } from './UniverSheetCanvas';
 import type { UniverSlideCanvasHandle } from './UniverSlideCanvas';
 import { docDtoToHtml, htmlToDocDto } from './docHtmlCodec';
 import type { OfficeDocContentDto, OfficeSheetContentDto, OfficeSlideContentDto } from './officeTypes';
+import { ensureUniverDomEnv, remapDocCanvasColor } from './univerDomEnv';
 
 describe('OrbitOfficeFidelity', () => {
+  it('remaps dark/black canvas 2D text fills and carets in Univer Docs host to #E6EDF3 and page surface to #161B22', () => {
+    ensureUniverDomEnv();
+    expect(remapDocCanvasColor('#000000', 'text')).toBe('#E6EDF3');
+    expect(remapDocCanvasColor('rgb(0, 0, 0)', 'text')).toBe('#E6EDF3');
+    expect(remapDocCanvasColor('#1e1e1e', 'text')).toBe('#E6EDF3');
+    expect(remapDocCanvasColor('#22C55E', 'text')).toBe('#22C55E');
+    expect(remapDocCanvasColor('#ffffff', 'rect', 794, 1123)).toBe('#161B22');
+    expect(remapDocCanvasColor('#000000', 'rect', 2, 18)).toBe('#E6EDF3');
+    const host = document.createElement('div');
+    host.setAttribute('data-testid', 'orbit-univer-doc-host');
+    const canvas = document.createElement('canvas');
+    host.appendChild(canvas);
+    document.body.appendChild(host);
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#000000';
+    ctx.fillText('Visible Document Text', 10, 20);
+    expect(ctx.fillStyle).toBe('#E6EDF3');
+    host.remove();
+  });
+
   it('round-trips hr blocks, justify alignment, and sanitized inline tags in docHtmlCodec', () => {
     const dto = {
       blocks: [
@@ -22,8 +43,7 @@ describe('OrbitOfficeFidelity', () => {
     const root = document.createElement('div');
     root.innerHTML = docDtoToHtml(dto);
     expect(root.querySelector('hr')).toBeTruthy();
-    const parsed = htmlToDocDto(root);
-    expect(parsed).toEqual(dto);
+    expect(htmlToDocDto(root)).toEqual(dto);
   });
 
   it('mounts Univer Docs engine, loads blocks & tables, executes FDocument mutations, and syncs snapshot to onChange', async () => {

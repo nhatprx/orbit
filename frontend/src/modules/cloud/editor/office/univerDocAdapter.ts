@@ -9,8 +9,7 @@ import type { DocAlign, DocBlockDto, DocBlockType, DocTableDto, OfficeDocContent
 interface InlineFlags { b: boolean; i: boolean; u: boolean; s: boolean; code: boolean; }
 
 const ALIGN_TO_UNIVER: Record<DocAlign, HorizontalAlign> = {
-  left: HorizontalAlign.LEFT, center: HorizontalAlign.CENTER,
-  right: HorizontalAlign.RIGHT, justify: HorizontalAlign.JUSTIFIED,
+  left: HorizontalAlign.LEFT, center: HorizontalAlign.CENTER, right: HorizontalAlign.RIGHT, justify: HorizontalAlign.JUSTIFIED,
 };
 const VALID_BLOCK_TYPES = new Set<DocBlockType>(['h1', 'h2', 'h3', 'p', 'quote', 'code', 'ul', 'ol', 'hr']);
 
@@ -19,10 +18,9 @@ function fromUniverAlign(ht?: HorizontalAlign): DocAlign {
 }
 
 function buildRunStyle(blockType: DocBlockType, f: InlineFlags): { ts: ITextStyle; sId?: string } {
-  const ts: ITextStyle = {};
+  const ts: ITextStyle = { ff: 'Outfit', fs: 11, cl: { rgb: '#E6EDF3' } };
   if (blockType === 'h1' || blockType === 'h2' || blockType === 'h3') {
-    ts.fs = blockType === 'h1' ? 22 : blockType === 'h2' ? 17 : 14;
-    ts.bl = BooleanNumber.TRUE;
+    ts.fs = blockType === 'h1' ? 22 : blockType === 'h2' ? 17 : 14; ts.bl = BooleanNumber.TRUE;
   } else if (blockType === 'quote') { ts.it = BooleanNumber.TRUE; ts.cl = { rgb: '#8B949E' }; }
   else if (blockType === 'code') { ts.ff = 'JetBrains Mono'; ts.fs = 10.5; ts.cl = { rgb: '#22C55E' }; }
   if (f.b) ts.bl = BooleanNumber.TRUE;
@@ -47,7 +45,7 @@ function parseBlockInline(rawHtml: string, baseOffset: number, blockType: DocBlo
     const st = baseOffset + plain.length;
     plain += chunk;
     const { ts, sId } = buildRunStyle(blockType, { b: counts.b > 0, i: counts.i > 0, u: counts.u > 0, s: counts.s > 0, code: counts.code > 0 });
-    if (Object.keys(ts).length > 0 || sId) runs.push({ st, ed: baseOffset + plain.length, ...(sId ? { sId } : {}), ts });
+    runs.push({ st, ed: baseOffset + plain.length, ...(sId ? { sId } : {}), ts });
   };
   while ((match = tagRe.exec(safe)) !== null) {
     pushChunk(safe.slice(lastIdx, match.index));
@@ -70,20 +68,25 @@ export function toUniverDocData(dto: OfficeDocContentDto): IDocumentData {
   blocks.forEach((block, idx) => {
     const type: DocBlockType = VALID_BLOCK_TYPES.has(block.type) ? block.type : 'p';
     const align: DocAlign = normalizeDocAlign(block.align);
-    const { text, runs } = parseBlockInline(block.text ?? '', stream.length, type);
+    const blockStart = stream.length;
+    const { text, runs } = parseBlockInline(block.text ?? '', blockStart, type);
     stream += text;
     textRuns.push(...runs);
     const paraIndex = stream.length;
     stream += '\r';
+    if (runs.length === 0 && type !== 'hr') {
+      textRuns.push({ st: blockStart, ed: paraIndex + 1, ts: buildRunStyle(type, { b: false, i: false, u: false, s: false, code: false }).ts });
+    }
     const paragraphStyle: IParagraphStyle = {
       horizontalAlign: ALIGN_TO_UNIVER[align], headingId: `orbit:${type}`,
       namedStyleType: type === 'h1' ? NamedStyleType.HEADING_1 : type === 'h2' ? NamedStyleType.HEADING_2 : type === 'h3' ? NamedStyleType.HEADING_3 : NamedStyleType.NORMAL_TEXT,
+      textStyle: { ff: 'Outfit', fs: 11, cl: { rgb: '#E6EDF3' } },
     };
-    if (type === 'h1' || type === 'h2' || type === 'h3') paragraphStyle.textStyle = { fs: type === 'h1' ? 22 : type === 'h2' ? 17 : 14, bl: BooleanNumber.TRUE };
+    if (type === 'h1' || type === 'h2' || type === 'h3') paragraphStyle.textStyle = { ff: 'Outfit', fs: type === 'h1' ? 22 : type === 'h2' ? 17 : 14, bl: BooleanNumber.TRUE, cl: { rgb: '#E6EDF3' } };
     else if (type === 'quote') {
       paragraphStyle.indentStart = { v: 16 };
       paragraphStyle.borderLeft = { padding: 8, color: { rgb: '#22C55E' }, width: 2, dashStyle: DashStyleType.SOLID };
-      paragraphStyle.textStyle = { it: BooleanNumber.TRUE, cl: { rgb: '#8B949E' } };
+      paragraphStyle.textStyle = { ff: 'Outfit', fs: 11, it: BooleanNumber.TRUE, cl: { rgb: '#8B949E' } };
     } else if (type === 'code') {
       paragraphStyle.shading = { backgroundColor: { rgb: '#161B22' } };
       paragraphStyle.textStyle = { ff: 'JetBrains Mono', fs: 10.5, cl: { rgb: '#22C55E' } };

@@ -147,7 +147,7 @@ export const UniverDocCanvas = forwardRef<UniverDocCanvasHandle, UniverDocCanvas
         aria-label="Univer document canvas"
         data-testid="orbit-univer-doc-host"
         data-readonly={readOnly ? 'true' : 'false'}
-        className="orbit-univer-host relative h-full w-full flex-1 overflow-hidden rounded-none bg-[#0D1117]"
+        className="orbit-univer-host orbit-univer-doc-host relative h-full w-full flex-1 overflow-hidden rounded-none bg-[#0D1117]"
       />
     );
   }
