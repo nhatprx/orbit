@@ -82,13 +82,13 @@ public class WorkspaceGitController {
         return support.createBranch(guard.requireWorkspaceScope(p.userId(), workspaceId, Permissions.GIT_WRITE), req);
     }
 
-    @DeleteMapping("/branches/{branchName}")
+    @DeleteMapping("/branches")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteBranch(
         @AuthenticationPrincipal AuthenticatedUserPrincipal p, @PathVariable UUID workspaceId,
-        @PathVariable String branchName
+        @RequestParam String name
     ) {
-        support.deleteBranch(guard.requireWorkspaceScope(p.userId(), workspaceId, Permissions.GIT_DELETE), branchName);
+        support.deleteBranch(guard.requireWorkspaceScope(p.userId(), workspaceId, Permissions.GIT_DELETE), name);
     }
 
     @GetMapping("/tree")

@@ -1,6 +1,7 @@
 import { FileDiff, X } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import type { GitCommitDetailDto } from '../../types/git.types';
+import { formatGitTimestamp } from './gitFormat';
 
 interface GitCommitDetailModalProps {
   commit: GitCommitDetailDto | null;
@@ -48,7 +49,9 @@ export function GitCommitDetailModal({
                 <div className="flex flex-wrap items-center gap-3 font-mono text-xs text-[#8A8A8A]">
                   <span>{commit.sha}</span>
                   <span className="text-[#BDBDBD]">{commit.authorName}</span>
-                  <span>{commit.committedAt}</span>
+                  <time dateTime={commit.committedAt} title={commit.committedAt}>
+                    {formatGitTimestamp(commit.committedAt)}
+                  </time>
                   <span className="text-[#4ADE80]">+{commit.additions}</span>
                   <span className="text-[#EF4444]">-{commit.deletions}</span>
                 </div>

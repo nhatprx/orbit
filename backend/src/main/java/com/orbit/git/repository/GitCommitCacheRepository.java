@@ -12,4 +12,6 @@ public interface GitCommitCacheRepository extends JpaRepository<GitCommitCacheEn
     );
 
     void deleteByRepositoryIdAndBranch(UUID repositoryId, String branch);
+
+    void deleteByRepositoryId(UUID repositoryId);
 }

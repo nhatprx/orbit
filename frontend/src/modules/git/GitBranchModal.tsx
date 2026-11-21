@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { GitBranch, Plus, Trash2, X } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import type { CreateGitBranchRequest, GitBranchDto } from '../../types/git.types';
 
 interface GitBranchModalProps {
@@ -29,6 +30,7 @@ export function GitBranchModal({
   const [sourceBranch, setSourceBranch] = useState(activeBranch || branches[0]?.name || 'main');
   const [busy, setBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -45,27 +47,13 @@ export function GitBranchModal({
     }
   }
 
-  async function handleDelete(name: string) {
-    setBusy(true);
-    setLocalError(null);
-    try {
-      await onDeleteBranch(name);
-    } catch (err) {
-      setLocalError(err instanceof Error ? err.message : 'Failed to delete branch');
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
       <div className="w-full max-w-xl border border-[#30363D] bg-[#161B22]">
         <div className="flex items-center justify-between border-b border-[#30363D] px-5 py-3.5">
           <div className="flex items-center gap-2">
             <GitBranch className="h-4 w-4 text-[#22C55E]" strokeWidth={1.5} />
-            <h2 className="text-sm font-semibold text-[#E6EDF3]">
-              Branches ({branches.length})
-            </h2>
+            <h2 className="text-sm font-semibold text-[#E6EDF3]">Branches ({branches.length})</h2>
           </div>
           <button
             type="button"
@@ -152,7 +140,7 @@ export function GitBranchModal({
                       type="button"
                       aria-label={`Delete branch ${b.name}`}
                       disabled={busy}
-                      onClick={() => void handleDelete(b.name)}
+                      onClick={() => setPendingDelete(b.name)}
                       className="border border-[#30363D] bg-[#161B22] p-1 text-[#8A8A8A] hover:border-[#EF4444] hover:text-[#EF4444]"
                     >
                       <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -164,6 +152,23 @@ export function GitBranchModal({
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete Branch"
+        message={
+          pendingDelete
+            ? `Delete branch "${pendingDelete}" from GitHub? This action cannot be undone.`
+            : ''
+        }
+        confirmLabel="Delete Branch"
+        danger
+        onConfirm={async () => {
+          if (!pendingDelete) return;
+          await onDeleteBranch(pendingDelete);
+        }}
+        onClose={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

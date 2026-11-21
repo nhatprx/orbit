@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Code2, GitCommitHorizontal, GitPullRequest, X } from 'lucide-react';
 import type { GitApi } from '../../services/git/gitApi';
 import {
   getGitPermissions,
@@ -13,6 +12,7 @@ import { GitConnectPanel } from './GitConnectPanel';
 import { GitHeaderBar } from './GitHeaderBar';
 import { GitModals } from './GitModals';
 import { GitPullRequestsView } from './GitPullRequestsView';
+import { GitLoadErrorView, GitStatusBanners, GitTabBar, type GitTab } from './GitWorkspaceChrome';
 import { useGitWorkspace } from './useGitWorkspace';
 
 interface GitPageProps {
@@ -21,7 +21,7 @@ interface GitPageProps {
   api?: GitApi;
 }
 
-type GitTab = 'code' | 'commits' | 'prs';
+const EMPTY_COMMIT_MODAL = { open: false, loading: false, detail: null as GitCommitDetailDto | null };
 
 export function GitPage({ scope, scopeLabel, api }: GitPageProps) {
   const ws = useGitWorkspace(scope, api);
@@ -30,15 +30,8 @@ export function GitPage({ scope, scopeLabel, api }: GitPageProps) {
   const [showAccess, setShowAccess] = useState(false);
   const [showBranches, setShowBranches] = useState(false);
   const [showCreatePr, setShowCreatePr] = useState(false);
-  const [fileEditor, setFileEditor] = useState<{
-    mode: 'create' | 'edit';
-    file?: GitFileContentDto;
-  } | null>(null);
-  const [commitModal, setCommitModal] = useState<{
-    open: boolean;
-    loading: boolean;
-    detail: GitCommitDetailDto | null;
-  }>({ open: false, loading: false, detail: null });
+  const [fileEditor, setFileEditor] = useState<{ mode: 'create' | 'edit'; file?: GitFileContentDto } | null>(null);
+  const [commitModal, setCommitModal] = useState(EMPTY_COMMIT_MODAL);
 
   async function handleInspectCommit(sha: string) {
     setCommitModal({ open: true, loading: true, detail: null });
@@ -46,7 +39,7 @@ export function GitPage({ scope, scopeLabel, api }: GitPageProps) {
       const detail = await ws.inspectCommit(sha);
       setCommitModal({ open: true, loading: false, detail });
     } catch {
-      setCommitModal({ open: false, loading: false, detail: null });
+      setCommitModal(EMPTY_COMMIT_MODAL);
     }
   }
 
@@ -55,6 +48,16 @@ export function GitPage({ scope, scopeLabel, api }: GitPageProps) {
       <div className="border border-[#30363D] bg-[#161B22] p-6 text-sm text-[#8A8A8A]">
         Loading Git repository...
       </div>
+    );
+  }
+
+  if (!ws.repo && ws.error) {
+    return (
+      <GitLoadErrorView
+        error={ws.error}
+        scopeLabel={scopeLabel}
+        onRetry={() => void ws.reloadAll()}
+      />
     );
   }
 
@@ -70,12 +73,6 @@ export function GitPage({ scope, scopeLabel, api }: GitPageProps) {
     );
   }
 
-  const tabs = [
-    { id: 'code' as const, label: 'Code', icon: Code2 },
-    { id: 'commits' as const, label: `Commits (${ws.commits.length})`, icon: GitCommitHorizontal },
-    { id: 'prs' as const, label: `Pull Requests (${ws.pullRequests.length})`, icon: GitPullRequest },
-  ];
-
   return (
     <div className="space-y-4">
       <GitHeaderBar
@@ -90,41 +87,19 @@ export function GitPage({ scope, scopeLabel, api }: GitPageProps) {
         onOpenAccess={() => setShowAccess(true)}
       />
 
-      {ws.error && (
-        <div className="flex items-center justify-between border border-[#EF4444] bg-[#161B22] px-4 py-2.5 text-xs text-[#EF4444]">
-          <span>{ws.error}</span>
-          <button type="button" aria-label="Dismiss error" onClick={ws.clearError}>
-            <X className="h-3.5 w-3.5" strokeWidth={1.5} />
-          </button>
-        </div>
-      )}
+      <GitStatusBanners
+        error={ws.error}
+        notice={ws.notice}
+        onClearError={ws.clearError}
+        onClearNotice={ws.clearNotice}
+      />
 
-      {ws.notice && (
-        <div className="flex items-center justify-between border border-[#22C55E] bg-[#052E16] px-4 py-2.5 text-xs text-[#4ADE80]">
-          <span>{ws.notice}</span>
-          <button type="button" aria-label="Dismiss notice" onClick={ws.clearNotice}>
-            <X className="h-3.5 w-3.5" strokeWidth={1.5} />
-          </button>
-        </div>
-      )}
-
-      <div className="flex gap-1 border-b border-[#30363D]">
-        {tabs.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setTab(id)}
-            className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-              tab === id
-                ? 'border-[#22C55E] text-[#22C55E]'
-                : 'border-transparent text-[#BDBDBD] hover:text-[#E6EDF3]'
-            }`}
-          >
-            <Icon className="h-4 w-4" strokeWidth={1.5} />
-            <span>{label}</span>
-          </button>
-        ))}
-      </div>
+      <GitTabBar
+        tab={tab}
+        commitsCount={ws.commits.length}
+        prsCount={ws.pullRequests.length}
+        onSelectTab={setTab}
+      />
 
       {tab === 'code' && (
         <GitCodeView
@@ -161,8 +136,8 @@ export function GitPage({ scope, scopeLabel, api }: GitPageProps) {
           canWrite={perms.canWrite}
           onFilterChange={ws.setPrFilter}
           onNewPr={() => setShowCreatePr(true)}
-          onMergePr={async (num) => {
-            await ws.mergePr(num);
+          onMergePr={async (num, body) => {
+            await ws.mergePr(num, body);
           }}
         />
       )}
@@ -184,7 +159,7 @@ export function GitPage({ scope, scopeLabel, api }: GitPageProps) {
         onCloseBranches={() => setShowBranches(false)}
         onCloseCreatePr={() => setShowCreatePr(false)}
         onCloseFileEditor={() => setFileEditor(null)}
-        onCloseCommitModal={() => setCommitModal({ open: false, loading: false, detail: null })}
+        onCloseCommitModal={() => setCommitModal(EMPTY_COMMIT_MODAL)}
         onSelectBranch={ws.setActiveBranch}
         onUpdateToken={ws.updateToken}
         onDisconnect={ws.disconnectRepo}

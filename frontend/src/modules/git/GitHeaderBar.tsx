@@ -9,6 +9,7 @@ import {
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import type { GitBranchDto, GitRepositoryDto } from '../../types/git.types';
+import { formatGitTimestamp } from './gitFormat';
 
 interface GitHeaderBarProps {
   repo: GitRepositoryDto;
@@ -54,7 +55,16 @@ export function GitHeaderBar({
           <span className="font-mono text-xs text-[#8A8A8A]">{scopeLabel}</span>
         )}
         <span className="font-mono text-[11px] text-[#8A8A8A]">
-          {repo.lastSyncedAt ? `Synced ${repo.lastSyncedAt}` : 'Not synced yet'}
+          {repo.lastSyncedAt ? (
+            <>
+              Synced{' '}
+              <time dateTime={repo.lastSyncedAt} title={repo.lastSyncedAt}>
+                {formatGitTimestamp(repo.lastSyncedAt)}
+              </time>
+            </>
+          ) : (
+            'Not synced yet'
+          )}
         </span>
       </div>
 

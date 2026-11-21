@@ -65,6 +65,10 @@ class GitApiIntegrationTest {
             commitStore.removeIf(c -> c.getRepositoryId().equals(i.getArgument(0)) && c.getBranch().equals(i.getArgument(1)));
             return null;
         }).when(commitRepo).deleteByRepositoryIdAndBranch(any(), anyString());
+        doAnswer(i -> {
+            commitStore.removeIf(c -> c.getRepositoryId().equals(i.getArgument(0)));
+            return null;
+        }).when(commitRepo).deleteByRepositoryId(any());
         when(commitRepo.saveAll(any())).thenAnswer(i -> {
             Iterable<GitCommitCacheEntity> items = i.getArgument(0);
             items.forEach(commitStore::add);
@@ -76,9 +80,10 @@ class GitApiIntegrationTest {
 
         GitProperties props = new GitProperties();
         props.setEncryptionSecret("integration-test-secret-key-2026");
-        GitRepositoryService repoSvc = new GitRepositoryService(repoJpa, gitHub, new GitTokenCrypto(props));
+        GitRepositoryService repoSvc = new GitRepositoryService(repoJpa, commitRepo, gitHub, new GitTokenCrypto(props));
         GitControllerSupport support = new GitControllerSupport(
-            repoSvc, new GitContentService(repoSvc, gitHub), new GitHistoryService(repoSvc, gitHub, commitRepo, repoJpa));
+            repoSvc, new GitContentService(repoSvc, gitHub, commitRepo),
+            new GitHistoryService(repoSvc, gitHub, commitRepo, repoJpa));
         mvc = MockMvcBuilders.standaloneSetup(new WorkspaceGitController(guard, support), new ProjectGitController(guard, support))
             .setControllerAdvice(new GlobalExceptionHandler())
             .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver()).build();
@@ -145,9 +150,10 @@ class GitApiIntegrationTest {
         mvc.perform(post(wsBase + "/branches").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"branchName\":\"feat\",\"sourceBranch\":\"main\"}"))
             .andExpect(status().isCreated()).andExpect(jsonPath("$.name").value("feat"));
-        mvc.perform(delete(wsBase + "/branches/main"))
+        mvc.perform(delete(wsBase + "/branches").param("name", "main"))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("CANNOT_DELETE_DEFAULT_BRANCH"));
-        mvc.perform(delete(wsBase + "/branches/feat")).andExpect(status().isNoContent());
+        mvc.perform(delete(wsBase + "/branches").param("name", "feature/auth")).andExpect(status().isNoContent());
+        verify(gitHub).deleteBranch(anyString(), eq("acme"), eq("orbit"), eq("feature/auth"));
         mvc.perform(get(wsBase + "/file?branch=main&path=../secret.env"))
             .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_GIT_PATH"));
         mvc.perform(get(wsBase + "/tree?branch=main")).andExpect(status().isOk()).andExpect(jsonPath("$[0].name").value("src"));

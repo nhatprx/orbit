@@ -10,8 +10,10 @@ import com.orbit.git.dto.InspectGitTokenRequest;
 import com.orbit.git.dto.InspectGitTokenResponse;
 import com.orbit.git.dto.UpdateGitTokenRequest;
 import com.orbit.git.entity.GitRepositoryEntity;
+import com.orbit.git.repository.GitCommitCacheRepository;
 import com.orbit.git.repository.GitRepositoryJpaRepository;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,15 +23,18 @@ import org.springframework.transaction.annotation.Transactional;
 public class GitRepositoryService {
 
     private final GitRepositoryJpaRepository repoJpa;
+    private final GitCommitCacheRepository commitCache;
     private final GitHubClient gitHub;
     private final GitTokenCrypto tokenCrypto;
 
     public GitRepositoryService(
         GitRepositoryJpaRepository repoJpa,
+        GitCommitCacheRepository commitCache,
         GitHubClient gitHub,
         GitTokenCrypto tokenCrypto
     ) {
         this.repoJpa = repoJpa;
+        this.commitCache = commitCache;
         this.gitHub = gitHub;
         this.tokenCrypto = tokenCrypto;
     }
@@ -82,7 +87,8 @@ public class GitRepositoryService {
 
     @Transactional
     public void disconnectRepository(GitScope scope) {
-        requireEntity(scope);
+        GitRepositoryEntity entity = requireEntity(scope);
+        commitCache.deleteByRepositoryId(entity.getId());
         repoJpa.deleteByScopeTypeAndScopeId(scope.type(), scope.scopeId());
     }
 
@@ -100,18 +106,24 @@ public class GitRepositoryService {
         GitScope scope, UUID userId, GitHubRemoteRepoDto remote, String defaultBranch, String rawToken
     ) {
         Instant now = Instant.now();
-        GitRepositoryEntity entity = repoJpa.findByScopeTypeAndScopeId(scope.type(), scope.scopeId())
-            .orElseGet(() -> {
-                GitRepositoryEntity created = new GitRepositoryEntity();
-                created.setId(UUID.randomUUID());
-                created.setScopeType(scope.type());
-                created.setScopeId(scope.scopeId());
-                created.setWorkspaceId(scope.workspaceId());
-                created.setProjectId(scope.projectId());
-                created.setProvider("GITHUB");
-                created.setCreatedAt(now);
-                return created;
-            });
+        Optional<GitRepositoryEntity> existing =
+            repoJpa.findByScopeTypeAndScopeId(scope.type(), scope.scopeId());
+        GitRepositoryEntity entity;
+        if (existing.isPresent()) {
+            entity = existing.get();
+            commitCache.deleteByRepositoryId(entity.getId());
+            commitCache.flush();
+            entity.setLastSyncedAt(null);
+        } else {
+            entity = new GitRepositoryEntity();
+            entity.setId(UUID.randomUUID());
+            entity.setScopeType(scope.type());
+            entity.setScopeId(scope.scopeId());
+            entity.setWorkspaceId(scope.workspaceId());
+            entity.setProjectId(scope.projectId());
+            entity.setProvider("GITHUB");
+            entity.setCreatedAt(now);
+        }
         entity.setRepoOwner(remote.owner());
         entity.setRepoName(remote.name());
         entity.setDefaultBranch(defaultBranch != null && !defaultBranch.isBlank() ? defaultBranch : "main");

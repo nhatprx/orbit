@@ -129,7 +129,7 @@ export const SAMPLE_PRS: GitPullRequestDto[] = [
     targetBranch: 'main',
     status: 'open',
     updatedAt: '2026-11-20T09:30:00Z',
-    htmlUrl: null,
+    htmlUrl: 'https://github.com/orbit-org/orbit-core/pull/12',
   },
 ];
 

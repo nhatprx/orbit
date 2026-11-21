@@ -7,22 +7,27 @@ import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /** Encrypts and decrypts GitHub access tokens at rest using AES-256-GCM. */
 @Component
 public class GitTokenCrypto {
 
+    private static final Logger log = LoggerFactory.getLogger(GitTokenCrypto.class);
     private static final String ALGORITHM = "AES/GCM/NoPadding";
     private static final int IV_LENGTH_BYTES = 12;
     private static final int TAG_LENGTH_BITS = 128;
 
     private final GitProperties properties;
     private final SecureRandom secureRandom = new SecureRandom();
+    private final AtomicBoolean fallbackWarned = new AtomicBoolean(false);
 
     public GitTokenCrypto(GitProperties properties) {
         this.properties = properties;
@@ -86,6 +91,12 @@ public class GitTokenCrypto {
     }
 
     private SecretKey deriveKey() throws GeneralSecurityException {
+        if (properties.isUsingJwtFallback() && fallbackWarned.compareAndSet(false, true)) {
+            log.warn(
+                "orbit.git.encryption-secret is not configured; falling back to orbit.jwt.secret. "
+                    + "Set ORBIT_GIT_ENCRYPTION_SECRET so rotating JWT_SECRET does not invalidate stored Git tokens."
+            );
+        }
         String secret = properties.getEncryptionSecret();
         if (secret == null || secret.isBlank()) {
             throw new IllegalStateException("Git encryption secret is not configured.");

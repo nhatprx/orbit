@@ -104,7 +104,7 @@ describe('createHttpGitApi', () => {
     expect(await api.listBranches()).toHaveLength(1);
     await api.createBranch({ branchName: 'feat/git', sourceBranch: 'main' });
     await api.deleteBranch('feat/git');
-    expect(fetchMock).toHaveBeenNthCalledWith(3, expect.stringContaining('/branches/feat%2Fgit'), expect.objectContaining({ method: 'DELETE' }));
+    expect(fetchMock).toHaveBeenNthCalledWith(3, expect.stringContaining('/branches?name=feat%2Fgit'), expect.objectContaining({ method: 'DELETE' }));
 
     await api.listTree('main', 'src');
     expect(fetchMock).toHaveBeenNthCalledWith(4, expect.stringContaining('/tree?branch=main&path=src'), expect.objectContaining({ method: 'GET' }));
@@ -126,5 +126,17 @@ describe('createHttpGitApi', () => {
     await api.createPullRequest({ title: 'New PR', sourceBranch: 'feat/git', targetBranch: 'main' });
     await api.mergePullRequest(8, { mergeMethod: 'squash' });
     expect(fetchMock).toHaveBeenNthCalledWith(12, expect.stringContaining('/pulls/8/merge'), expect.objectContaining({ method: 'POST' }));
+  });
+
+  it('encodes deeply nested slashed branch names in deleteBranch query param', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(undefined, 204));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const api = createHttpGitApi(scope);
+    await api.deleteBranch('feature/auth/oauth2');
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/workspaces/ws-1/git/branches?name=feature%2Fauth%2Foauth2'),
+      expect.objectContaining({ method: 'DELETE' }),
+    );
   });
 });

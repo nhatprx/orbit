@@ -71,7 +71,7 @@ public class GitHubApiParser {
 
     public GitFileContentDto parseFileContent(JsonNode node, String branch) {
         String name = text(node, "name", "");
-        String decoded = decodeBase64(text(node, "content", ""));
+        String decoded = GitHubFileContentDecoder.decodeFileContent(node);
         return new GitFileContentDto(
             text(node, "path", ""), name, text(node, "sha", ""),
             node.path("size").asLong(decoded.getBytes(StandardCharsets.UTF_8).length),
@@ -155,11 +155,6 @@ public class GitHubApiParser {
         if (filename == null || !filename.contains(".")) return "text";
         String ext = filename.substring(filename.lastIndexOf('.')).toLowerCase(Locale.ROOT);
         return EXT_LANG.getOrDefault(ext, "text");
-    }
-
-    private static String decodeBase64(String encoded) {
-        if (encoded == null || encoded.isBlank()) return "";
-        return new String(Base64.getDecoder().decode(encoded.replaceAll("\\s+", "")), StandardCharsets.UTF_8);
     }
 
     private static Instant parseInstant(String iso) {

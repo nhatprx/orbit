@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { GitMerge, GitPullRequest, Plus } from 'lucide-react';
-import { Badge } from '../../components/ui/Badge';
+import { Plus } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
-import type { GitPullRequestDto } from '../../types/git.types';
+import type { GitPullRequestDto, MergeGitPullRequest } from '../../types/git.types';
+import { GitPullRequestRow } from './GitPullRequestRow';
 
 interface GitPullRequestsViewProps {
   pullRequests: GitPullRequestDto[];
@@ -10,7 +10,7 @@ interface GitPullRequestsViewProps {
   canWrite: boolean;
   onFilterChange: (filter: 'all' | 'open' | 'closed') => void;
   onNewPr: () => void;
-  onMergePr: (pullNumber: number) => Promise<void>;
+  onMergePr: (pullNumber: number, body?: MergeGitPullRequest) => Promise<void>;
 }
 
 export function GitPullRequestsView({
@@ -23,10 +23,10 @@ export function GitPullRequestsView({
 }: GitPullRequestsViewProps) {
   const [mergingNumber, setMergingNumber] = useState<number | null>(null);
 
-  async function handleMerge(pullNumber: number) {
+  async function handleMerge(pullNumber: number, body: MergeGitPullRequest) {
     setMergingNumber(pullNumber);
     try {
-      await onMergePr(pullNumber);
+      await onMergePr(pullNumber, body);
     } finally {
       setMergingNumber(null);
     }
@@ -73,56 +73,14 @@ export function GitPullRequestsView({
           </div>
         ) : (
           pullRequests.map((pr, idx) => (
-            <div
+            <GitPullRequestRow
               key={pr.number}
-              className={`flex flex-wrap items-center justify-between gap-4 px-5 py-4 ${
-                idx > 0 ? 'border-t border-[#30363D]' : ''
-              }`}
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2.5">
-                  <GitPullRequest
-                    className="h-4 w-4 shrink-0 text-[#22C55E]"
-                    strokeWidth={1.5}
-                  />
-                  <span className="truncate text-sm font-semibold text-[#E6EDF3]">
-                    {pr.title}
-                  </span>
-                  <span className="font-mono text-xs text-[#8A8A8A]">#{pr.number}</span>
-                </div>
-                <p className="mt-1 pl-6 font-mono text-xs text-[#8A8A8A]">
-                  {pr.author} wants to merge{' '}
-                  <span className="text-[#BDBDBD]">{pr.sourceBranch}</span> into{' '}
-                  <span className="text-[#22C55E]">{pr.targetBranch}</span> — {pr.updatedAt}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Badge
-                  tone={
-                    pr.status === 'open'
-                      ? 'green'
-                      : pr.status === 'closed'
-                        ? 'danger'
-                        : 'neutral'
-                  }
-                  withDot
-                >
-                  {pr.status}
-                </Badge>
-                {canWrite && pr.status === 'open' && (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={mergingNumber === pr.number}
-                    onClick={() => void handleMerge(pr.number)}
-                  >
-                    <GitMerge className="h-3.5 w-3.5" strokeWidth={1.5} />
-                    {mergingNumber === pr.number ? 'Merging...' : 'Merge PR'}
-                  </Button>
-                )}
-              </div>
-            </div>
+              pr={pr}
+              bordered={idx > 0}
+              canWrite={canWrite}
+              merging={mergingNumber === pr.number}
+              onMerge={handleMerge}
+            />
           ))
         )}
       </div>

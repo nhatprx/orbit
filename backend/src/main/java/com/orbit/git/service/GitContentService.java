@@ -10,8 +10,10 @@ import com.orbit.git.dto.GitMutationResultDto;
 import com.orbit.git.dto.GitTreeEntryDto;
 import com.orbit.git.dto.UpsertGitFileRequest;
 import com.orbit.git.entity.GitRepositoryEntity;
+import com.orbit.git.repository.GitCommitCacheRepository;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /** Handles GitHub branch management, directory browsing, and file CRUD operations. */
 @Service
@@ -19,10 +21,16 @@ public class GitContentService {
 
     private final GitRepositoryService repoService;
     private final GitHubClient gitHub;
+    private final GitCommitCacheRepository commitCache;
 
-    public GitContentService(GitRepositoryService repoService, GitHubClient gitHub) {
+    public GitContentService(
+        GitRepositoryService repoService,
+        GitHubClient gitHub,
+        GitCommitCacheRepository commitCache
+    ) {
         this.repoService = repoService;
         this.gitHub = gitHub;
+        this.commitCache = commitCache;
     }
 
     public List<GitBranchDto> listBranches(GitScope scope) {
@@ -46,6 +54,7 @@ public class GitContentService {
         );
     }
 
+    @Transactional
     public void deleteBranch(GitScope scope, String branchName) {
         String clean = requireBranchName(branchName, "branchName");
         GitRepositoryEntity entity = repoService.requireEntity(scope);
@@ -55,6 +64,7 @@ public class GitContentService {
         }
         String token = repoService.decryptToken(entity);
         gitHub.deleteBranch(token, entity.getRepoOwner(), entity.getRepoName(), clean);
+        commitCache.deleteByRepositoryIdAndBranch(entity.getId(), clean);
     }
 
     public List<GitTreeEntryDto> listDirectory(GitScope scope, String branch, String path) {
@@ -73,6 +83,7 @@ public class GitContentService {
         return gitHub.getFileContent(token, entity.getRepoOwner(), entity.getRepoName(), resolvedBranch, cleanPath);
     }
 
+    @Transactional
     public GitMutationResultDto upsertFile(GitScope scope, UpsertGitFileRequest req) {
         if (req == null) {
             throw ApiException.badRequest("INVALID_GIT_INPUT", "Request body is required.");
@@ -86,9 +97,12 @@ public class GitContentService {
         UpsertGitFileRequest normalized = new UpsertGitFileRequest(
             resolvedBranch, cleanPath, content, message, req.sha()
         );
-        return gitHub.upsertFile(token, entity.getRepoOwner(), entity.getRepoName(), normalized);
+        GitMutationResultDto result = gitHub.upsertFile(token, entity.getRepoOwner(), entity.getRepoName(), normalized);
+        commitCache.deleteByRepositoryIdAndBranch(entity.getId(), resolvedBranch);
+        return result;
     }
 
+    @Transactional
     public GitMutationResultDto deleteFile(GitScope scope, DeleteGitFileRequest req) {
         if (req == null) {
             throw ApiException.badRequest("INVALID_GIT_INPUT", "Request body is required.");
@@ -100,7 +114,9 @@ public class GitContentService {
         String message = requireNonBlank(req.commitMessage(), "commitMessage");
         String token = repoService.decryptToken(entity);
         DeleteGitFileRequest normalized = new DeleteGitFileRequest(resolvedBranch, cleanPath, sha, message);
-        return gitHub.deleteFile(token, entity.getRepoOwner(), entity.getRepoName(), normalized);
+        GitMutationResultDto result = gitHub.deleteFile(token, entity.getRepoOwner(), entity.getRepoName(), normalized);
+        commitCache.deleteByRepositoryIdAndBranch(entity.getId(), resolvedBranch);
+        return result;
     }
 
     private static String resolveBranch(GitRepositoryEntity entity, String branch) {

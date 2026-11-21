@@ -105,7 +105,7 @@ export function createHttpGitApi(scope: GitScope): GitApi {
     },
 
     deleteBranch(branchName) {
-      return apiRequest<void>('DELETE', `${base}/branches/${seg(branchName)}`);
+      return apiRequest<void>('DELETE', `${base}/branches?name=${encodeURIComponent(branchName)}`);
     },
 
     listTree(branch, path, signal) {

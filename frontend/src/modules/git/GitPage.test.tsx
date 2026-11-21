@@ -141,9 +141,12 @@ describe('GitPage', () => {
       });
     });
 
+    fireEvent.change(screen.getByLabelText(/Merge method for PR #12/i), {
+      target: { value: 'squash' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /Merge PR/i }));
     await waitFor(() => {
-      expect(api.mergePullRequest).toHaveBeenCalledWith(12, undefined);
+      expect(api.mergePullRequest).toHaveBeenCalledWith(12, { mergeMethod: 'squash' });
     });
   });
 

@@ -2,6 +2,7 @@ import { FileDiff, GitCommitHorizontal, RefreshCw } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import type { GitCommitDto } from '../../types/git.types';
+import { formatGitTimestamp } from './gitFormat';
 
 interface GitCommitsViewProps {
   branch: string;
@@ -62,7 +63,10 @@ export function GitCommitsView({
                 </div>
                 <p className="mt-1 pl-6 text-xs text-[#8A8A8A]">
                   <span className="font-mono text-[#BDBDBD]">{commit.authorName}</span> committed{' '}
-                  {commit.committedAt} — {commit.filesChanged} files (
+                  <time dateTime={commit.committedAt} title={commit.committedAt}>
+                    {formatGitTimestamp(commit.committedAt)}
+                  </time>{' '}
+                  — {commit.filesChanged} files (
                   <span className="font-mono text-[#4ADE80]">+{commit.additions}</span> /{' '}
                   <span className="font-mono text-[#EF4444]">-{commit.deletions}</span>)
                 </p>

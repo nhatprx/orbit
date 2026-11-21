@@ -11,6 +11,7 @@ import com.orbit.git.entity.GitCommitCacheEntity;
 import com.orbit.git.entity.GitRepositoryEntity;
 import com.orbit.git.repository.GitCommitCacheRepository;
 import com.orbit.git.repository.GitRepositoryJpaRepository;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +25,7 @@ public class GitHistoryService {
 
     private static final int DEFAULT_COMMIT_LIMIT = 30;
     private static final int MAX_COMMIT_LIMIT = 100;
+    static final Duration COMMIT_CACHE_TTL = Duration.ofMinutes(5);
 
     private final GitRepositoryService repoService;
     private final GitHubClient gitHub;
@@ -49,7 +51,7 @@ public class GitHistoryService {
         int clamped = clampLimit(limit);
         List<GitCommitCacheEntity> cached =
             commitCache.findByRepositoryIdAndBranchOrderByCommittedAtDesc(entity.getId(), resolvedBranch);
-        if (cached.isEmpty()) {
+        if (cached.isEmpty() || isCacheExpired(cached)) {
             return syncCommitsInternal(entity, resolvedBranch, clamped);
         }
         return cached.stream().limit(clamped).map(GitHistoryService::toCommitDto).toList();
@@ -89,13 +91,25 @@ public class GitHistoryService {
         return gitHub.createPullRequest(token, entity.getRepoOwner(), entity.getRepoName(), normalized);
     }
 
+    @Transactional
     public GitPullRequestDto mergePullRequest(GitScope scope, int pullNumber, MergeGitPullRequest req) {
         if (pullNumber <= 0) {
             throw ApiException.badRequest("INVALID_GIT_INPUT", "pullNumber must be positive.");
         }
         GitRepositoryEntity entity = repoService.requireEntity(scope);
         String token = repoService.decryptToken(entity);
-        return gitHub.mergePullRequest(token, entity.getRepoOwner(), entity.getRepoName(), pullNumber, req);
+        GitPullRequestDto merged = gitHub.mergePullRequest(token, entity.getRepoOwner(), entity.getRepoName(), pullNumber, req);
+        if (merged != null && merged.targetBranch() != null && !merged.targetBranch().isBlank()) {
+            commitCache.deleteByRepositoryIdAndBranch(entity.getId(), merged.targetBranch());
+        } else {
+            commitCache.deleteByRepositoryId(entity.getId());
+        }
+        return merged;
+    }
+
+    private static boolean isCacheExpired(List<GitCommitCacheEntity> cached) {
+        Instant cutoff = Instant.now().minus(COMMIT_CACHE_TTL);
+        return cached.stream().anyMatch(row -> row.getSyncedAt() == null || row.getSyncedAt().isBefore(cutoff));
     }
 
     private List<GitCommitDto> syncCommitsInternal(GitRepositoryEntity entity, String branch, int limit) {

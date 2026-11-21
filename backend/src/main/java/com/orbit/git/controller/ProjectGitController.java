@@ -88,13 +88,13 @@ public class ProjectGitController {
         return support.createBranch(guard.requireProjectScope(p.userId(), workspaceId, projectId, Permissions.PGIT_WRITE), req);
     }
 
-    @DeleteMapping("/branches/{branchName}")
+    @DeleteMapping("/branches")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteBranch(
         @AuthenticationPrincipal AuthenticatedUserPrincipal p, @PathVariable UUID workspaceId,
-        @PathVariable UUID projectId, @PathVariable String branchName
+        @PathVariable UUID projectId, @RequestParam String name
     ) {
-        support.deleteBranch(guard.requireProjectScope(p.userId(), workspaceId, projectId, Permissions.PGIT_DELETE), branchName);
+        support.deleteBranch(guard.requireProjectScope(p.userId(), workspaceId, projectId, Permissions.PGIT_DELETE), name);
     }
 
     @GetMapping("/tree")
