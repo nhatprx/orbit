@@ -25,15 +25,48 @@ public class ChatMessageEntity {
     @Column(nullable = false, length = 4000)
     private String content;
 
+    @Column(name = "reply_to_id")
+    private UUID replyToId;
+
+    @Column(name = "reply_to_sender_name", length = 120)
+    private String replyToSenderName;
+
+    @Column(name = "reply_to_snippet", length = 240)
+    private String replyToSnippet;
+
+    @Column(name = "attachment_name", length = 255)
+    private String attachmentName;
+
+    @Column(name = "attachment_url", length = 1024)
+    private String attachmentUrl;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
     protected ChatMessageEntity() {}
 
     public ChatMessageEntity(UUID channelId, UUID senderId, String content) {
+        this(channelId, senderId, content, null, null, null, null, null);
+    }
+
+    public ChatMessageEntity(
+        UUID channelId,
+        UUID senderId,
+        String content,
+        UUID replyToId,
+        String replyToSenderName,
+        String replyToSnippet,
+        String attachmentName,
+        String attachmentUrl
+    ) {
         this.channelId = channelId;
         this.senderId = senderId;
         this.content = content;
+        this.replyToId = replyToId;
+        this.replyToSenderName = replyToSenderName;
+        this.replyToSnippet = replyToSnippet;
+        this.attachmentName = attachmentName;
+        this.attachmentUrl = attachmentUrl;
     }
 
     @PrePersist
@@ -46,5 +79,10 @@ public class ChatMessageEntity {
     public UUID getChannelId() { return channelId; }
     public UUID getSenderId() { return senderId; }
     public String getContent() { return content; }
+    public UUID getReplyToId() { return replyToId; }
+    public String getReplyToSenderName() { return replyToSenderName; }
+    public String getReplyToSnippet() { return replyToSnippet; }
+    public String getAttachmentName() { return attachmentName; }
+    public String getAttachmentUrl() { return attachmentUrl; }
     public Instant getCreatedAt() { return createdAt; }
 }

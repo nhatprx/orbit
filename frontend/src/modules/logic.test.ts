@@ -110,22 +110,23 @@ describe('profile and settings helpers', () => {
   });
 
   it('keeps the permission catalogs aligned with the backend model', () => {
-    expect(WORKSPACE_PERMISSIONS).toHaveLength(24);
-    expect(PROJECT_PERMISSIONS).toHaveLength(17);
+    expect(WORKSPACE_PERMISSIONS).toHaveLength(32);
+    expect(PROJECT_PERMISSIONS).toHaveLength(25);
     for (const defs of [WORKSPACE_PERMISSIONS, PROJECT_PERMISSIONS]) {
       expect(new Set(defs.map((d) => d.key)).size).toBe(defs.length);
     }
     expect(groupPermissions(WORKSPACE_PERMISSIONS).map((g) => g.group)).toEqual([
-      'Workspace', 'Members', 'Roles', 'Modules', 'Integrations', 'Projects', 'Chat', 'Cloud Files',
+      'Workspace', 'Members', 'Roles', 'Modules', 'Integrations', 'Projects', 'Chat', 'Cloud Files', 'Git', 'Issues & Sprints',
     ]);
     expect(can(['a', 'b'], 'b')).toBe(true);
     expect(can([], 'b')).toBe(false);
   });
 
   it('orders modules by catalog order and drops unknown keys', () => {
-    expect(orderModules(['cloud', 'chat', 'unknown', 'git'])).toEqual(['git', 'chat', 'cloud']);
+    expect(orderModules(['issues', 'cloud', 'chat', 'unknown', 'git'])).toEqual(['git', 'chat', 'cloud', 'issues']);
     expect(isModuleKey('docs')).toBe(true);
     expect(isModuleKey('cloud')).toBe(true);
+    expect(isModuleKey('issues')).toBe(true);
     expect(isModuleKey('ppt')).toBe(false);
   });
 });

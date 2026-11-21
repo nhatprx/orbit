@@ -169,7 +169,8 @@ export function cloudScopeKey(scope: CloudScope): string {
 export type {
   CreateDocumentRequest,
   DocumentTemplateType,
-  OnlyOfficeSessionResponse,
+  OfficeDocumentResponse,
+  SaveOfficeDocumentPayload,
   SaveTextContentRequest,
   TextContentResponse,
 } from './cloudEditor.types';

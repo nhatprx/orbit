@@ -13,7 +13,7 @@ export function useCloudEditor(onRefresh: () => void) {
     if (kind === 'TEXT') {
       setOfficeNode(null);
       setTextNode(node);
-    } else if (kind === 'OFFICE') {
+    } else if (kind === 'OFFICE' || kind === 'PDF') {
       setTextNode(null);
       setOfficeNode(node);
     }
@@ -29,7 +29,12 @@ export function useCloudEditor(onRefresh: () => void) {
 
   const handleTextSaved = useCallback(
     (updated: CloudNodeDto) => {
-      setTextNode(updated);
+      const kind = classifyFileEditor(updated.name, updated.mimeType);
+      if (kind === 'OFFICE' || kind === 'PDF') {
+        setOfficeNode(updated);
+      } else {
+        setTextNode(updated);
+      }
       onRefresh();
     },
     [onRefresh]

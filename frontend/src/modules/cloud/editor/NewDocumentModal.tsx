@@ -23,9 +23,9 @@ interface TemplateOption {
 const TEMPLATES: TemplateOption[] = [
   { type: 'MD', label: 'Markdown', ext: '.md', desc: 'Notes, specs & live preview' },
   { type: 'TXT', label: 'Plain Text', ext: '.txt', desc: 'Unformatted text document' },
-  { type: 'DOCX', label: 'Word Document', ext: '.docx', desc: 'ONLYOFFICE rich document' },
-  { type: 'XLSX', label: 'Spreadsheet', ext: '.xlsx', desc: 'ONLYOFFICE workbook' },
-  { type: 'PPTX', label: 'Presentation', ext: '.pptx', desc: 'ONLYOFFICE slide deck' },
+  { type: 'DOCX', label: 'Word Document', ext: '.docx', desc: 'Orbit Docs rich document' },
+  { type: 'XLSX', label: 'Spreadsheet', ext: '.xlsx', desc: 'Orbit Sheets workbook' },
+  { type: 'PPTX', label: 'Presentation', ext: '.pptx', desc: 'Orbit Slides presentation' },
 ];
 
 function TemplateIcon({ type }: { type: DocumentTemplateType }) {

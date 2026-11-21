@@ -45,6 +45,10 @@ describe('NewDocumentModal', () => {
       />
     );
 
+    expect(screen.getByText('Orbit Docs rich document')).toBeTruthy();
+    expect(screen.getByText('Orbit Sheets workbook')).toBeTruthy();
+    expect(screen.getByText('Orbit Slides presentation')).toBeTruthy();
+
     fireEvent.click(screen.getByRole('radio', { name: /Word Document/i }));
     fireEvent.change(screen.getByLabelText('Filename'), { target: { value: 'roadmap' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create & Open' }));

@@ -14,6 +14,7 @@ import com.orbit.workspace.entity.BaseRoleEntity;
 import com.orbit.workspace.entity.RoleScope;
 import com.orbit.workspace.entity.WorkspaceRoleEntity;
 import com.orbit.workspace.permission.Permissions;
+import com.orbit.workspace.permission.SystemRole;
 import com.orbit.workspace.repository.RolePermissionRepository;
 import com.orbit.workspace.repository.WorkspaceRoleRepository;
 import java.util.List;
@@ -58,12 +59,12 @@ class WorkspaceCreationApiTest extends AbstractIntegrationTest {
         WorkspaceRoleEntity members = roles.findByWorkspaceIdAndNameIgnoreCase(id, "Member").orElseThrow();
         assertTrue(owners.isImmutable());
         assertFalse(admins.isImmutable());
-        assertEquals(24, rolePermissions.findKeys(owners.getId(), RoleScope.WORKSPACE).size());
+        assertEquals(SystemRole.OWNER.workspacePermissions().size(), rolePermissions.findKeys(owners.getId(), RoleScope.WORKSPACE).size());
         Set<String> adminKeys = rolePermissions.findKeys(admins.getId(), RoleScope.WORKSPACE);
-        assertEquals(22, adminKeys.size());
+        assertEquals(SystemRole.ADMIN.workspacePermissions().size(), adminKeys.size());
         assertFalse(adminKeys.contains(Permissions.WORKSPACE_DELETE));
         assertFalse(adminKeys.contains(Permissions.WORKSPACE_TRANSFER_OWNER));
-        assertEquals(9, rolePermissions.findKeys(members.getId(), RoleScope.WORKSPACE).size());
+        assertEquals(SystemRole.MEMBER.workspacePermissions().size(), rolePermissions.findKeys(members.getId(), RoleScope.WORKSPACE).size());
     }
 
     @Test

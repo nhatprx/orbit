@@ -21,10 +21,7 @@ export interface SaveTextContentRequest {
   expectedUpdatedAt?: string;
 }
 
-export interface OnlyOfficeSessionResponse {
-  enabled: boolean;
-  documentServerUrl: string | null;
-  config: Record<string, unknown> | null;
-  token: string | null;
-  mode: 'edit' | 'view' | null;
-}
+export type {
+  OfficeDocumentResponse,
+  SaveOfficeDocumentPayload,
+} from '../modules/cloud/editor/office/officeTypes';

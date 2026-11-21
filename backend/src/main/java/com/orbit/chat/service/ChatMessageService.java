@@ -3,6 +3,8 @@ package com.orbit.chat.service;
 import com.orbit.auth.entity.UserEntity;
 import com.orbit.auth.repository.UserRepository;
 import com.orbit.chat.dto.ChatMessageDto;
+import com.orbit.chat.dto.SendChatMessageRequest;
+import com.orbit.chat.entity.ChatChannelEntity;
 import com.orbit.chat.entity.ChatMessageEntity;
 import com.orbit.chat.repository.ChatMessageRepository;
 import com.orbit.common.ApiException;
@@ -19,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ChatMessageService {
 
-    static final int MAX_CONTENT_LENGTH = 4000;
+    static final int MAX_CONTENT_LENGTH = ChatMessageValidator.MAX_CONTENT_LENGTH;
 
     private final ChatMessageRepository messages;
     private final UserRepository users;
@@ -65,24 +67,61 @@ public class ChatMessageService {
         return new CursorPageResponse<>(newestFirst, nextCursor, hasMore, size);
     }
 
-    /** Shared by REST and STOMP. Persists first, then broadcasts the committed message. */
     public ChatMessageDto send(UUID userId, UUID channelId, String rawContent) {
+        return send(userId, channelId, new SendChatMessageRequest(rawContent));
+    }
+
+    /** Shared by REST and STOMP. Persists first, then broadcasts the committed message. */
+    public ChatMessageDto send(UUID userId, UUID channelId, SendChatMessageRequest request) {
         guard.requireAccess(userId, channelId, true);
-        String content = rawContent == null ? "" : rawContent.trim();
-        if (content.isEmpty() || content.length() > MAX_CONTENT_LENGTH) {
-            throw ApiException.badRequest(
-                "VALIDATION_ERROR", "Message must be between 1 and " + MAX_CONTENT_LENGTH + " characters."
-            );
+        if (request == null) {
+            throw ApiException.badRequest("VALIDATION_ERROR", "Message payload is required.");
         }
+        String content = ChatMessageValidator.validateContent(request.content());
+        String attachmentName = ChatMessageValidator.validateAttachmentName(request.attachmentName());
+        String attachmentUrl = ChatMessageValidator.validateAttachmentUrl(request.attachmentUrl());
+
+        UUID replyToId = null;
+        String replySenderName = null;
+        String replySnippet = null;
+        if (request.replyToId() != null) {
+            ChatMessageEntity target = messages.findByIdAndChannelId(request.replyToId(), channelId)
+                .orElseThrow(() -> ApiException.badRequest(
+                    "INVALID_REPLY_TARGET", "Reply target message was not found in this channel."
+                ));
+            replyToId = target.getId();
+            replySenderName = ChatMessageValidator.formatReplySender(
+                users.findById(target.getSenderId()).map(UserEntity::getDisplayName).orElse("Unknown")
+            );
+            replySnippet = ChatMessageValidator.formatReplySnippet(target.getContent());
+        }
+
         rateLimiter.check(userId);
         UserEntity sender = users.findById(userId)
             .orElseThrow(() -> ApiException.notFound("USER_NOT_FOUND", "User not found."));
-        ChatMessageEntity saved = messages.save(new ChatMessageEntity(channelId, userId, content));
+        ChatMessageEntity saved = messages.save(new ChatMessageEntity(
+            channelId, userId, content,
+            replyToId, replySenderName, replySnippet,
+            attachmentName, attachmentUrl
+        ));
         ChatMessageDto dto = new ChatMessageDto(
             saved.getId(), channelId, userId, sender.getDisplayName(), sender.getUsername(),
-            saved.getContent(), saved.getCreatedAt()
+            saved.getContent(), saved.getReplyToId(), saved.getReplyToSenderName(),
+            saved.getReplyToSnippet(), saved.getAttachmentName(), saved.getAttachmentUrl(),
+            saved.getCreatedAt()
         );
         broadcaster.broadcast(dto);
         return dto;
+    }
+
+    @Transactional
+    public void deleteMessage(UUID userId, UUID channelId, UUID messageId) {
+        ChatChannelEntity channel = guard.requireAccess(userId, channelId, false);
+        ChatMessageEntity message = messages.findByIdAndChannelId(messageId, channelId)
+            .orElseThrow(() -> ApiException.notFound("NOT_FOUND", "Message not found."));
+        if (!message.getSenderId().equals(userId) && !guard.canManage(userId, channel)) {
+            throw ApiException.forbidden("FORBIDDEN", "You can only delete your own messages.");
+        }
+        messages.delete(message);
     }
 }

@@ -11,7 +11,8 @@ import type {
   InitUploadRequest,
   InitUploadResponse,
   ListCloudNodesParams,
-  OnlyOfficeSessionResponse,
+  OfficeDocumentResponse,
+  SaveOfficeDocumentPayload,
   SaveTextContentRequest,
   SignPartsRequest,
   SignPartsResponse,
@@ -39,7 +40,8 @@ export interface CloudFilesApi {
   createDocument(body: CreateDocumentRequest): Promise<CloudNodeDto>;
   getTextContent(nodeId: string, signal?: AbortSignal): Promise<TextContentResponse>;
   saveTextContent(nodeId: string, body: SaveTextContentRequest): Promise<CloudNodeDto>;
-  getOnlyOfficeSession(nodeId: string, signal?: AbortSignal): Promise<OnlyOfficeSessionResponse>;
+  getOfficeContent(nodeId: string, signal?: AbortSignal): Promise<OfficeDocumentResponse>;
+  saveOfficeContent(nodeId: string, payload: SaveOfficeDocumentPayload): Promise<CloudNodeDto>;
 }
 
 export function cloudBasePath(scope: CloudScope): string {
@@ -136,8 +138,12 @@ export function createHttpCloudFilesApi(scope: CloudScope): CloudFilesApi {
       return apiRequest<CloudNodeDto>('PUT', `${base}/nodes/${seg(nodeId)}/content`, { body });
     },
 
-    getOnlyOfficeSession(nodeId, signal) {
-      return apiRequest<OnlyOfficeSessionResponse>('GET', `${base}/nodes/${seg(nodeId)}/onlyoffice-session`, { signal });
+    getOfficeContent(nodeId, signal) {
+      return apiRequest<OfficeDocumentResponse>('GET', `${base}/nodes/${seg(nodeId)}/office-content`, { signal });
+    },
+
+    saveOfficeContent(nodeId, payload) {
+      return apiRequest<CloudNodeDto>('PUT', `${base}/nodes/${seg(nodeId)}/office-content`, { body: payload });
     },
   };
 }

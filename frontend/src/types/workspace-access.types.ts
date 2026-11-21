@@ -22,7 +22,11 @@ export type WorkspacePermissionKey =
   | 'project.view_all'
   | 'chat.read'
   | 'chat.write'
-  | 'chat.manage';
+  | 'chat.manage'
+  | 'issues.read'
+  | 'issues.write'
+  | 'issues.delete'
+  | 'issues.manage';
 
 export type ProjectPermissionKey =
   | 'project.view'
@@ -37,7 +41,11 @@ export type ProjectPermissionKey =
   | 'pmodule.select'
   | 'pchat.read'
   | 'pchat.write'
-  | 'pchat.manage';
+  | 'pchat.manage'
+  | 'pissues.read'
+  | 'pissues.write'
+  | 'pissues.delete'
+  | 'pissues.manage';
 
 export interface RoleDto {
   id: string;

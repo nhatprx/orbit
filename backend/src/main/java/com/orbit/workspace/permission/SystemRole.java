@@ -43,7 +43,13 @@ public enum SystemRole {
                 Permissions.CHAT_WRITE,
                 Permissions.FILES_READ,
                 Permissions.FILES_WRITE,
-                Permissions.FILES_DELETE
+                Permissions.FILES_DELETE,
+                Permissions.GIT_READ,
+                Permissions.GIT_WRITE,
+                Permissions.GIT_DELETE,
+                Permissions.ISSUES_READ,
+                Permissions.ISSUES_WRITE,
+                Permissions.ISSUES_DELETE
             ));
         };
     }
@@ -62,7 +68,13 @@ public enum SystemRole {
                 Permissions.PCHAT_WRITE,
                 Permissions.PFILES_READ,
                 Permissions.PFILES_WRITE,
-                Permissions.PFILES_DELETE
+                Permissions.PFILES_DELETE,
+                Permissions.PGIT_READ,
+                Permissions.PGIT_WRITE,
+                Permissions.PGIT_DELETE,
+                Permissions.PISSUES_READ,
+                Permissions.PISSUES_WRITE,
+                Permissions.PISSUES_DELETE
             ));
         };
     }

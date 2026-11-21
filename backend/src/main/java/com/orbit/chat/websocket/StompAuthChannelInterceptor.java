@@ -93,7 +93,11 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         }
         UUID channelId;
         try {
-            channelId = UUID.fromString(destination.substring(ChatRelay.TOPIC_PREFIX.length()));
+            String rawId = destination.substring(ChatRelay.TOPIC_PREFIX.length());
+            if (rawId.endsWith(ChatRelay.VOICE_SUFFIX)) {
+                rawId = rawId.substring(0, rawId.length() - ChatRelay.VOICE_SUFFIX.length());
+            }
+            channelId = UUID.fromString(rawId);
         } catch (IllegalArgumentException ex) {
             throw new MessagingException("Destination is not allowed.");
         }

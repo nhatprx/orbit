@@ -3,6 +3,7 @@ import type {
   ChatMessageDto,
   ConnectImapMailRequest,
   ConnectOAuthMailRequest,
+  CreateChatChannelRequest,
   CursorPageResponse,
   LinkedAccountDto,
   MailAccountDto,
@@ -11,21 +12,44 @@ import type {
   SendChatMessageRequest,
   SendMailRequest,
   SocialProvider,
+  UpdateChatChannelRequest,
+  VoiceEventDto,
+  VoiceParticipantDto,
+  VoiceSignalRequest,
+  VoiceStateRequest,
 } from '../../types/workspace.types';
 
 export interface ChatService {
   listWorkspaceChannels(workspaceId: string): Promise<ChatChannelDto[]>;
   listProjectChannels(workspaceId: string, projectId: string): Promise<ChatChannelDto[]>;
+  createWorkspaceChannel(
+    workspaceId: string,
+    request: CreateChatChannelRequest
+  ): Promise<ChatChannelDto>;
+  createProjectChannel(
+    workspaceId: string,
+    projectId: string,
+    request: CreateChatChannelRequest
+  ): Promise<ChatChannelDto>;
+  updateChannel(channelId: string, request: UpdateChatChannelRequest): Promise<ChatChannelDto>;
+  deleteChannel(channelId: string): Promise<void>;
   listMessages(
     channelId: string,
     cursor?: string,
     limit?: number
   ): Promise<CursorPageResponse<ChatMessageDto>>;
   sendMessage(channelId: string, request: SendChatMessageRequest): Promise<ChatMessageDto>;
+  deleteMessage(channelId: string, messageId: string): Promise<void>;
   subscribeChannel(
     channelId: string,
     onMessage: (message: ChatMessageDto) => void
   ): () => void;
+  listVoiceParticipants(channelId: string): Promise<VoiceParticipantDto[]>;
+  joinVoiceChannel(channelId: string, state: VoiceStateRequest): Promise<VoiceParticipantDto[]>;
+  updateVoiceState(channelId: string, state: VoiceStateRequest): Promise<VoiceParticipantDto[]>;
+  leaveVoiceChannel(channelId: string): Promise<VoiceParticipantDto[]>;
+  sendVoiceSignal(channelId: string, signal: VoiceSignalRequest): Promise<void>;
+  subscribeVoice(channelId: string, onEvent: (event: VoiceEventDto) => void): () => void;
 }
 
 export interface MailService {

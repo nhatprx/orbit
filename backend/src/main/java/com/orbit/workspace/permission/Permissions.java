@@ -30,6 +30,14 @@ public final class Permissions {
     public static final String FILES_WRITE = "files.write";
     public static final String FILES_DELETE = "files.delete";
     public static final String FILES_MANAGE = "files.manage";
+    public static final String GIT_READ = "git.read";
+    public static final String GIT_WRITE = "git.write";
+    public static final String GIT_DELETE = "git.delete";
+    public static final String GIT_MANAGE = "git.manage";
+    public static final String ISSUES_READ = "issues.read";
+    public static final String ISSUES_WRITE = "issues.write";
+    public static final String ISSUES_DELETE = "issues.delete";
+    public static final String ISSUES_MANAGE = "issues.manage";
 
     public static final String PROJECT_VIEW = "project.view";
     public static final String PROJECT_EDIT = "project.edit";
@@ -48,6 +56,14 @@ public final class Permissions {
     public static final String PFILES_WRITE = "pfiles.write";
     public static final String PFILES_DELETE = "pfiles.delete";
     public static final String PFILES_MANAGE = "pfiles.manage";
+    public static final String PGIT_READ = "pgit.read";
+    public static final String PGIT_WRITE = "pgit.write";
+    public static final String PGIT_DELETE = "pgit.delete";
+    public static final String PGIT_MANAGE = "pgit.manage";
+    public static final String PISSUES_READ = "pissues.read";
+    public static final String PISSUES_WRITE = "pissues.write";
+    public static final String PISSUES_DELETE = "pissues.delete";
+    public static final String PISSUES_MANAGE = "pissues.manage";
 
     public static final List<String> WORKSPACE_KEYS = List.of(
         WORKSPACE_VIEW, WORKSPACE_EDIT, WORKSPACE_DELETE, WORKSPACE_TRANSFER_OWNER,
@@ -56,7 +72,9 @@ public final class Permissions {
         MODULE_ENABLE, MODULE_DISABLE, INTEGRATION_MANAGE,
         PROJECT_CREATE, PROJECT_VIEW_ALL,
         CHAT_READ, CHAT_WRITE, CHAT_MANAGE,
-        FILES_READ, FILES_WRITE, FILES_DELETE, FILES_MANAGE
+        FILES_READ, FILES_WRITE, FILES_DELETE, FILES_MANAGE,
+        GIT_READ, GIT_WRITE, GIT_DELETE, GIT_MANAGE,
+        ISSUES_READ, ISSUES_WRITE, ISSUES_DELETE, ISSUES_MANAGE
     );
 
     public static final List<String> PROJECT_KEYS = List.of(
@@ -65,7 +83,9 @@ public final class Permissions {
         PROLE_CREATE, PROLE_EDIT, PROLE_DELETE,
         PMODULE_SELECT,
         PCHAT_READ, PCHAT_WRITE, PCHAT_MANAGE,
-        PFILES_READ, PFILES_WRITE, PFILES_DELETE, PFILES_MANAGE
+        PFILES_READ, PFILES_WRITE, PFILES_DELETE, PFILES_MANAGE,
+        PGIT_READ, PGIT_WRITE, PGIT_DELETE, PGIT_MANAGE,
+        PISSUES_READ, PISSUES_WRITE, PISSUES_DELETE, PISSUES_MANAGE
     );
 
     private static final Set<String> WORKSPACE_KEY_SET = Set.copyOf(WORKSPACE_KEYS);

@@ -31,15 +31,49 @@ public class ChatChannelEntity {
     @Column(nullable = false, length = 255)
     private String description;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "channel_type", nullable = false, length = 16)
+    private ChatChannelType channelType = ChatChannelType.TEXT;
+
+    @Column(nullable = false, length = 64)
+    private String category = "TEXT CHANNELS";
+
+    @Column(name = "created_by")
+    private UUID createdBy;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
     protected ChatChannelEntity() {}
 
+    public ChatChannelEntity(
+        ChatScopeType scopeType,
+        UUID scopeId,
+        String name,
+        String description,
+        ChatChannelType channelType,
+        String category,
+        UUID createdBy
+    ) {
+        this.scopeType = scopeType;
+        this.scopeId = scopeId;
+        this.name = name;
+        this.description = description;
+        this.channelType = channelType == null ? ChatChannelType.TEXT : channelType;
+        this.category = category == null || category.isBlank()
+            ? (this.channelType == ChatChannelType.VOICE ? "VOICE CHANNELS" : "TEXT CHANNELS")
+            : category;
+        this.createdBy = createdBy;
+    }
+
     @PrePersist
     void onCreate() {
         if (id == null) id = UUID.randomUUID();
         if (createdAt == null) createdAt = Timestamps.now();
+        if (channelType == null) channelType = ChatChannelType.TEXT;
+        if (category == null || category.isBlank()) {
+            category = channelType == ChatChannelType.VOICE ? "VOICE CHANNELS" : "TEXT CHANNELS";
+        }
     }
 
     public UUID getId() { return id; }
@@ -47,5 +81,12 @@ public class ChatChannelEntity {
     public UUID getScopeId() { return scopeId; }
     public String getName() { return name; }
     public String getDescription() { return description; }
+    public ChatChannelType getChannelType() { return channelType == null ? ChatChannelType.TEXT : channelType; }
+    public String getCategory() { return category; }
+    public UUID getCreatedBy() { return createdBy; }
     public Instant getCreatedAt() { return createdAt; }
+
+    public void setName(String name) { this.name = name; }
+    public void setDescription(String description) { this.description = description; }
+    public void setCategory(String category) { this.category = category; }
 }

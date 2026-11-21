@@ -3,7 +3,9 @@ package com.orbit.chat.controller;
 import com.orbit.auth.security.AuthenticatedUserPrincipal;
 import com.orbit.chat.dto.ChatChannelDto;
 import com.orbit.chat.dto.ChatMessageDto;
+import com.orbit.chat.dto.CreateChatChannelRequest;
 import com.orbit.chat.dto.SendChatMessageRequest;
+import com.orbit.chat.dto.UpdateChatChannelRequest;
 import com.orbit.chat.service.ChatChannelService;
 import com.orbit.chat.service.ChatMessageService;
 import com.orbit.common.CursorPageResponse;
@@ -13,7 +15,9 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -36,18 +40,60 @@ public class ChatController {
 
     @GetMapping("/workspaces/{workspaceId}/chat/channels")
     public List<ChatChannelDto> workspaceChannels(
-        @AuthenticationPrincipal AuthenticatedUserPrincipal principal, @PathVariable UUID workspaceId
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+        @PathVariable UUID workspaceId,
+        @RequestParam(defaultValue = "false") boolean seedVoice
     ) {
-        return channels.listWorkspace(principal.userId(), workspaceId);
+        return channels.listWorkspace(principal.userId(), workspaceId, seedVoice);
     }
 
     @GetMapping("/workspaces/{workspaceId}/projects/{projectId}/chat/channels")
     public List<ChatChannelDto> projectChannels(
         @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
         @PathVariable UUID workspaceId,
-        @PathVariable UUID projectId
+        @PathVariable UUID projectId,
+        @RequestParam(defaultValue = "false") boolean seedVoice
     ) {
-        return channels.listProject(principal.userId(), workspaceId, projectId);
+        return channels.listProject(principal.userId(), workspaceId, projectId, seedVoice);
+    }
+
+    @PostMapping("/workspaces/{workspaceId}/chat/channels")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ChatChannelDto createWorkspaceChannel(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+        @PathVariable UUID workspaceId,
+        @RequestBody CreateChatChannelRequest request
+    ) {
+        return channels.createWorkspaceChannel(principal.userId(), workspaceId, request);
+    }
+
+    @PostMapping("/workspaces/{workspaceId}/projects/{projectId}/chat/channels")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ChatChannelDto createProjectChannel(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+        @PathVariable UUID workspaceId,
+        @PathVariable UUID projectId,
+        @RequestBody CreateChatChannelRequest request
+    ) {
+        return channels.createProjectChannel(principal.userId(), workspaceId, projectId, request);
+    }
+
+    @PatchMapping("/chat/channels/{channelId}")
+    public ChatChannelDto updateChannel(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+        @PathVariable UUID channelId,
+        @RequestBody UpdateChatChannelRequest request
+    ) {
+        return channels.updateChannel(principal.userId(), channelId, request);
+    }
+
+    @DeleteMapping("/chat/channels/{channelId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteChannel(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+        @PathVariable UUID channelId
+    ) {
+        channels.deleteChannel(principal.userId(), channelId);
     }
 
     @GetMapping("/chat/channels/{channelId}/messages")
@@ -67,6 +113,16 @@ public class ChatController {
         @PathVariable UUID channelId,
         @Valid @RequestBody SendChatMessageRequest request
     ) {
-        return messages.send(principal.userId(), channelId, request.content());
+        return messages.send(principal.userId(), channelId, request);
+    }
+
+    @DeleteMapping("/chat/channels/{channelId}/messages/{messageId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteMessage(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+        @PathVariable UUID channelId,
+        @PathVariable UUID messageId
+    ) {
+        messages.deleteMessage(principal.userId(), channelId, messageId);
     }
 }

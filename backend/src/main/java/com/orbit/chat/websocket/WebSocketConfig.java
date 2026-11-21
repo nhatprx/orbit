@@ -17,7 +17,7 @@ import org.springframework.web.socket.config.annotation.WebSocketTransportRegist
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
-    private static final int MAX_MESSAGE_BYTES = 16 * 1024;
+    private static final int MAX_MESSAGE_BYTES = 64 * 1024;
     private static final long HEARTBEAT_MS = 10_000L;
 
     private final StompAuthChannelInterceptor authInterceptor;

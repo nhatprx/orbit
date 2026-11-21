@@ -1,7 +1,0 @@
-{$ONLYOFFICE_DOMAIN:office-dev.orbit.nhatprx.com} {
-	encode zstd gzip
-	reverse_proxy onlyoffice:80 {
-		header_up X-Forwarded-Proto {scheme}
-		header_up X-Forwarded-Host {host}
-	}
-}

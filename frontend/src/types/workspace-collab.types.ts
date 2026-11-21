@@ -1,4 +1,5 @@
 export type ChatScopeType = 'WORKSPACE' | 'PROJECT';
+export type ChatChannelType = 'TEXT' | 'VOICE';
 
 export interface ChatChannelDto {
   id: string;
@@ -6,7 +7,23 @@ export interface ChatChannelDto {
   scopeId: string;
   name: string;
   description: string;
+  channelType: ChatChannelType;
+  category: string;
+  participantCount: number;
   createdAt: string;
+}
+
+export interface CreateChatChannelRequest {
+  name: string;
+  description?: string;
+  channelType: ChatChannelType;
+  category?: string;
+}
+
+export interface UpdateChatChannelRequest {
+  name?: string;
+  description?: string;
+  category?: string;
 }
 
 export interface ChatMessageDto {
@@ -16,11 +33,72 @@ export interface ChatMessageDto {
   senderName: string;
   senderUsername: string;
   content: string;
+  replyToId?: string | null;
+  replyToSenderName?: string | null;
+  replyToSnippet?: string | null;
+  attachmentName?: string | null;
+  attachmentUrl?: string | null;
   createdAt: string;
 }
 
 export interface SendChatMessageRequest {
   content: string;
+  replyToId?: string | null;
+  attachmentName?: string | null;
+  attachmentUrl?: string | null;
+}
+
+export interface VoiceParticipantDto {
+  userId: string;
+  username: string;
+  displayName: string;
+  muted: boolean;
+  deafened: boolean;
+  cameraOn: boolean;
+  screenSharing: boolean;
+  speaking: boolean;
+  joinedAt: string;
+}
+
+export interface VoiceStateRequest {
+  muted: boolean;
+  deafened: boolean;
+  cameraOn: boolean;
+  screenSharing: boolean;
+  speaking: boolean;
+}
+
+export type VoiceSignalType =
+  | 'OFFER'
+  | 'ANSWER'
+  | 'ICE_CANDIDATE'
+  | 'SCREEN_SHARE_STARTED'
+  | 'SCREEN_SHARE_STOPPED'
+  | 'SPEAKING';
+
+export interface VoiceSignalRequest {
+  type: VoiceSignalType;
+  targetUserId?: string | null;
+  sdp?: string | null;
+  candidate?: string | null;
+  sdpMid?: string | null;
+  sdpMLineIndex?: number | null;
+}
+
+export interface VoiceEventDto {
+  eventType: 'PARTICIPANTS' | 'SIGNAL';
+  channelId: string;
+  senderId: string | null;
+  senderName: string | null;
+  senderUsername: string | null;
+  targetUserId: string | null;
+  signalType: VoiceSignalType | null;
+  sdp: string | null;
+  candidate: string | null;
+  sdpMid: string | null;
+  sdpMLineIndex: number | null;
+  participants: VoiceParticipantDto[] | null;
+  timestamp: string;
 }
 
 export type MailProvider = 'gmail' | 'outlook' | 'imap';

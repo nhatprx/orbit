@@ -9,6 +9,7 @@ import com.orbit.support.ApiClient;
 import com.orbit.support.ApiClient.Result;
 import com.orbit.support.Fixtures;
 import com.orbit.support.RequiresDocker;
+import com.orbit.workspace.permission.Permissions;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -35,7 +36,10 @@ class RoleApiTest extends AbstractIntegrationTest {
         Result list = api(owner).get(url);
         assertEquals(200, list.status());
         assertEquals(3, list.<List<Object>>json("$").size());
-        assertEquals(24, list.<List<Integer>>json("$[?(@.name=='Owner')].permissions.length()").getFirst());
+        assertEquals(
+            Permissions.WORKSPACE_KEYS.size(),
+            list.<List<Integer>>json("$[?(@.name=='Owner')].permissions.length()").getFirst()
+        );
         assertEquals(1, list.<List<Integer>>json("$[?(@.name=='Member')].memberCount").getFirst());
         assertTrue(list.<List<Boolean>>json("$[?(@.name=='Owner')].immutable").getFirst());
 
@@ -117,7 +121,10 @@ class RoleApiTest extends AbstractIntegrationTest {
         String url = Fixtures.projectUrl(ws, project) + "/roles";
 
         assertEquals(3, api(owner).get(url).<List<Object>>json("$").size());
-        assertEquals(17, api(owner).get(url).<List<Integer>>json("$[?(@.name=='Owner')].permissions.length()").getFirst());
+        assertEquals(
+            Permissions.PROJECT_KEYS.size(),
+            api(owner).get(url).<List<Integer>>json("$[?(@.name=='Owner')].permissions.length()").getFirst()
+        );
 
         Result created = api(owner).post(url, Fixtures.roleBody("Reviewer", "project.view", "pchat.read"));
         assertEquals(201, created.status());

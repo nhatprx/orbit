@@ -15,13 +15,16 @@ describe('fileEditorRegistry', () => {
     expect(getFileExtension('trailing.')).toBe('');
   });
 
-  it('classifies Office, Text/Code, and unsupported files', () => {
+  it('classifies Office, PDF, Text/Code, and unsupported files', () => {
     expect(classifyFileEditor('proposal.docx')).toBe('OFFICE');
     expect(classifyFileEditor('budget.xlsx')).toBe('OFFICE');
     expect(classifyFileEditor('deck.pptx')).toBe('OFFICE');
     expect(classifyFileEditor('legacy.doc')).toBe('OFFICE');
     expect(classifyFileEditor('legacy.xls')).toBe('OFFICE');
     expect(classifyFileEditor('legacy.ppt')).toBe('OFFICE');
+
+    expect(classifyFileEditor('manual.pdf', 'application/pdf')).toBe('PDF');
+    expect(classifyFileEditor('report.PDF')).toBe('PDF');
 
     expect(classifyFileEditor('notes.md')).toBe('TEXT');
     expect(classifyFileEditor('data.csv')).toBe('TEXT');
@@ -33,12 +36,12 @@ describe('fileEditorRegistry', () => {
 
     expect(classifyFileEditor('photo.png', 'image/png')).toBe('NONE');
     expect(classifyFileEditor('archive.zip', 'application/zip')).toBe('NONE');
-    expect(classifyFileEditor('manual.pdf', 'application/pdf')).toBe('NONE');
   });
 
   it('falls back to MIME type when filename has no known extension', () => {
     expect(classifyFileEditor('untitled', 'text/plain; charset=utf-8')).toBe('TEXT');
     expect(classifyFileEditor('payload', 'application/json')).toBe('TEXT');
+    expect(classifyFileEditor('scan', 'application/pdf')).toBe('PDF');
     expect(
       classifyFileEditor(
         'document',

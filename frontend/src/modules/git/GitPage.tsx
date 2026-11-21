@@ -1,130 +1,198 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { Code2, GitCommitHorizontal, GitPullRequest, X } from 'lucide-react';
+import type { GitApi } from '../../services/git/gitApi';
 import {
-  Check,
-  Code2,
-  Copy,
-  GitBranch,
-  GitCommitHorizontal,
-  GitPullRequest,
-} from 'lucide-react';
-import { Badge } from '../../components/ui/Badge';
-import { Button } from '../../components/ui/Button';
-import { gitService } from '../../services/git.service';
-import type { GitRepoData } from '../../types/git.types';
+  getGitPermissions,
+  type GitCommitDetailDto,
+  type GitFileContentDto,
+  type GitScope,
+} from '../../types/git.types';
 import { GitCodeView } from './GitCodeView';
 import { GitCommitsView } from './GitCommitsView';
+import { GitConnectPanel } from './GitConnectPanel';
+import { GitHeaderBar } from './GitHeaderBar';
+import { GitModals } from './GitModals';
 import { GitPullRequestsView } from './GitPullRequestsView';
+import { useGitWorkspace } from './useGitWorkspace';
 
 interface GitPageProps {
-  workspaceId: string;
+  scope: GitScope;
+  scopeLabel?: string;
+  api?: GitApi;
 }
 
 type GitTab = 'code' | 'commits' | 'prs';
 
-export function GitPage({ workspaceId }: GitPageProps) {
-  const [repo, setRepo] = useState<GitRepoData | null>(null);
-  const [branch, setBranch] = useState('main');
+export function GitPage({ scope, scopeLabel, api }: GitPageProps) {
+  const ws = useGitWorkspace(scope, api);
+  const perms = getGitPermissions(scope);
   const [tab, setTab] = useState<GitTab>('code');
-  const [copiedClone, setCopiedClone] = useState(false);
+  const [showAccess, setShowAccess] = useState(false);
+  const [showBranches, setShowBranches] = useState(false);
+  const [showCreatePr, setShowCreatePr] = useState(false);
+  const [fileEditor, setFileEditor] = useState<{
+    mode: 'create' | 'edit';
+    file?: GitFileContentDto;
+  } | null>(null);
+  const [commitModal, setCommitModal] = useState<{
+    open: boolean;
+    loading: boolean;
+    detail: GitCommitDetailDto | null;
+  }>({ open: false, loading: false, detail: null });
 
-  useEffect(() => {
-    let active = true;
-    gitService.getRepository(workspaceId).then((data) => {
-      if (!active) return;
-      setRepo(data);
-      setBranch(data.defaultBranch);
-    });
-    return () => {
-      active = false;
-    };
-  }, [workspaceId]);
-
-  async function handleCopyClone() {
-    if (!repo) return;
-    await navigator.clipboard.writeText(repo.cloneUrl);
-    setCopiedClone(true);
-    setTimeout(() => setCopiedClone(false), 1500);
+  async function handleInspectCommit(sha: string) {
+    setCommitModal({ open: true, loading: true, detail: null });
+    try {
+      const detail = await ws.inspectCommit(sha);
+      setCommitModal({ open: true, loading: false, detail });
+    } catch {
+      setCommitModal({ open: false, loading: false, detail: null });
+    }
   }
 
-  if (!repo) {
+  if (ws.loading) {
     return (
       <div className="border border-[#30363D] bg-[#161B22] p-6 text-sm text-[#8A8A8A]">
-        Loading repository...
+        Loading Git repository...
       </div>
     );
   }
 
+  if (!ws.repo) {
+    return (
+      <GitConnectPanel
+        scopeLabel={scopeLabel}
+        canManage={perms.canManage}
+        onInspectToken={(token) => ws.api.inspectToken(token)}
+        onConnectRepo={(req) => ws.connectRepo(req)}
+        onCreateRepo={(req) => ws.createRepo(req)}
+      />
+    );
+  }
+
+  const tabs = [
+    { id: 'code' as const, label: 'Code', icon: Code2 },
+    { id: 'commits' as const, label: `Commits (${ws.commits.length})`, icon: GitCommitHorizontal },
+    { id: 'prs' as const, label: `Pull Requests (${ws.pullRequests.length})`, icon: GitPullRequest },
+  ];
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 border border-[#30363D] bg-[#161B22] p-4">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <h1 className="font-mono text-base font-semibold text-[#E6EDF3]">
-            {repo.slug}
-          </h1>
-          <Badge tone="neutral">{repo.visibility}</Badge>
-        </div>
+      <GitHeaderBar
+        repo={ws.repo}
+        scopeLabel={scopeLabel}
+        branches={ws.branches}
+        activeBranch={ws.activeBranch}
+        syncingCommits={ws.syncingCommits}
+        onSelectBranch={ws.setActiveBranch}
+        onOpenBranches={() => setShowBranches(true)}
+        onPullCommits={() => void ws.pullCommitHistory()}
+        onOpenAccess={() => setShowAccess(true)}
+      />
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center border border-[#30363D] bg-[#0D1117] px-2">
-            <GitBranch className="h-3.5 w-3.5 text-[#22C55E]" strokeWidth={1.5} />
-            <select
-              value={branch}
-              onChange={(e) => setBranch(e.target.value)}
-              className="h-7 bg-transparent px-1.5 font-mono text-xs text-[#E6EDF3] focus:outline-none"
-            >
-              {repo.branches.map((b) => (
-                <option key={b} value={b} className="bg-[#161B22]">
-                  {b}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <Button type="button" variant="primary" onClick={() => void handleCopyClone()}>
-            {copiedClone ? (
-              <>
-                <Check className="h-4 w-4" strokeWidth={1.5} />
-                SSH Copied
-              </>
-            ) : (
-              <>
-                <Copy className="h-4 w-4" strokeWidth={1.5} />
-                Clone SSH
-              </>
-            )}
-          </Button>
+      {ws.error && (
+        <div className="flex items-center justify-between border border-[#EF4444] bg-[#161B22] px-4 py-2.5 text-xs text-[#EF4444]">
+          <span>{ws.error}</span>
+          <button type="button" aria-label="Dismiss error" onClick={ws.clearError}>
+            <X className="h-3.5 w-3.5" strokeWidth={1.5} />
+          </button>
         </div>
-      </div>
+      )}
+
+      {ws.notice && (
+        <div className="flex items-center justify-between border border-[#22C55E] bg-[#052E16] px-4 py-2.5 text-xs text-[#4ADE80]">
+          <span>{ws.notice}</span>
+          <button type="button" aria-label="Dismiss notice" onClick={ws.clearNotice}>
+            <X className="h-3.5 w-3.5" strokeWidth={1.5} />
+          </button>
+        </div>
+      )}
 
       <div className="flex gap-1 border-b border-[#30363D]">
-        {[
-          { id: 'code' as const, label: 'Code', icon: Code2 },
-          { id: 'commits' as const, label: `Commits (${repo.commits.length})`, icon: GitCommitHorizontal },
-          { id: 'prs' as const, label: `Pull Requests (${repo.pullRequests.length})`, icon: GitPullRequest },
-        ].map((item) => {
-          const Icon = item.icon;
-          const active = tab === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setTab(item.id)}
-              className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-                active
-                  ? 'border-[#22C55E] text-[#22C55E]'
-                  : 'border-transparent text-[#BDBDBD] hover:text-[#E6EDF3]'
-              }`}
-            >
-              <Icon className="h-4 w-4" strokeWidth={1.5} />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
+        {tabs.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => setTab(id)}
+            className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+              tab === id
+                ? 'border-[#22C55E] text-[#22C55E]'
+                : 'border-transparent text-[#BDBDBD] hover:text-[#E6EDF3]'
+            }`}
+          >
+            <Icon className="h-4 w-4" strokeWidth={1.5} />
+            <span>{label}</span>
+          </button>
+        ))}
       </div>
 
-      {tab === 'code' && <GitCodeView files={repo.files} />}
-      {tab === 'commits' && <GitCommitsView commits={repo.commits} />}
-      {tab === 'prs' && <GitPullRequestsView pullRequests={repo.pullRequests} />}
+      {tab === 'code' && (
+        <GitCodeView
+          currentDir={ws.currentDir}
+          tree={ws.tree}
+          selectedFile={ws.selectedFile}
+          fileLoading={ws.fileLoading}
+          canWrite={perms.canWrite}
+          canDelete={perms.canDelete}
+          onNavigateDir={(dir) => void ws.navigateDir(dir)}
+          onOpenFile={(path) => void ws.openFile(path)}
+          onNewFile={() => setFileEditor({ mode: 'create' })}
+          onEditFile={(file) => setFileEditor({ mode: 'edit', file })}
+          onDeleteFile={async (file, commitMessage) => {
+            await ws.removeFile({ branch: ws.activeBranch, path: file.path, sha: file.sha, commitMessage });
+          }}
+        />
+      )}
+
+      {tab === 'commits' && (
+        <GitCommitsView
+          branch={ws.activeBranch}
+          commits={ws.commits}
+          syncing={ws.syncingCommits}
+          onSyncCommits={() => void ws.pullCommitHistory()}
+          onInspectCommit={(sha) => void handleInspectCommit(sha)}
+        />
+      )}
+
+      {tab === 'prs' && (
+        <GitPullRequestsView
+          pullRequests={ws.pullRequests}
+          filter={ws.prFilter}
+          canWrite={perms.canWrite}
+          onFilterChange={ws.setPrFilter}
+          onNewPr={() => setShowCreatePr(true)}
+          onMergePr={async (num) => {
+            await ws.mergePr(num);
+          }}
+        />
+      )}
+
+      <GitModals
+        repo={ws.repo}
+        branches={ws.branches}
+        activeBranch={ws.activeBranch}
+        currentDir={ws.currentDir}
+        canWrite={perms.canWrite}
+        canDelete={perms.canDelete}
+        canManage={perms.canManage}
+        showAccess={showAccess}
+        showBranches={showBranches}
+        showCreatePr={showCreatePr}
+        fileEditor={fileEditor}
+        commitModal={commitModal}
+        onCloseAccess={() => setShowAccess(false)}
+        onCloseBranches={() => setShowBranches(false)}
+        onCloseCreatePr={() => setShowCreatePr(false)}
+        onCloseFileEditor={() => setFileEditor(null)}
+        onCloseCommitModal={() => setCommitModal({ open: false, loading: false, detail: null })}
+        onSelectBranch={ws.setActiveBranch}
+        onUpdateToken={ws.updateToken}
+        onDisconnect={ws.disconnectRepo}
+        onCreateBranch={ws.createBranch}
+        onDeleteBranch={ws.deleteBranch}
+        onSaveFile={ws.saveFile}
+        onCreatePr={ws.createPr}
+      />
     </div>
   );
 }

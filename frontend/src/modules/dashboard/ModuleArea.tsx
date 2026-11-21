@@ -6,6 +6,7 @@ import type { ModuleKey } from '../../types/workspace.types';
 import { ChatPage } from '../chat/ChatPage';
 import { CloudFilesPage } from '../cloud/CloudFilesPage';
 import { GitPage } from '../git/GitPage';
+import { IssuesPage } from '../issues/IssuesPage';
 import { MODULE_META } from '../workspace/moduleMeta';
 import type { DashboardNavigation } from './useDashboardNavigation';
 
@@ -46,7 +47,16 @@ export function ModuleArea({ module, nav }: ModuleAreaProps) {
   if (module === 'chat') {
     return <ChatPage workspace={workspace} project={project} />;
   }
-  if (module === 'cloud') {
+  if (module === 'issues') {
+    return (
+      <IssuesPage
+        workspace={workspace}
+        project={project}
+        onOpenProject={(projectId) => nav.openProject(projectId, 'issues')}
+      />
+    );
+  }
+  if (module === 'cloud' || module === 'docs' || module === 'sheets') {
     if (project) {
       return (
         <CloudFilesPage
@@ -72,7 +82,29 @@ export function ModuleArea({ module, nav }: ModuleAreaProps) {
     );
   }
   if (module === 'git') {
-    return <GitPage workspaceId={scope.slug} />;
+    if (project) {
+      return (
+        <GitPage
+          scope={{
+            type: 'PROJECT',
+            workspaceId: workspace.id,
+            projectId: project.id,
+            permissions: project.myPermissions,
+          }}
+          scopeLabel={project.name}
+        />
+      );
+    }
+    return (
+      <GitPage
+        scope={{
+          type: 'WORKSPACE',
+          workspaceId: workspace.id,
+          permissions: workspace.myPermissions,
+        }}
+        scopeLabel={workspace.name}
+      />
+    );
   }
   const Icon = meta.icon;
   return (

@@ -1,17 +1,19 @@
 package com.orbit.chat.service;
 
 import com.orbit.chat.dto.ChatMessageDto;
+import com.orbit.chat.dto.VoiceEventDto;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
-/** Delivers a message to the STOMP subscribers connected to this API instance. */
+/** Delivers messages and voice events to the STOMP subscribers connected to this API instance. */
 @Component
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class ChatRelay {
 
     public static final String TOPIC_PREFIX = "/topic/chat.";
+    public static final String VOICE_SUFFIX = ".voice";
 
     private final SimpMessagingTemplate template;
 
@@ -21,5 +23,9 @@ public class ChatRelay {
 
     public void deliver(ChatMessageDto message) {
         template.convertAndSend(TOPIC_PREFIX + message.channelId(), message);
+    }
+
+    public void deliverVoice(VoiceEventDto event) {
+        template.convertAndSend(TOPIC_PREFIX + event.channelId() + VOICE_SUFFIX, event);
     }
 }

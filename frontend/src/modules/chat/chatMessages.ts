@@ -16,6 +16,12 @@ export function mergeOlder(messages: ChatMessageDto[], older: ChatMessageDto[]):
   return [...older.filter((m) => !known.has(m.id)), ...messages].sort(compare);
 }
 
+/** Removes a deleted message by id; returns the original array reference when absent. */
+export function removeMessage(messages: ChatMessageDto[], messageId: string): ChatMessageDto[] {
+  const next = messages.filter((m) => m.id !== messageId);
+  return next.length === messages.length ? messages : next;
+}
+
 export const MAX_MESSAGE_LENGTH = 4000;
 
 export type DraftCheck = { ok: true; content: string } | { ok: false; error: string };

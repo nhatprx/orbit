@@ -4,6 +4,7 @@ import com.orbit.chat.dto.ChatMessageDto;
 import com.orbit.chat.entity.ChatMessageEntity;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -11,10 +12,14 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface ChatMessageRepository extends JpaRepository<ChatMessageEntity, UUID> {
 
+    Optional<ChatMessageEntity> findByIdAndChannelId(UUID id, UUID channelId);
+
     /** Newest first; callers pass a bounded page size. */
     @Query("""
         select new com.orbit.chat.dto.ChatMessageDto(
-            m.id, m.channelId, u.id, u.displayName, u.username, m.content, m.createdAt)
+            m.id, m.channelId, u.id, u.displayName, u.username, m.content,
+            m.replyToId, m.replyToSenderName, m.replyToSnippet,
+            m.attachmentName, m.attachmentUrl, m.createdAt)
         from ChatMessageEntity m join UserEntity u on u.id = m.senderId
         where m.channelId = :channelId
         order by m.createdAt desc, m.id desc
@@ -23,7 +28,9 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessageEntity, 
 
     @Query("""
         select new com.orbit.chat.dto.ChatMessageDto(
-            m.id, m.channelId, u.id, u.displayName, u.username, m.content, m.createdAt)
+            m.id, m.channelId, u.id, u.displayName, u.username, m.content,
+            m.replyToId, m.replyToSenderName, m.replyToSnippet,
+            m.attachmentName, m.attachmentUrl, m.createdAt)
         from ChatMessageEntity m join UserEntity u on u.id = m.senderId
         where m.channelId = :channelId
           and (m.createdAt < :createdAt or (m.createdAt = :createdAt and m.id < :id))

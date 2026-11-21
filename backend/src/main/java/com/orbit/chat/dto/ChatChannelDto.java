@@ -9,5 +9,19 @@ public record ChatChannelDto(
     UUID scopeId,
     String name,
     String description,
+    String channelType,
+    String category,
+    int participantCount,
     Instant createdAt
-) {}
+) {
+    public ChatChannelDto(
+        UUID id,
+        String scopeType,
+        UUID scopeId,
+        String name,
+        String description,
+        Instant createdAt
+    ) {
+        this(id, scopeType, scopeId, name, description, "TEXT", "TEXT CHANNELS", 0, createdAt);
+    }
+}

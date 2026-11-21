@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertCircle, Columns2, FileCode2, Save, X } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Columns2, FileCode2, Save, X } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import type { CloudFilesApi } from '../../../services/cloud/cloudApi';
 import type { CloudNodeDto } from '../../../types/cloud.types';
@@ -17,11 +17,7 @@ interface CloudTextEditorModalProps {
 }
 
 export function CloudTextEditorModal({
-  node,
-  api,
-  canWrite,
-  onClose,
-  onSaved,
+  node, api, canWrite, onClose, onSaved,
 }: CloudTextEditorModalProps) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -44,8 +40,7 @@ export function CloudTextEditorModal({
     setConfirmDiscard(false);
     setShowPreview(isMarkdownFile(node.name, node.mimeType));
 
-    api
-      .getTextContent(node.id, controller.signal)
+    api.getTextContent(node.id, controller.signal)
       .then((res) => {
         if (controller.signal.aborted) return;
         setSavedContent(res.content);
@@ -54,8 +49,7 @@ export function CloudTextEditorModal({
         setLoadSeq((prev) => prev + 1);
       })
       .catch((err: unknown) => {
-        if (controller.signal.aborted) return;
-        setError(err instanceof Error ? err.message : 'Failed to load document content.');
+        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : 'Failed to load document content.');
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
@@ -69,10 +63,7 @@ export function CloudTextEditorModal({
     setSaving(true);
     setError(null);
     try {
-      const updated = await api.saveTextContent(node.id, {
-        content,
-        expectedUpdatedAt: updatedAt,
-      });
+      const updated = await api.saveTextContent(node.id, { content, expectedUpdatedAt: updatedAt });
       setSavedContent(content);
       setUpdatedAt(updated.updatedAt);
       setConfirmDiscard(false);
@@ -113,9 +104,12 @@ export function CloudTextEditorModal({
   const statusLabel = !canWrite ? 'Read-Only' : dirty ? 'Unsaved' : 'Saved';
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={`Editor for ${node.name}`} className="fixed inset-0 z-50 flex flex-col bg-[#0D1117]">
+    <div aria-label={`Editor for ${node.name}`} className="flex h-full w-full flex-col bg-[#0D1117]">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#30363D] bg-[#161B22] px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-3">
+          <Button type="button" variant="secondary" onClick={requestClose}>
+            <ArrowLeft className="h-3.5 w-3.5" strokeWidth={1.5} /> Back to files
+          </Button>
           <FileCode2 className="h-4 w-4 shrink-0 text-[#22C55E]" strokeWidth={1.5} />
           <span className="truncate text-sm font-semibold text-[#E6EDF3]">{node.name}</span>
           <span className="hidden font-mono text-[11px] text-[#7D8590] sm:inline">{formatBytes(node.sizeBytes)}</span>
@@ -127,11 +121,7 @@ export function CloudTextEditorModal({
 
         <div className="flex items-center gap-2">
           {isMarkdown && (
-            <Button
-              type="button"
-              variant={showPreview ? 'primary' : 'secondary'}
-              onClick={() => setShowPreview((prev) => !prev)}
-            >
+            <Button type="button" variant={showPreview ? 'primary' : 'secondary'} onClick={() => setShowPreview((prev) => !prev)}>
               <Columns2 className="h-3.5 w-3.5" strokeWidth={1.5} />
               {showPreview ? 'Hide Preview' : 'Split Preview'}
             </Button>
@@ -142,22 +132,13 @@ export function CloudTextEditorModal({
               {saving ? 'Saving...' : 'Save'}
             </Button>
           )}
-          <Button type="button" variant="secondary" aria-label="Close editor" onClick={requestClose}>
-            <X className="h-3.5 w-3.5" strokeWidth={1.5} />
-            Close
-          </Button>
         </div>
       </header>
 
       {error && (
         <div role="alert" className="flex items-center justify-between gap-2 border-b border-[#EF4444]/40 bg-[#EF4444]/10 px-4 py-2 text-xs text-[#EF4444]">
-          <span className="flex items-center gap-2">
-            <AlertCircle className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
-            {error}
-          </span>
-          <button type="button" aria-label="Dismiss editor error" onClick={() => setError(null)}>
-            <X className="h-3.5 w-3.5" strokeWidth={1.5} />
-          </button>
+          <span className="flex items-center gap-2"><AlertCircle className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} /> {error}</span>
+          <button type="button" aria-label="Dismiss editor error" onClick={() => setError(null)}><X className="h-3.5 w-3.5" strokeWidth={1.5} /></button>
         </div>
       )}
 

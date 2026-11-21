@@ -5,33 +5,16 @@ import type { CloudNodeDto, CloudQuotaDto } from '../../types/cloud.types';
 import { CloudFilesPage } from './CloudFilesPage';
 
 const QUOTA: CloudQuotaDto = {
-  scopeType: 'USER',
-  scopeId: 'u-1',
-  usedBytes: 512 * 1024 * 1024,
-  quotaBytes: 5 * 1024 * 1024 * 1024,
-  reservedBytes: 0,
-  maxFileSizeBytes: 500 * 1024 * 1024,
-  multipartThresholdBytes: 50 * 1024 * 1024,
+  scopeType: 'USER', scopeId: 'u-1', usedBytes: 512 * 1024 * 1024, quotaBytes: 5 * 1024 * 1024 * 1024,
+  reservedBytes: 0, maxFileSizeBytes: 500 * 1024 * 1024, multipartThresholdBytes: 50 * 1024 * 1024,
 };
 
 function makeNode(overrides: Partial<CloudNodeDto> = {}): CloudNodeDto {
   return {
-    id: 'n-1',
-    scopeType: 'USER',
-    scopeId: 'u-1',
-    parentId: null,
-    nodeType: 'FILE',
-    name: 'architecture.pdf',
-    mimeType: 'application/pdf',
-    sizeBytes: 2048,
-    starred: false,
-    depth: 0,
-    createdBy: 'u-1',
-    createdByName: 'Alice',
-    deletedAt: null,
-    purgeAfter: null,
-    createdAt: '2026-11-20T00:00:00Z',
-    updatedAt: '2026-11-20T00:00:00Z',
+    id: 'n-1', scopeType: 'USER', scopeId: 'u-1', parentId: null, nodeType: 'FILE',
+    name: 'architecture.pdf', mimeType: 'application/pdf', sizeBytes: 2048, starred: false, depth: 0,
+    createdBy: 'u-1', createdByName: 'Alice', deletedAt: null, purgeAfter: null,
+    createdAt: '2026-11-20T00:00:00Z', updatedAt: '2026-11-20T00:00:00Z',
     ...overrides,
   };
 }
@@ -51,25 +34,24 @@ function makeMockApi(overrides: Partial<CloudFilesApi> = {}): CloudFilesApi {
     signUploadParts: vi.fn(),
     completeUpload: vi.fn(),
     abortUpload: vi.fn(),
-    getDownloadUrl: vi.fn(),
+    getDownloadUrl: vi.fn().mockResolvedValue({
+      url: 'https://cdn.orbit.local/dl', expiresAt: '2026-11-20T01:00:00Z', provider: 'S3',
+      filename: 'architecture.pdf', mimeType: 'application/pdf', sizeBytes: 2048,
+    }),
     createDocument: vi.fn().mockResolvedValue(makeNode({ id: 'doc-1', name: 'notes.md', mimeType: 'text/markdown' })),
     getTextContent: vi.fn().mockResolvedValue({
-      nodeId: 'doc-1',
-      name: 'notes.md',
-      mimeType: 'text/markdown',
-      content: '# Hello',
-      sizeBytes: 7,
-      updatedAt: '2026-11-20T00:00:00Z',
-      etag: 'etag-1',
+      nodeId: 'doc-1', name: 'notes.md', mimeType: 'text/markdown', content: '# Hello',
+      sizeBytes: 7, updatedAt: '2026-11-20T00:00:00Z', etag: 'etag-1',
     }),
     saveTextContent: vi.fn().mockResolvedValue(makeNode({ id: 'doc-1', name: 'notes.md', mimeType: 'text/markdown' })),
-    getOnlyOfficeSession: vi.fn().mockResolvedValue({
-      enabled: false,
-      documentServerUrl: null,
-      config: null,
-      token: null,
-      mode: null,
+    getOfficeContent: vi.fn().mockResolvedValue({
+      nodeId: 'doc-2', name: 'roadmap.docx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      format: 'DOCX', sizeBytes: 1024, updatedAt: '2026-11-20T00:00:00Z', etag: 'etag-2',
+      doc: { blocks: [{ type: 'p', text: 'Initial doc', align: 'left' }], tables: [] },
+      sheet: null, slide: null,
     }),
+    saveOfficeContent: vi.fn().mockResolvedValue(makeNode({ id: 'doc-2', name: 'roadmap.docx' })),
     ...overrides,
   };
 }
@@ -104,18 +86,10 @@ describe('CloudFilesPage', () => {
   });
 
   it('supports Trash view restore, permanent delete, and empty trash', async () => {
-    const trashed = makeNode({
-      id: 't-1',
-      name: 'old-backup.zip',
-      deletedAt: '2026-11-19T00:00:00Z',
-      purgeAfter: '2026-12-19T00:00:00Z',
-    });
+    const trashed = makeNode({ id: 't-1', name: 'old-backup.zip', deletedAt: '2026-11-19T00:00:00Z', purgeAfter: '2026-12-19T00:00:00Z' });
     const api = makeMockApi({
       listNodes: vi.fn().mockImplementation(async (params) => ({
-        items: params?.view === 'TRASH' ? [trashed] : [],
-        nextCursor: null,
-        hasMore: false,
-        limit: 25,
+        items: params?.view === 'TRASH' ? [trashed] : [], nextCursor: null, hasMore: false, limit: 25,
       })),
     });
 
@@ -138,11 +112,7 @@ describe('CloudFilesPage', () => {
     });
 
     const { rerender } = render(
-      <CloudFilesPage
-        scope={{ type: 'WORKSPACE', workspaceId: 'ws-1', permissions: ['files.read'] }}
-        scopeLabel="Acme"
-        apiOverride={api}
-      />
+      <CloudFilesPage scope={{ type: 'WORKSPACE', workspaceId: 'ws-1', permissions: ['files.read'] }} scopeLabel="Acme" apiOverride={api} />
     );
 
     expect(await screen.findByText('Workspace Cloud')).toBeTruthy();
@@ -153,11 +123,7 @@ describe('CloudFilesPage', () => {
     expect(screen.getByRole('button', { name: 'Download handbook.md' })).toBeTruthy();
 
     rerender(
-      <CloudFilesPage
-        scope={{ type: 'PROJECT', workspaceId: 'ws-1', projectId: 'p-1', permissions: [] }}
-        scopeLabel="Core"
-        apiOverride={api}
-      />
+      <CloudFilesPage scope={{ type: 'PROJECT', workspaceId: 'ws-1', projectId: 'p-1', permissions: [] }} scopeLabel="Core" apiOverride={api} />
     );
     expect(screen.getByText('No access to Cloud Files')).toBeTruthy();
   });
@@ -166,12 +132,7 @@ describe('CloudFilesPage', () => {
     const api = makeMockApi();
     render(
       <CloudFilesPage
-        scope={{
-          type: 'PROJECT',
-          workspaceId: 'ws-1',
-          projectId: 'p-1',
-          permissions: ['pfiles.read', 'pfiles.write'],
-        }}
+        scope={{ type: 'PROJECT', workspaceId: 'ws-1', projectId: 'p-1', permissions: ['pfiles.read', 'pfiles.write'] }}
         scopeLabel="Orbit API"
         apiOverride={api}
       />
@@ -182,8 +143,33 @@ describe('CloudFilesPage', () => {
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Specs' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create' }));
 
-    await waitFor(() =>
-      expect(api.createFolder).toHaveBeenCalledWith({ parentId: null, name: 'Specs' })
-    );
+    await waitFor(() => expect(api.createFolder).toHaveBeenCalledWith({ parentId: null, name: 'Specs' }));
+  });
+
+  it('opens Office documents inline and triggers in-page anchor download without window.open', async () => {
+    const docNode = makeNode({
+      id: 'doc-2', name: 'roadmap.docx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+    const api = makeMockApi({
+      listNodes: vi.fn().mockResolvedValue({ items: [docNode], nextCursor: null, hasMore: false, limit: 25 }),
+    });
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    render(<CloudFilesPage scope={{ type: 'USER' }} apiOverride={api} />);
+
+    const row = await screen.findByText('roadmap.docx');
+    fireEvent.click(screen.getByRole('button', { name: 'Download roadmap.docx' }));
+    await waitFor(() => expect(api.getDownloadUrl).toHaveBeenCalledWith('doc-2'));
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    expect(openSpy).not.toHaveBeenCalled();
+
+    fireEvent.doubleClick(row);
+    expect(await screen.findByText('Initial doc')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Back to files/i }));
+    expect(await screen.findByText('roadmap.docx')).toBeTruthy();
+    clickSpy.mockRestore();
+    openSpy.mockRestore();
   });
 });

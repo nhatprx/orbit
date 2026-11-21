@@ -10,7 +10,7 @@ import { xml } from '@codemirror/lang-xml';
 import type { Extension } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 
-export type EditorKind = 'TEXT' | 'OFFICE' | 'NONE';
+export type EditorKind = 'TEXT' | 'OFFICE' | 'PDF' | 'NONE';
 
 const OFFICE_EXTS = new Set([
   'docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt', 'odt', 'ods', 'odp',
@@ -60,6 +60,7 @@ export function getFileExtension(name: string): string {
 
 export function classifyFileEditor(name: string, mimeType?: string | null): EditorKind {
   const ext = getFileExtension(name);
+  if (ext === 'pdf') return 'PDF';
   if (OFFICE_EXTS.has(ext)) return 'OFFICE';
   if (TEXT_EXTS.has(ext)) return 'TEXT';
 
@@ -67,6 +68,7 @@ export function classifyFileEditor(name: string, mimeType?: string | null): Edit
   if (TEXT_BASENAMES.has(lowerName)) return 'TEXT';
 
   const mime = mimeType?.split(';')[0]?.trim().toLowerCase() ?? '';
+  if (mime === 'application/pdf') return 'PDF';
   if (OFFICE_MIMES.has(mime)) return 'OFFICE';
   if (mime.startsWith('text/') || TEXT_MIMES.has(mime)) return 'TEXT';
   return 'NONE';

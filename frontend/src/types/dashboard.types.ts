@@ -12,6 +12,7 @@ export type WorkspaceAreaId =
   | 'chat'
   | 'mail'
   | 'cloud'
+  | 'issues'
   | 'personal-cloud'
   | 'admin';
 

@@ -42,19 +42,19 @@ public class ChatAccessGuard {
     }
 
     public ChatChannelEntity requireAccess(UUID userId, UUID channelId, boolean write) {
-        ChatChannelEntity channel = channels.findById(channelId)
-            .orElseThrow(() -> ApiException.notFound("NOT_FOUND", "Channel not found."));
-        if (channel.getScopeType() == ChatScopeType.WORKSPACE) {
-            requireWorkspaceChat(userId, channel.getScopeId(), write ? Permissions.CHAT_WRITE : Permissions.CHAT_READ);
-        } else {
-            ProjectEntity project = projects.findById(channel.getScopeId())
-                .filter(p -> p.getDeletedAt() == null)
-                .orElseThrow(() -> ApiException.notFound("NOT_FOUND", "Channel not found."));
-            requireProjectChat(
-                userId, project.getWorkspaceId(), project.getId(),
-                write ? Permissions.PCHAT_WRITE : Permissions.PCHAT_READ
-            );
-        }
+        ChatChannelEntity channel = findChannel(channelId);
+        requireChannelPermission(
+            userId,
+            channel,
+            write ? Permissions.CHAT_WRITE : Permissions.CHAT_READ,
+            write ? Permissions.PCHAT_WRITE : Permissions.PCHAT_READ
+        );
+        return channel;
+    }
+
+    public ChatChannelEntity requireManageAccess(UUID userId, UUID channelId) {
+        ChatChannelEntity channel = findChannel(channelId);
+        requireChannelPermission(userId, channel, Permissions.CHAT_MANAGE, Permissions.PCHAT_MANAGE);
         return channel;
     }
 
@@ -62,6 +62,16 @@ public class ChatAccessGuard {
     public boolean canRead(UUID userId, UUID channelId) {
         try {
             requireAccess(userId, channelId, false);
+            return true;
+        } catch (ApiException ex) {
+            return false;
+        }
+    }
+
+    /** Non-throwing check used for moderation actions such as deleting another user's message. */
+    public boolean canManage(UUID userId, ChatChannelEntity channel) {
+        try {
+            requireChannelPermission(userId, channel, Permissions.CHAT_MANAGE, Permissions.PCHAT_MANAGE);
             return true;
         } catch (ApiException ex) {
             return false;
@@ -83,6 +93,24 @@ public class ChatAccessGuard {
         if (!enabled) {
             throw moduleDisabled();
         }
+    }
+
+    private ChatChannelEntity findChannel(UUID channelId) {
+        return channels.findById(channelId)
+            .orElseThrow(() -> ApiException.notFound("NOT_FOUND", "Channel not found."));
+    }
+
+    private void requireChannelPermission(
+        UUID userId, ChatChannelEntity channel, String workspacePermission, String projectPermission
+    ) {
+        if (channel.getScopeType() == ChatScopeType.WORKSPACE) {
+            requireWorkspaceChat(userId, channel.getScopeId(), workspacePermission);
+            return;
+        }
+        ProjectEntity project = projects.findById(channel.getScopeId())
+            .filter(p -> p.getDeletedAt() == null)
+            .orElseThrow(() -> ApiException.notFound("NOT_FOUND", "Channel not found."));
+        requireProjectChat(userId, project.getWorkspaceId(), project.getId(), projectPermission);
     }
 
     private static ApiException moduleDisabled() {

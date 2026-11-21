@@ -124,7 +124,7 @@ describe('CloudTextEditorModal', () => {
 
     const editor = await screen.findByLabelText('Mock CodeMirror Editor');
     fireEvent.change(editor, { target: { value: 'modified' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Close editor' }));
+    fireEvent.click(screen.getByRole('button', { name: /Back to files/i }));
 
     expect(screen.getByText(/You have unsaved changes/i)).toBeTruthy();
     expect(onClose).not.toHaveBeenCalled();

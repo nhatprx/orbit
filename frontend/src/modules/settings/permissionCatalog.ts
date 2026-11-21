@@ -30,6 +30,14 @@ export const WORKSPACE_PERMISSIONS: PermissionDef[] = [
   { key: 'files.write', label: 'Upload and edit cloud files', group: 'Cloud Files' },
   { key: 'files.delete', label: 'Delete cloud files', group: 'Cloud Files' },
   { key: 'files.manage', label: 'Manage cloud files and trash', group: 'Cloud Files' },
+  { key: 'git.read', label: 'Read repositories and commits', group: 'Git' },
+  { key: 'git.write', label: 'Create and edit files, branches, and PRs', group: 'Git' },
+  { key: 'git.delete', label: 'Delete files and branches', group: 'Git' },
+  { key: 'git.manage', label: 'Connect GitHub token and repository', group: 'Git' },
+  { key: 'issues.read', label: 'Read issues and sprints', group: 'Issues & Sprints' },
+  { key: 'issues.write', label: 'Create and edit issues and sprints', group: 'Issues & Sprints' },
+  { key: 'issues.delete', label: 'Delete issues and sprints', group: 'Issues & Sprints' },
+  { key: 'issues.manage', label: 'Manage sprint lifecycle and issue settings', group: 'Issues & Sprints' },
 ];
 
 /** Project-level permission keys. */
@@ -51,6 +59,14 @@ export const PROJECT_PERMISSIONS: PermissionDef[] = [
   { key: 'pfiles.write', label: 'Upload and edit cloud files', group: 'Cloud Files' },
   { key: 'pfiles.delete', label: 'Delete cloud files', group: 'Cloud Files' },
   { key: 'pfiles.manage', label: 'Manage cloud files and trash', group: 'Cloud Files' },
+  { key: 'pgit.read', label: 'Read repositories and commits', group: 'Git' },
+  { key: 'pgit.write', label: 'Create and edit files, branches, and PRs', group: 'Git' },
+  { key: 'pgit.delete', label: 'Delete files and branches', group: 'Git' },
+  { key: 'pgit.manage', label: 'Connect GitHub token and repository', group: 'Git' },
+  { key: 'pissues.read', label: 'Read issues and sprints', group: 'Issues & Sprints' },
+  { key: 'pissues.write', label: 'Create and edit issues and sprints', group: 'Issues & Sprints' },
+  { key: 'pissues.delete', label: 'Delete issues and sprints', group: 'Issues & Sprints' },
+  { key: 'pissues.manage', label: 'Manage sprint lifecycle and issue settings', group: 'Issues & Sprints' },
 ];
 
 export interface PermissionGroup {

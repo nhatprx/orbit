@@ -55,7 +55,6 @@ public class SecurityConfig {
                     "/api/v1/auth/oauth/link/**",
                     "/api/v1/auth/forgot-password",
                     "/api/v1/auth/reset-password",
-                    "/api/v1/cloud/onlyoffice/**",
                     "/oauth2/**",
                     "/login/oauth2/**",
                     "/actuator/health/**",

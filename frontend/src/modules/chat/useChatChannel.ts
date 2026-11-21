@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { errorMessage } from '../../services/workspace/httpClient';
 import { chatService } from '../../services/workspace/services';
-import type { ChatMessageDto } from '../../types/workspace.types';
-import { mergeMessage, mergeOlder } from './chatMessages';
+import type { ChatMessageDto, SendChatMessageRequest } from '../../types/workspace.types';
+import { mergeMessage, mergeOlder, removeMessage } from './chatMessages';
 
 const PAGE_SIZE = 50;
 
-/** History (cursor-paged), live STOMP updates, and sending for one channel. */
+/** History (cursor-paged), live STOMP updates, sending, and deletion for one channel. */
 export function useChatChannel(channelId: string) {
   const [messages, setMessages] = useState<ChatMessageDto[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -60,12 +60,29 @@ export function useChatChannel(channelId: string) {
   }, [channelId, nextCursor, loadingOlder]);
 
   const send = useCallback(
-    async (content: string) => {
-      const sent = await chatService.sendMessage(channelId, { content });
+    async (request: SendChatMessageRequest) => {
+      const sent = await chatService.sendMessage(channelId, request);
       setMessages((current) => mergeMessage(current, sent));
     },
     [channelId]
   );
 
-  return { messages, loading, loadingOlder, error, hasOlder: nextCursor !== null, loadOlder, send };
+  const deleteMessage = useCallback(
+    async (messageId: string) => {
+      await chatService.deleteMessage(channelId, messageId);
+      setMessages((current) => removeMessage(current, messageId));
+    },
+    [channelId]
+  );
+
+  return {
+    messages,
+    loading,
+    loadingOlder,
+    error,
+    hasOlder: nextCursor !== null,
+    loadOlder,
+    send,
+    deleteMessage,
+  };
 }

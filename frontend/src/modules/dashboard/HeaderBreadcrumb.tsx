@@ -12,6 +12,7 @@ const AREA_LABEL: Record<WorkspaceAreaId, string> = {
   chat: 'Chat',
   mail: 'Mails',
   cloud: 'Cloud Files',
+  issues: 'Issues & Sprints',
   'personal-cloud': 'Personal Cloud',
   admin: 'Admin Console',
 };

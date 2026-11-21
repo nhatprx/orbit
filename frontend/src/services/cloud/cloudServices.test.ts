@@ -4,44 +4,21 @@ import { cloudBasePath, createHttpCloudFilesApi, type CloudFilesApi } from './cl
 import { UploadCancelledError, uploadCloudFile, type PutChunkFn } from './cloudUpload.service';
 
 const SAMPLE_NODE: CloudNodeDto = {
-  id: 'n-1',
-  scopeType: 'USER',
-  scopeId: 'u-1',
-  parentId: null,
-  nodeType: 'FILE',
-  name: 'spec.pdf',
-  mimeType: 'application/pdf',
-  sizeBytes: 100,
-  starred: false,
-  depth: 0,
-  createdBy: 'u-1',
-  createdByName: 'Alice',
-  deletedAt: null,
-  purgeAfter: null,
-  createdAt: '2026-11-20T00:00:00Z',
-  updatedAt: '2026-11-20T00:00:00Z',
+  id: 'n-1', scopeType: 'USER', scopeId: 'u-1', parentId: null, nodeType: 'FILE',
+  name: 'spec.pdf', mimeType: 'application/pdf', sizeBytes: 100, starred: false, depth: 0,
+  createdBy: 'u-1', createdByName: 'Alice', deletedAt: null, purgeAfter: null,
+  createdAt: '2026-11-20T00:00:00Z', updatedAt: '2026-11-20T00:00:00Z',
 };
 
 function makeApiMock(overrides: Partial<CloudFilesApi> = {}): CloudFilesApi {
   return {
-    listNodes: vi.fn(),
-    getBreadcrumbs: vi.fn(),
-    getQuota: vi.fn(),
-    createFolder: vi.fn(),
-    updateNode: vi.fn(),
-    softDeleteNode: vi.fn(),
-    restoreNode: vi.fn(),
-    permanentDeleteNode: vi.fn(),
-    emptyTrash: vi.fn(),
-    initUpload: vi.fn(),
-    signUploadParts: vi.fn(),
+    listNodes: vi.fn(), getBreadcrumbs: vi.fn(), getQuota: vi.fn(), createFolder: vi.fn(),
+    updateNode: vi.fn(), softDeleteNode: vi.fn(), restoreNode: vi.fn(), permanentDeleteNode: vi.fn(),
+    emptyTrash: vi.fn(), initUpload: vi.fn(), signUploadParts: vi.fn(),
     completeUpload: vi.fn().mockResolvedValue(SAMPLE_NODE),
     abortUpload: vi.fn().mockResolvedValue(undefined),
-    getDownloadUrl: vi.fn(),
-    createDocument: vi.fn(),
-    getTextContent: vi.fn(),
-    saveTextContent: vi.fn(),
-    getOnlyOfficeSession: vi.fn(),
+    getDownloadUrl: vi.fn(), createDocument: vi.fn(), getTextContent: vi.fn(),
+    saveTextContent: vi.fn(), getOfficeContent: vi.fn(), saveOfficeContent: vi.fn(),
     ...overrides,
   };
 }
@@ -77,6 +54,33 @@ describe('cloudBasePath and 3-layer routing', () => {
     expect(url).toContain('sortDir=desc');
     expect(url).toContain('q=report');
     expect(init.method).toBe('GET');
+  });
+
+  it('fetches and saves Orbit Office document content via office-content endpoint', async () => {
+    const fetchMock = vi.fn().mockImplementation(async () =>
+      new Response(JSON.stringify(SAMPLE_NODE), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const api = createHttpCloudFilesApi({ type: 'USER' });
+    await api.getOfficeContent('node-42');
+    await api.saveOfficeContent('node-42', {
+      format: 'DOCX',
+      expectedUpdatedAt: '2026-11-20T00:00:00Z',
+      doc: { blocks: [{ type: 'p', text: 'Orbit' }], tables: [] },
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const [getUrl, getInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(getUrl).toContain('/api/v1/cloud/me/nodes/node-42/office-content');
+    expect(getInit.method).toBe('GET');
+
+    const [putUrl, putInit] = fetchMock.mock.calls[1] as [string, RequestInit];
+    expect(putUrl).toContain('/api/v1/cloud/me/nodes/node-42/office-content');
+    expect(putInit.method).toBe('PUT');
   });
 });
 
