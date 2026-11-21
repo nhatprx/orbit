@@ -1,12 +1,19 @@
-import { useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { OrbitOfficeHeader, type OrbitOfficeHeaderProps } from './OrbitOfficeHeader';
 import { OrbitSheetGrid } from './OrbitSheetGrid';
+import { OrbitSheetMenuBar } from './OrbitSheetMenuBar';
 import { OrbitSheetFormulaBar, OrbitSheetTabs } from './OrbitSheetTabs';
 import {
-  OrbitSheetToolbar, computeSheetSummary, expandAndSetRange, exportSheetCsv, patchCellStyles,
-  type QuickFunctionName, type SheetAlign, type SheetCellStyleDto, type SheetNumberFormat, type SheetRangeBounds,
+  OrbitSheetToolbar, clearCellStyles, computeSheetSummary, expandAndSetRange, exportSheetCsv, patchCellStyles,
+  type QuickFunctionName, type SheetAlign, type SheetBorderStyle, type SheetCellStyleDto,
+  type SheetNumberFormat, type SheetVerticalAlign,
 } from './OrbitSheetToolbar';
 import type { OfficeSheetContentDto, SheetTabDto } from './officeTypes';
-import { columnLabel, extractFormulaCellRefs, isFormulaExpectingRef } from './sheetFormulas';
+import { columnLabel, extractFormulaCellRefs } from './sheetFormulas';
+import { EMPTY_SHEET_HISTORY, pushSheetHistory, redoSheetHistory, undoSheetHistory, type SheetHistoryState } from './sheetHistory';
+import { sortSheetByColumn, type SheetSortDirection } from './sheetSort';
+import { clampDecimals, clampFontSize, defaultDecimalsFor } from './sheetStyleHelpers';
+import { useSheetSelection } from './useSheetSelection';
 
 export const MIN_VISIBLE_ROWS = 50;
 export const MIN_VISIBLE_COLS = 26;
@@ -15,21 +22,20 @@ export const colIndexToLabel = (c: number): string => columnLabel(c);
 interface OrbitSheetEditorProps {
   value: OfficeSheetContentDto;
   readOnly?: boolean;
+  headerProps?: Omit<OrbitOfficeHeaderProps, 'menuBar'>;
   onChange: (next: OfficeSheetContentDto) => void;
 }
 
-export function OrbitSheetEditor({ value, readOnly = false, onChange }: OrbitSheetEditorProps) {
+export function OrbitSheetEditor({ value, readOnly = false, headerProps, onChange }: OrbitSheetEditorProps) {
   const sheets: SheetTabDto[] = value.sheets.length > 0 ? value.sheets : [{ name: 'Sheet1', rows: [['']], cellStyles: {} }];
   const [sheetIdx, setSheetIdx] = useState(0);
-  const [activeCell, setActiveCell] = useState({ r: 0, c: 0 });
-  const [rangeEnd, setRangeEnd] = useState({ r: 0, c: 0 });
-  const [editingCell, setEditingCell] = useState<{ r: number; c: number } | null>(null);
   const [extraRows, setExtraRows] = useState(0);
   const [extraCols, setExtraCols] = useState(0);
-  const cellRefs = useRef<Record<string, HTMLInputElement | null>>({});
-  const justPickedRef = useRef(false);
-  const isDraggingRef = useRef(false);
-  const dragMovedRef = useRef(false);
+  const [zoom, setZoom] = useState(100);
+  const [showGridlines, setShowGridlines] = useState(true);
+  const [freezeHeader, setFreezeHeader] = useState(false);
+  const [history, setHistory] = useState<SheetHistoryState>(EMPTY_SHEET_HISTORY);
+
   const safeSheetIdx = Math.min(sheetIdx, sheets.length - 1);
   const currentSheet = sheets[safeSheetIdx] ?? { name: 'Sheet1', rows: [['']], cellStyles: {} };
   const rawRows = currentSheet.rows;
@@ -37,34 +43,65 @@ export function OrbitSheetEditor({ value, readOnly = false, onChange }: OrbitShe
   const rawColCount = rawRows.reduce((max, r) => Math.max(max, r.length), 0);
   const displayRowCount = Math.max(MIN_VISIBLE_ROWS + extraRows, rawRows.length + extraRows);
   const displayColCount = Math.max(MIN_VISIBLE_COLS + extraCols, rawColCount + extraCols);
-  const bounds: SheetRangeBounds = {
-    minR: Math.min(activeCell.r, rangeEnd.r), maxR: Math.max(activeCell.r, rangeEnd.r),
-    minC: Math.min(activeCell.c, rangeEnd.c), maxC: Math.max(activeCell.c, rangeEnd.c),
-  };
+
+  const commitChange = useCallback((next: OfficeSheetContentDto) => {
+    setHistory((prev) => pushSheetHistory(prev, { sheets }));
+    onChange(next);
+  }, [sheets, onChange]);
+
+  const handleUndo = useCallback(() => {
+    if (readOnly) return;
+    const res = undoSheetHistory(history, { sheets });
+    if (res) { setHistory(res.history); onChange(res.next); }
+  }, [readOnly, history, sheets, onChange]);
+
+  const handleRedo = useCallback(() => {
+    if (readOnly) return;
+    const res = redoSheetHistory(history, { sheets });
+    if (res) { setHistory(res.history); onChange(res.next); }
+  }, [readOnly, history, sheets, onChange]);
+
+  const updateSheet = (updater: (sheet: SheetTabDto) => SheetTabDto) =>
+    commitChange({ sheets: sheets.map((s, idx) => (idx === safeSheetIdx ? updater(s) : s)) });
+  const updateCurrentRows = (nextRows: string[][]) => updateSheet((s) => ({ ...s, rows: nextRows }));
+  const setCellValue = (r: number, c: number, cellVal: string) =>
+    updateCurrentRows(expandAndSetRange(rawRows, { minR: r, maxR: r, minC: c, maxC: c }, cellVal));
+
+  const selection = useSheetSelection({
+    rawRows, displayRowCount, displayColCount, readOnly,
+    onSetCellValue: setCellValue, onClearRange: (b) => updateCurrentRows(expandAndSetRange(rawRows, b, '')),
+    onUndo: handleUndo, onRedo: handleRedo,
+  });
+
+  const { activeCell, editingCell, bounds } = selection;
+  const activeRaw = rawRows[activeCell.r]?.[activeCell.c] ?? '';
   const isMultiRange = bounds.minR !== bounds.maxR || bounds.minC !== bounds.maxC;
   const activeFormat = cellStyles[`${activeCell.r}:${activeCell.c}`] ?? {};
-  const activeRaw = rawRows[activeCell.r]?.[activeCell.c] ?? '';
   const activeCoord = `${colIndexToLabel(activeCell.c)}${activeCell.r + 1}`;
   const rangeCoord = isMultiRange ? `${colIndexToLabel(bounds.minC)}${bounds.minR + 1}:${colIndexToLabel(bounds.maxC)}${bounds.maxR + 1}` : activeCoord;
   const formulaRefs = extractFormulaCellRefs(activeRaw);
   const summary = computeSheetSummary(rawRows, bounds);
 
-  const updateSheet = (updater: (sheet: SheetTabDto) => SheetTabDto) =>
-    onChange({ sheets: sheets.map((s, idx) => (idx === safeSheetIdx ? updater(s) : s)) });
-  const updateCurrentRows = (nextRows: string[][]) => updateSheet((s) => ({ ...s, rows: nextRows }));
-  const setCellValue = (r: number, c: number, cellVal: string) =>
-    updateCurrentRows(expandAndSetRange(rawRows, { minR: r, maxR: r, minC: c, maxC: c }, cellVal));
-  const patchRangeFormat = (patch: Partial<SheetCellStyleDto>) => {
+  useEffect(() => {
     if (readOnly) return;
-    updateSheet((s) => ({ ...s, cellStyles: patchCellStyles(s.cellStyles, bounds, patch) }));
-  };
-  const selectSingleCell = (r: number, c: number) => {
-    const cr = Math.max(0, Math.min(displayRowCount - 1, r)), cc = Math.max(0, Math.min(displayColCount - 1, c));
-    setActiveCell({ r: cr, c: cc }); setRangeEnd({ r: cr, c: cc }); setEditingCell(null); cellRefs.current[`${cr}:${cc}`]?.focus();
-  };
-  const extendRange = (dr: number, dc: number) => {
-    setRangeEnd((p) => ({ r: Math.max(0, Math.min(displayRowCount - 1, p.r + dr)), c: Math.max(0, Math.min(displayColCount - 1, p.c + dc)) }));
-    setEditingCell(null);
+    const onWindowKeyDown = (e: KeyboardEvent) => {
+      if (editingCell) return;
+      const aria = e.target instanceof Element ? (e.target.getAttribute('aria-label') ?? '') : '';
+      if (aria === 'Formula bar' || aria === 'Sheet tab name' || aria === 'Font size') return;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) handleRedo(); else handleUndo(); }
+      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); handleRedo(); }
+    };
+    window.addEventListener('keydown', onWindowKeyDown);
+    return () => window.removeEventListener('keydown', onWindowKeyDown);
+  }, [readOnly, editingCell, handleUndo, handleRedo]);
+
+  const patchRangeFormat = (patch: Partial<SheetCellStyleDto>) => { if (!readOnly) updateSheet((s) => ({ ...s, cellStyles: patchCellStyles(s.cellStyles, bounds, patch) })); };
+  const clearRangeFormatting = () => { if (!readOnly) updateSheet((s) => ({ ...s, cellStyles: clearCellStyles(s.cellStyles, bounds) })); };
+  const clearRangeValues = () => { if (!readOnly) updateCurrentRows(expandAndSetRange(rawRows, bounds, '')); };
+  const adjustDecimals = (delta: -1 | 1) => {
+    if (readOnly) return;
+    const nextDecimals = clampDecimals((activeFormat.decimals ?? defaultDecimalsFor(activeFormat.numFmt)) + delta);
+    patchRangeFormat(activeFormat.numFmt === 'text' ? { numFmt: 'number', decimals: nextDecimals } : { decimals: nextDecimals });
   };
   const insertQuickFunction = (fn: QuickFunctionName) => {
     if (readOnly) return;
@@ -72,88 +109,75 @@ export function OrbitSheetEditor({ value, readOnly = false, onChange }: OrbitShe
       const targetR = bounds.maxR > bounds.minR ? bounds.maxR + 1 : bounds.minR;
       const targetC = bounds.maxR > bounds.minR ? bounds.minC : bounds.maxC + 1;
       setCellValue(targetR, targetC, `=${fn}(${rangeCoord})`);
-      selectSingleCell(targetR, targetC);
+      selection.selectSingleCell(targetR, targetC);
       return;
     }
     const { r, c } = activeCell;
     const range = r > 0 ? `${colIndexToLabel(c)}1:${colIndexToLabel(c)}${r}` : c > 0 ? `A${r + 1}:${colIndexToLabel(c - 1)}${r + 1}` : 'A2:A5';
     setCellValue(r, c, `=${fn}(${range})`);
   };
-  const tryPickFormulaRef = (rIdx: number, cIdx: number): boolean => {
-    if (readOnly || (rIdx === activeCell.r && cIdx === activeCell.c) || !isFormulaExpectingRef(activeRaw)) return false;
-    setCellValue(activeCell.r, activeCell.c, `${activeRaw}${colIndexToLabel(cIdx)}${rIdx + 1}`);
-    setEditingCell(activeCell);
-    cellRefs.current[`${activeCell.r}:${activeCell.c}`]?.focus();
-    return true;
-  };
-  const handleCellMouseDown = (e: MouseEvent<HTMLInputElement>, rIdx: number, cIdx: number, isEditing: boolean) => {
-    if (tryPickFormulaRef(rIdx, cIdx)) { e.preventDefault(); justPickedRef.current = true; return; }
-    if (e.shiftKey) { e.preventDefault(); setRangeEnd({ r: rIdx, c: cIdx }); setEditingCell(null); return; }
-    isDraggingRef.current = true; dragMovedRef.current = false; setActiveCell({ r: rIdx, c: cIdx }); setRangeEnd({ r: rIdx, c: cIdx }); if (!isEditing) setEditingCell(null);
-  };
-  const handleCellClick = (e: MouseEvent<HTMLInputElement>, rIdx: number, cIdx: number, isEditing: boolean) => {
-    isDraggingRef.current = false;
-    if (justPickedRef.current) { justPickedRef.current = false; return; }
-    if (tryPickFormulaRef(rIdx, cIdx)) return;
-    if (dragMovedRef.current) { dragMovedRef.current = false; return; }
-    if (e.shiftKey) { setRangeEnd({ r: rIdx, c: cIdx }); setEditingCell(null); return; }
-    setActiveCell({ r: rIdx, c: cIdx }); setRangeEnd({ r: rIdx, c: cIdx }); if (!isEditing) setEditingCell(null);
-  };
-  const handleDragEnter = (rIdx: number, cIdx: number) => {
-    if (isDraggingRef.current) { dragMovedRef.current = true; setRangeEnd({ r: rIdx, c: cIdx }); setEditingCell(null); }
-  };
-  const handleCellKeyDown = (e: KeyboardEvent<HTMLInputElement>, rIdx: number, cIdx: number) => {
-    justPickedRef.current = false;
-    const isEditing = editingCell?.r === rIdx && editingCell?.c === cIdx;
-    if (e.key === 'Enter') { e.preventDefault(); if (isEditing) selectSingleCell(rIdx + (e.shiftKey ? -1 : 1), cIdx); else if (!readOnly) setEditingCell({ r: rIdx, c: cIdx }); }
-    else if (e.key === 'F2' && !readOnly) { e.preventDefault(); setEditingCell({ r: rIdx, c: cIdx }); }
-    else if (e.key === 'Tab') { e.preventDefault(); selectSingleCell(rIdx, cIdx + (e.shiftKey ? -1 : 1)); }
-    else if (e.key === 'Escape') { e.preventDefault(); setEditingCell(null); }
-    else if (!isEditing) {
-      if (e.key === 'ArrowDown') { e.preventDefault(); e.shiftKey ? extendRange(1, 0) : selectSingleCell(activeCell.r + 1, activeCell.c); }
-      else if (e.key === 'ArrowUp') { e.preventDefault(); e.shiftKey ? extendRange(-1, 0) : selectSingleCell(activeCell.r - 1, activeCell.c); }
-      else if (e.key === 'ArrowRight') { e.preventDefault(); e.shiftKey ? extendRange(0, 1) : selectSingleCell(activeCell.r, activeCell.c + 1); }
-      else if (e.key === 'ArrowLeft') { e.preventDefault(); e.shiftKey ? extendRange(0, -1) : selectSingleCell(activeCell.r, activeCell.c - 1); }
-      else if (!readOnly && (e.key === 'Delete' || e.key === 'Backspace')) { e.preventDefault(); updateCurrentRows(expandAndSetRange(rawRows, bounds, '')); }
-      else if (!readOnly && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) setEditingCell({ r: rIdx, c: cIdx });
-    }
-  };
+  const handleInsertRow = () => { setExtraRows((n) => n + 1); updateCurrentRows([...rawRows, Array.from({ length: Math.max(1, rawColCount) }, () => '')]); };
+  const handleDeleteRow = () => { setExtraRows((n) => Math.max(0, n - 1)); if (rawRows.length > 1) updateCurrentRows(rawRows.slice(0, -1)); };
+  const handleInsertCol = () => { setExtraCols((n) => n + 1); updateCurrentRows(rawRows.map((r) => [...Array.from({ length: Math.max(1, rawColCount) }, (_, i) => r[i] ?? ''), ''])); };
+  const handleDeleteCol = () => { setExtraCols((n) => Math.max(0, n - 1)); if (rawColCount > 1) updateCurrentRows(rawRows.map((r) => r.slice(0, rawColCount - 1))); };
+  const handleAddSheet = () => { const next = [...sheets, { name: `Sheet${sheets.length + 1}`, rows: [['']], cellStyles: {} }]; commitChange({ sheets: next }); setSheetIdx(next.length - 1); };
+  const handleSortColumn = (dir: SheetSortDirection) => { if (!readOnly) updateSheet((s) => sortSheetByColumn(s, activeCell.c, dir, freezeHeader)); };
 
   return (
-    <div className="flex h-full w-full flex-col bg-[#0D1117]" onMouseUp={() => { isDraggingRef.current = false; }}>
+    <div className="flex h-full w-full flex-col bg-[#0D1117]" onMouseUp={() => { selection.isDraggingRef.current = false; }}>
+      {headerProps && (
+        <OrbitOfficeHeader
+          {...headerProps}
+          menuBar={(
+            <OrbitSheetMenuBar
+              readOnly={readOnly} canSave={headerProps.dirty && !headerProps.saving && !headerProps.loading}
+              canUndo={history.past.length > 0} canRedo={history.future.length > 0}
+              zoom={zoom} showGridlines={showGridlines} freezeHeader={freezeHeader} activeFormat={activeFormat}
+              onSave={() => headerProps.onSave(false)} onDownload={headerProps.onDownload}
+              onExportCsv={() => exportSheetCsv(currentSheet.name, rawRows)}
+              onUndo={handleUndo} onRedo={handleRedo} onClearValues={clearRangeValues} onClearFormatting={clearRangeFormatting}
+              onZoomChange={setZoom} onToggleGridlines={() => setShowGridlines((v) => !v)} onToggleFreezeHeader={() => setFreezeHeader((v) => !v)}
+              onInsertRow={handleInsertRow} onDeleteRow={handleDeleteRow} onInsertCol={handleInsertCol} onDeleteCol={handleDeleteCol}
+              onNewSheet={handleAddSheet} onFormatNumber={(mode: SheetNumberFormat) => patchRangeFormat({ numFmt: mode })}
+              onToggleStyle={(k) => patchRangeFormat({ [k]: !activeFormat[k] })}
+              onSetAlign={(align: SheetAlign) => patchRangeFormat({ align })} onSortColumn={handleSortColumn}
+            />
+          )}
+        />
+      )}
       <OrbitSheetToolbar
-        readOnly={readOnly} activeFormat={activeFormat} onInsertFunction={insertQuickFunction}
+        readOnly={readOnly} canUndo={history.past.length > 0} canRedo={history.future.length > 0} zoom={zoom} activeFormat={activeFormat}
+        onUndo={handleUndo} onRedo={handleRedo} onZoomChange={setZoom}
+        onFormatNumber={(mode: SheetNumberFormat) => patchRangeFormat({ numFmt: mode })}
+        onAdjustDecimals={adjustDecimals} onSetFontSize={(size) => patchRangeFormat({ fontSize: clampFontSize(size) })}
         onToggleStyle={(k) => patchRangeFormat({ [k]: !activeFormat[k] })}
-        onSetAlign={(align: SheetAlign) => patchRangeFormat({ align })}
-        onFormatNumber={(mode: SheetNumberFormat) => patchRangeFormat({ numFmt: activeFormat.numFmt === mode ? undefined : mode })}
-        onAddRow={() => { setExtraRows((n) => n + 1); updateCurrentRows([...rawRows, Array.from({ length: Math.max(1, rawColCount) }, () => '')]); }}
-        onRemoveRow={() => { setExtraRows((n) => Math.max(0, n - 1)); if (rawRows.length > 1) updateCurrentRows(rawRows.slice(0, -1)); }}
-        onAddColumn={() => { setExtraCols((n) => n + 1); updateCurrentRows(rawRows.map((r) => [...Array.from({ length: Math.max(1, rawColCount) }, (_, i) => r[i] ?? ''), ''])); }}
-        onRemoveColumn={() => { setExtraCols((n) => Math.max(0, n - 1)); if (rawColCount > 1) updateCurrentRows(rawRows.map((r) => r.slice(0, rawColCount - 1))); }}
-        onExportCsv={() => exportSheetCsv(currentSheet.name, rawRows)}
+        onSetTextColor={(textColor) => patchRangeFormat({ textColor })} onSetBgColor={(bgColor) => patchRangeFormat({ bgColor, highlight: undefined })}
+        onSetBorder={(border: SheetBorderStyle) => patchRangeFormat({ border })} onSetAlign={(align: SheetAlign) => patchRangeFormat({ align })}
+        onSetVAlign={(valign: SheetVerticalAlign) => patchRangeFormat({ valign })}
+        onSortColumn={handleSortColumn} onClearFormatting={clearRangeFormatting} onInsertFunction={insertQuickFunction}
       />
       <OrbitSheetFormulaBar
         rangeCoord={rangeCoord} activeRaw={activeRaw} readOnly={readOnly}
-        onFocus={() => { if (!readOnly) setEditingCell(activeCell); }} onBlur={() => setEditingCell(null)}
-        onChange={(val) => { setEditingCell(activeCell); setCellValue(activeCell.r, activeCell.c, val); }}
-        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); selectSingleCell(activeCell.r + (e.shiftKey ? -1 : 1), activeCell.c); } else if (e.key === 'Escape') { e.preventDefault(); setEditingCell(null); } }}
+        onFocus={() => { if (!readOnly) selection.setEditingCell(activeCell); }} onBlur={() => selection.setEditingCell(null)}
+        onChange={(val) => { selection.setEditingCell(activeCell); setCellValue(activeCell.r, activeCell.c, val); }}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); selection.selectSingleCell(activeCell.r + (e.shiftKey ? -1 : 1), activeCell.c); } else if (e.key === 'Escape') { e.preventDefault(); selection.setEditingCell(null); } }}
       />
       <OrbitSheetGrid
         rawRows={rawRows} cellStyles={cellStyles} displayRowCount={displayRowCount} displayColCount={displayColCount}
         activeCell={activeCell} editingCell={editingCell} bounds={bounds} formulaRefs={formulaRefs}
-        readOnly={readOnly} cellRefs={cellRefs}
-        onMouseDown={handleCellMouseDown} onDragEnter={handleDragEnter} onClick={handleCellClick}
-        onDoubleClick={(r, c) => { if (!readOnly) setEditingCell({ r, c }); }}
-        onBlur={(r, c) => setEditingCell((p) => (p?.r === r && p?.c === c ? null : p))}
-        onKeyDown={handleCellKeyDown}
-        onChange={(r, c, val) => { justPickedRef.current = false; setActiveCell({ r, c }); setRangeEnd({ r, c }); setEditingCell({ r, c }); setCellValue(r, c, val); }}
+        zoom={zoom} showGridlines={showGridlines} freezeHeader={freezeHeader} readOnly={readOnly} cellRefs={selection.cellRefs}
+        onMouseDown={selection.handleCellMouseDown} onDragEnter={selection.handleDragEnter} onClick={selection.handleCellClick}
+        onDoubleClick={(r, c) => { if (!readOnly) selection.setEditingCell({ r, c }); }}
+        onBlur={(r, c) => selection.setEditingCell((p) => (p?.r === r && p?.c === c ? null : p))}
+        onKeyDown={selection.handleCellKeyDown}
+        onChange={(r, c, val) => { selection.justPickedRef.current = false; selection.setActiveCell({ r, c }); selection.setRangeEnd({ r, c }); selection.setEditingCell({ r, c }); setCellValue(r, c, val); }}
       />
       <OrbitSheetTabs
         sheets={sheets} activeIdx={safeSheetIdx} readOnly={readOnly} onSelect={setSheetIdx}
         selectionLabel={isMultiRange ? `Range ${rangeCoord}` : `Cell ${activeCoord}`} summary={summary}
-        onAddSheet={() => { const next = [...sheets, { name: `Sheet${sheets.length + 1}`, rows: [['']], cellStyles: {} }]; onChange({ sheets: next }); setSheetIdx(next.length - 1); }}
-        onRenameSheet={(idx, name) => onChange({ sheets: sheets.map((s, i) => (i === idx ? { ...s, name } : s)) })}
-        onDeleteSheet={(idx) => { if (sheets.length > 1) { onChange({ sheets: sheets.filter((_, i) => i !== idx) }); setSheetIdx(Math.max(0, idx - 1)); } }}
+        onAddSheet={handleAddSheet}
+        onRenameSheet={(idx, name) => commitChange({ sheets: sheets.map((s, i) => (i === idx ? { ...s, name } : s)) })}
+        onDeleteSheet={(idx) => { if (sheets.length > 1) { commitChange({ sheets: sheets.filter((_, i) => i !== idx) }); setSheetIdx(Math.max(0, idx - 1)); } }}
       />
     </div>
   );

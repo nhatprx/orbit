@@ -37,9 +37,7 @@ describe('OrbitOfficeWorkspace', () => {
     const api = createStubApi();
     const onBack = vi.fn();
     const onSaved = vi.fn();
-    render(
-      <OrbitOfficeWorkspace node={BASE_NODE} api={api} canWrite={true} onBack={onBack} onDownload={vi.fn()} onSaved={onSaved} />
-    );
+    render(<OrbitOfficeWorkspace node={BASE_NODE} api={api} canWrite={true} onBack={onBack} onDownload={vi.fn()} onSaved={onSaved} />);
 
     const canvas = await screen.findByLabelText('Document canvas');
     expect(screen.getByText('ORBIT DOCS')).toBeTruthy();
@@ -51,11 +49,9 @@ describe('OrbitOfficeWorkspace', () => {
     fireEvent.click(screen.getByLabelText('Insert table'));
     expect(screen.getByText('Dirty')).toBeTruthy();
     expect(screen.getByText('Tables: 1')).toBeTruthy();
-    expect(screen.getByLabelText('+ Table Row')).toBeTruthy();
     fireEvent.click(screen.getByLabelText('+ Table Row'));
     expect(canvas.querySelectorAll('table tr').length).toBe(4);
 
-    // Unsaved changes guard blocks immediate Back to files
     fireEvent.click(screen.getByRole('button', { name: /Back to files/i }));
     expect(screen.getByText(/You have unsaved changes/i)).toBeTruthy();
     expect(onBack).not.toHaveBeenCalled();
@@ -70,7 +66,7 @@ describe('OrbitOfficeWorkspace', () => {
     expect(onSaved).toHaveBeenCalledTimes(1);
   });
 
-  it('renders ORBIT SHEETS badge, arrow/Shift+Arrow range selection, formula ref highlight, and = calculations', async () => {
+  it('renders compact Sheets header with menu bar, arrow/Shift+Arrow range selection, formula ref highlight, and = calculations', async () => {
     const api = createStubApi({
       getOfficeContent: vi.fn().mockResolvedValue({
         nodeId: 'sheet-1', name: 'duynn.xlsx',
@@ -81,17 +77,14 @@ describe('OrbitOfficeWorkspace', () => {
     });
 
     const { container } = render(
-      <OrbitOfficeWorkspace
-        node={{ ...BASE_NODE, name: 'duynn.xlsx' }}
-        api={api} canWrite={true} onBack={vi.fn()} onDownload={vi.fn()} onSaved={vi.fn()}
-      />
+      <OrbitOfficeWorkspace node={{ ...BASE_NODE, name: 'duynn.xlsx' }} api={api} canWrite={true} onBack={vi.fn()} onDownload={vi.fn()} onSaved={vi.fn()} />
     );
 
-    const byLabel = <T extends HTMLElement = HTMLElement>(label: string) =>
-      container.querySelector(`[aria-label="${label}"]`) as T;
-
+    const byLabel = <T extends HTMLElement = HTMLElement>(label: string) => container.querySelector(`[aria-label="${label}"]`) as T;
     await waitFor(() => expect(byLabel('Cell A1')).toBeTruthy());
-    expect(screen.getByText('ORBIT SHEETS')).toBeTruthy();
+    expect(screen.queryByText('ORBIT SHEETS')).toBeNull();
+    expect(screen.getByText('duynn.xlsx')).toBeTruthy();
+    expect(screen.getByRole('menubar', { name: 'Spreadsheet menu bar' })).toBeTruthy();
     const cellA1 = byLabel<HTMLInputElement>('Cell A1');
     const cellB1 = byLabel<HTMLInputElement>('Cell B1');
     const cellC1 = byLabel<HTMLInputElement>('Cell C1');
@@ -99,7 +92,6 @@ describe('OrbitOfficeWorkspace', () => {
     const formulaBar = byLabel<HTMLInputElement>('Formula bar');
     expect(byLabel('Cell Z50')).toBeTruthy();
 
-    // Arrow-key navigation and Shift+Arrow multi-cell range selection (A1:B2)
     fireEvent.click(cellA1);
     fireEvent.keyDown(cellA1, { key: 'ArrowRight' });
     expect(byLabel('Active cell address').textContent).toBe('B1');
@@ -109,7 +101,6 @@ describe('OrbitOfficeWorkspace', () => {
     fireEvent.keyDown(cellA1, { key: 'ArrowDown', shiftKey: true });
     expect(byLabel('Active cell address').textContent).toBe('A1:B2');
 
-    // =10+25*2 calculation -> 60
     fireEvent.click(cellD1);
     fireEvent.change(cellD1, { target: { value: '=10+25*2' } });
     fireEvent.keyDown(cellD1, { key: 'Enter' });
@@ -118,7 +109,6 @@ describe('OrbitOfficeWorkspace', () => {
     fireEvent.click(cellD1);
     expect(formulaBar.value).toBe('=10+25*2');
 
-    // Point-and-click =A1+B1 -> 35 + formula reference highlighting on A1 & B1
     fireEvent.change(cellA1, { target: { value: '15' } });
     fireEvent.change(cellB1, { target: { value: '20' } });
     fireEvent.click(cellC1);
@@ -134,20 +124,18 @@ describe('OrbitOfficeWorkspace', () => {
     fireEvent.keyDown(cellC1, { key: 'Enter' });
     expect(cellC1.value).toBe('35');
 
-    fireEvent.click(byLabel('Add column'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Insert' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Insert column' }));
     expect(byLabel('Cell AA1')).toBeTruthy();
-    fireEvent.click(byLabel('Add row'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Insert' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Insert row' }));
     expect(byLabel('Cell A51')).toBeTruthy();
   }, 15000);
 
   it('renders PDF VIEWER badge and OrbitPdfViewer inline iframe when isPdf is true', async () => {
     const api = createStubApi();
     const pdfNode: CloudNodeDto = { ...BASE_NODE, name: 'manual.pdf', mimeType: 'application/pdf' };
-    render(
-      <OrbitOfficeWorkspace
-        node={pdfNode} api={api} canWrite={true} isPdf={true} onBack={vi.fn()} onDownload={vi.fn()} onSaved={vi.fn()}
-      />
-    );
+    render(<OrbitOfficeWorkspace node={pdfNode} api={api} canWrite={true} isPdf={true} onBack={vi.fn()} onDownload={vi.fn()} onSaved={vi.fn()} />);
 
     expect(screen.getByText('PDF VIEWER')).toBeTruthy();
     const frame = await screen.findByTitle('manual.pdf');
@@ -161,18 +149,11 @@ describe('OrbitOfficeWorkspace', () => {
         nodeId: 'slide-1', name: 'deck.pptx',
         mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
         format: 'PPTX', sizeBytes: 2048, updatedAt: BASE_NODE.updatedAt, etag: null, doc: null, sheet: null,
-        slide: {
-          slides: [{ title: 'Q1 Roadmap', subtitle: 'Execution', bullets: ['Ship Orbit Office'], notes: 'Keynote' }],
-        },
+        slide: { slides: [{ title: 'Q1 Roadmap', subtitle: 'Execution', bullets: ['Ship Orbit Office'], notes: 'Keynote' }] },
       }),
     });
 
-    render(
-      <OrbitOfficeWorkspace
-        node={{ ...BASE_NODE, name: 'deck.pptx' }}
-        api={api} canWrite={true} onBack={vi.fn()} onDownload={vi.fn()} onSaved={vi.fn()}
-      />
-    );
+    render(<OrbitOfficeWorkspace node={{ ...BASE_NODE, name: 'deck.pptx' }} api={api} canWrite={true} onBack={vi.fn()} onDownload={vi.fn()} onSaved={vi.fn()} />);
 
     const titleInput = (await screen.findByLabelText('Slide title')) as HTMLInputElement;
     expect(screen.getByText('ORBIT SLIDES')).toBeTruthy();
@@ -180,11 +161,8 @@ describe('OrbitOfficeWorkspace', () => {
     expect(screen.getByLabelText('Slide filmstrip')).toBeTruthy();
     expect((screen.getByLabelText('Speaker notes') as HTMLTextAreaElement).value).toBe('Keynote');
 
-    // Enter inside Bullet 1 inserts Bullet 2
     fireEvent.keyDown(screen.getByLabelText('Bullet 1'), { key: 'Enter' });
     expect(screen.getByLabelText('Bullet 2')).toBeTruthy();
-
-    // Theme selector updates stage theme
     fireEvent.change(screen.getByLabelText('Slide theme'), { target: { value: 'emerald' } });
     expect(screen.getByLabelText('Slide stage').getAttribute('data-theme')).toBe('emerald');
 
