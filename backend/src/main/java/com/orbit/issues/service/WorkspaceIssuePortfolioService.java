@@ -3,12 +3,12 @@ package com.orbit.issues.service;
 import com.orbit.issues.dto.IssueDto;
 import com.orbit.issues.dto.ProjectIssueSummaryDto;
 import com.orbit.issues.dto.WorkspaceIssuePortfolioDto;
-import com.orbit.issues.entity.IssuePriority;
 import com.orbit.issues.entity.IssueSprintEntity;
-import com.orbit.issues.entity.IssueStatus;
 import com.orbit.issues.entity.ProjectIssueEntity;
 import com.orbit.issues.entity.SprintStatus;
 import com.orbit.issues.repository.IssueSprintRepository;
+import com.orbit.issues.repository.OffsetLimitPageRequest;
+import com.orbit.issues.repository.ProjectIssueAggregate;
 import com.orbit.issues.repository.ProjectIssueRepository;
 import com.orbit.project.entity.ProjectEntity;
 import com.orbit.project.repository.ProjectRepository;
@@ -19,16 +19,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Aggregates cross-project issue metrics and recent activity for a workspace portfolio. */
+/** Aggregates cross-project issue metrics and recent activity for authorized portfolio projects. */
 @Service
 public class WorkspaceIssuePortfolioService {
 
     public static final int RECENT_ISSUES_LIMIT = 25;
+    private static final Sort PROJECT_NAME_ASC = Sort.by(Sort.Direction.ASC, "name");
 
     private final ProjectRepository projects;
     private final ProjectIssueRepository issues;
@@ -48,12 +51,15 @@ public class WorkspaceIssuePortfolioService {
     }
 
     @Transactional(readOnly = true)
-    public WorkspaceIssuePortfolioDto getPortfolio(UUID userId, UUID workspaceId) {
+    public WorkspaceIssuePortfolioDto getPortfolio(UUID userId, UUID workspaceId, Integer limit, Integer offset) {
         WorkspaceAccess access = lookup.requireWorkspaceIssuesAccess(userId, workspaceId);
-        List<ProjectEntity> visibleProjects = ProjectPermissionPolicy.canSeeAllProjects(access.permissions(), access.owner())
-            ? projects.findByWorkspaceIdAndDeletedAtIsNull(workspaceId, Pageable.unpaged()).getContent()
-            : projects.findMemberProjects(workspaceId, userId, Pageable.unpaged()).getContent();
+        OffsetLimitPageRequest pageRequest = OffsetLimitPageRequest.of(offset, limit, PROJECT_NAME_ASC);
 
+        List<ProjectEntity> candidateProjects = ProjectPermissionPolicy.canSeeAllProjects(access.permissions(), access.owner())
+            ? projects.findByWorkspaceIdAndDeletedAtIsNull(workspaceId, pageRequest).getContent()
+            : projects.findMemberProjects(workspaceId, userId, pageRequest).getContent();
+
+        List<ProjectEntity> visibleProjects = lookup.filterReadableIssueProjects(userId, access, candidateProjects);
         if (visibleProjects.isEmpty()) {
             return new WorkspaceIssuePortfolioDto(workspaceId, 0, 0, 0, 0, 0, 0, List.of(), List.of());
         }
@@ -62,11 +68,14 @@ public class WorkspaceIssuePortfolioService {
         Map<UUID, String> projectNames = visibleProjects.stream()
             .collect(Collectors.toMap(ProjectEntity::getId, ProjectEntity::getName, (a, b) -> a));
 
-        List<ProjectIssueEntity> allIssues = issues.findByProjectIdInOrderByUpdatedAtDesc(projectIds);
+        Map<UUID, ProjectIssueAggregate> countsByProject = issues.summarizeByProjectIds(projectIds).stream()
+            .filter(agg -> agg.projectId() != null)
+            .collect(Collectors.toMap(ProjectIssueAggregate::projectId, Function.identity(), (a, b) -> a));
         List<IssueSprintEntity> activeSprints = sprints.findByProjectIdInAndStatus(projectIds, SprintStatus.ACTIVE);
+        List<ProjectIssueEntity> recentIssues = issues.findByProjectIdInOrderByUpdatedAtDesc(
+            projectIds, PageRequest.of(0, RECENT_ISSUES_LIMIT)
+        );
 
-        Map<UUID, List<ProjectIssueEntity>> issuesByProject = allIssues.stream()
-            .collect(Collectors.groupingBy(ProjectIssueEntity::getProjectId));
         Map<UUID, String> activeSprintByProject = new HashMap<>();
         for (IssueSprintEntity sprint : activeSprints) {
             activeSprintByProject.putIfAbsent(sprint.getProjectId(), sprint.getName());
@@ -80,10 +89,8 @@ public class WorkspaceIssuePortfolioService {
         List<ProjectIssueSummaryDto> summaries = new ArrayList<>(visibleProjects.size());
 
         for (ProjectEntity project : visibleProjects) {
-            List<ProjectIssueEntity> projectIssues = issuesByProject.getOrDefault(project.getId(), List.of());
-            ProjectIssueSummaryDto summary = summarizeProject(
-                project, projectIssues, activeSprintByProject.get(project.getId())
-            );
+            ProjectIssueAggregate counts = countsByProject.getOrDefault(project.getId(), ProjectIssueAggregate.EMPTY);
+            ProjectIssueSummaryDto summary = toSummary(project, counts, activeSprintByProject.get(project.getId()));
             summaries.add(summary);
             totalIssues += summary.totalIssues();
             openIssues += summary.backlogCount() + summary.todoCount();
@@ -92,39 +99,23 @@ public class WorkspaceIssuePortfolioService {
             criticalIssues += summary.criticalCount();
         }
 
-        List<ProjectIssueEntity> recentSlice = allIssues.size() > RECENT_ISSUES_LIMIT
-            ? allIssues.subList(0, RECENT_ISSUES_LIMIT)
-            : allIssues;
-        List<IssueDto> recentDtos = lookup.toIssueDtos(recentSlice, projectNames);
-
+        List<IssueDto> recentDtos = lookup.toIssueDtos(recentIssues, projectNames);
         return new WorkspaceIssuePortfolioDto(
             workspaceId, totalIssues, openIssues, inProgressIssues, doneIssues,
             criticalIssues, activeSprints.size(), summaries, recentDtos
         );
     }
 
-    private static ProjectIssueSummaryDto summarizeProject(
-        ProjectEntity project, List<ProjectIssueEntity> projectIssues, String activeSprintName
+    private static ProjectIssueSummaryDto toSummary(
+        ProjectEntity project, ProjectIssueAggregate counts, String activeSprintName
     ) {
-        int backlog = 0;
-        int todo = 0;
-        int inProgress = 0;
-        int inReview = 0;
-        int done = 0;
-        int critical = 0;
-        for (ProjectIssueEntity issue : projectIssues) {
-            if (issue.getStatus() == IssueStatus.BACKLOG) backlog++;
-            else if (issue.getStatus() == IssueStatus.TODO) todo++;
-            else if (issue.getStatus() == IssueStatus.IN_PROGRESS) inProgress++;
-            else if (issue.getStatus() == IssueStatus.IN_REVIEW) inReview++;
-            else if (issue.getStatus() == IssueStatus.DONE) done++;
-            if (issue.getPriority() == IssuePriority.CRITICAL) critical++;
-        }
-        int total = projectIssues.size();
+        int total = counts.totalInt();
+        int done = counts.doneInt();
         int completionPercent = total == 0 ? 0 : (int) Math.round((done * 100.0) / total);
         return new ProjectIssueSummaryDto(
             project.getId(), project.getName(), project.getSlug(),
-            total, backlog, todo, inProgress, inReview, done, critical,
+            total, counts.backlogInt(), counts.todoInt(), counts.inProgressInt(),
+            counts.inReviewInt(), done, counts.criticalInt(),
             activeSprintName, completionPercent
         );
     }

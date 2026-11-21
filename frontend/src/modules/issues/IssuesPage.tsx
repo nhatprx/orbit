@@ -1,10 +1,14 @@
 import { useMemo, useState } from 'react';
 import { AlertCircle, X } from 'lucide-react';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { LoadingView } from '../../components/ui/StateViews';
-import type { IssueStatus, IssueType } from '../../types/issues.types';
+import { authService } from '../../services/auth.service';
+import type { IssueStatus, IssueType, SprintDto } from '../../types/issues.types';
 import type { ProjectDto, WorkspaceDto } from '../../types/workspace.types';
+import { CompleteSprintDialog } from './CompleteSprintDialog';
 import { CreateIssueModal } from './CreateIssueModal';
 import { CreateSprintModal } from './CreateSprintModal';
+import { EditSprintModal } from './EditSprintModal';
 import { IssueDetailDrawer } from './IssueDetailDrawer';
 import { resolveProjectIssuePermissions } from './issueFilters';
 import { IssuesBacklogView } from './IssuesBacklogView';
@@ -12,6 +16,7 @@ import { IssuesEpicsView } from './IssuesEpicsView';
 import { IssuesKanbanBoard } from './IssuesKanbanBoard';
 import { IssuesToolbar, type IssuesViewMode } from './IssuesToolbar';
 import { useProjectIssues } from './useProjectIssues';
+import { useProjectMembers } from './useProjectMembers';
 import { WorkspaceIssuesPortfolio } from './WorkspaceIssuesPortfolio';
 
 export interface IssuesPageProps {
@@ -30,11 +35,23 @@ interface IssueModalState {
 
 function ProjectIssuesWorkspace({ workspace, project }: { workspace: WorkspaceDto; project: ProjectDto }) {
   const state = useProjectIssues(workspace.id, project.id);
-  const { canWrite, canDelete } = useMemo(() => resolveProjectIssuePermissions(workspace, project), [workspace, project]);
+  const { canWrite, canDelete, canManage } = useMemo(
+    () => resolveProjectIssuePermissions(workspace, project),
+    [workspace, project]
+  );
+  const members = useProjectMembers(
+    workspace.id,
+    project.id,
+    workspace.myPermissions.includes('member.view')
+  );
+  const currentUserId = useMemo(() => authService.getSession()?.user?.id ?? null, []);
   const [view, setView] = useState<IssuesViewMode>('board');
   const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null);
   const [issueModal, setIssueModal] = useState<IssueModalState>({ open: false });
   const [sprintModalOpen, setSprintModalOpen] = useState(false);
+  const [editingSprint, setEditingSprint] = useState<SprintDto | null>(null);
+  const [completingSprint, setCompletingSprint] = useState<SprintDto | null>(null);
+  const [deletingSprint, setDeletingSprint] = useState<SprintDto | null>(null);
 
   const openIssueModal = (defaults: Omit<IssueModalState, 'open'> = {}) => setIssueModal({ open: true, ...defaults });
   const closeIssueModal = () => setIssueModal({ open: false });
@@ -85,9 +102,10 @@ function ProjectIssuesWorkspace({ workspace, project }: { workspace: WorkspaceDt
           onMoveStatus={(id, status) => void state.moveIssueStatus(id, status)}
           onAssignSprint={(id, sprintId) => void state.assignIssueSprint(id, sprintId)}
           onCreateInSprint={(sprintId) => openIssueModal({ defaultSprintId: sprintId, defaultStatus: sprintId ? 'TODO' : 'BACKLOG' })}
+          onEditSprint={setEditingSprint}
           onStartSprint={(sprintId) => void state.startSprint(sprintId)}
-          onCompleteSprint={(sprintId) => void state.completeSprint(sprintId)}
-          onDeleteSprint={(sprintId) => void state.deleteSprint(sprintId)}
+          onCompleteSprint={setCompletingSprint}
+          onDeleteSprint={setDeletingSprint}
         />
       ) : (
         <IssuesEpicsView
@@ -100,12 +118,14 @@ function ProjectIssuesWorkspace({ workspace, project }: { workspace: WorkspaceDt
 
       <IssueDetailDrawer
         workspaceId={workspace.id} projectId={project.id} issueId={selectedIssueId}
-        sprints={state.sprints} epics={state.epics} canWrite={canWrite} canDelete={canDelete}
+        sprints={state.sprints} epics={state.epics} allIssues={state.issues} members={members}
+        canWrite={canWrite} canDelete={canDelete} canManage={canManage} currentUserId={currentUserId}
         onClose={() => setSelectedIssueId(null)} onChanged={() => void state.refresh()}
       />
 
       <CreateIssueModal
         open={issueModal.open} sprints={state.sprints} epics={state.epics}
+        issues={state.issues} members={members}
         defaultStatus={issueModal.defaultStatus} defaultSprintId={issueModal.defaultSprintId}
         defaultParentId={issueModal.defaultParentId} defaultType={issueModal.defaultType}
         onClose={closeIssueModal}
@@ -116,6 +136,31 @@ function ProjectIssuesWorkspace({ workspace, project }: { workspace: WorkspaceDt
         open={sprintModalOpen} onClose={() => setSprintModalOpen(false)}
         onSubmit={async (req) => { await state.createSprint(req); setSprintModalOpen(false); }}
       />
+
+      <EditSprintModal
+        sprint={editingSprint} onClose={() => setEditingSprint(null)}
+        onSubmit={async (sprintId, req) => { await state.updateSprint(sprintId, req); setEditingSprint(null); }}
+      />
+
+      <CompleteSprintDialog
+        sprint={completingSprint} onClose={() => setCompletingSprint(null)}
+        onConfirm={async (sprintId, moveIncomplete) => {
+          await state.completeSprint(sprintId, moveIncomplete);
+          setCompletingSprint(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={deletingSprint !== null} title="Delete Sprint"
+        message={`Delete ${deletingSprint?.name ?? 'this sprint'}? Any issues assigned to it will return to the Backlog.`}
+        confirmLabel="Delete Sprint" danger
+        onConfirm={async () => {
+          if (!deletingSprint) return;
+          await state.deleteSprint(deletingSprint.id);
+          setDeletingSprint(null);
+        }}
+        onClose={() => setDeletingSprint(null)}
+      />
     </div>
   );
 }
@@ -125,11 +170,7 @@ export function IssuesPage({ workspace, project, onOpenProject }: IssuesPageProp
     return (
       <div className="h-full overflow-y-auto bg-[#0D1117] p-5">
         <div className="mx-auto max-w-7xl">
-          <WorkspaceIssuesPortfolio
-            workspaceId={workspace.id}
-            workspaceName={workspace.name}
-            onOpenProject={onOpenProject}
-          />
+          <WorkspaceIssuesPortfolio workspaceId={workspace.id} workspaceName={workspace.name} onOpenProject={onOpenProject} />
         </div>
       </div>
     );

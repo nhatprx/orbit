@@ -49,11 +49,13 @@ public class ProjectIssueController {
         @RequestParam(required = false) Boolean backlogOnly,
         @RequestParam(required = false) UUID parentId,
         @RequestParam(required = false) UUID assigneeId,
-        @RequestParam(required = false) String q
+        @RequestParam(required = false) String q,
+        @RequestParam(required = false) Integer limit,
+        @RequestParam(required = false) Integer offset
     ) {
         return issues.listIssues(
             principal.userId(), workspaceId, projectId,
-            type, status, priority, sprintId, backlogOnly, parentId, assigneeId, q
+            type, status, priority, sprintId, backlogOnly, parentId, assigneeId, q, limit, offset
         );
     }
 

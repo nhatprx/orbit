@@ -48,17 +48,11 @@ public class IssueLookupHelper {
         this.accessGuard = accessGuard;
     }
 
-    public ProjectEntity requireProjectPermission(UUID userId, UUID workspaceId, UUID projectId, String... anyOfPermissions) {
-        return accessGuard.requireProjectPermission(userId, workspaceId, projectId, anyOfPermissions);
-    }
-
-    public ProjectAccess requireProjectAccessWithModule(UUID userId, UUID workspaceId, UUID projectId) {
-        return accessGuard.requireProjectAccessWithModule(userId, workspaceId, projectId);
-    }
-
-    public WorkspaceAccess requireWorkspaceIssuesAccess(UUID userId, UUID workspaceId) {
-        return accessGuard.requireWorkspaceIssuesAccess(userId, workspaceId);
-    }
+    public ProjectEntity requireProjectPermission(UUID u, UUID w, UUID p, String... perms) { return accessGuard.requireProjectPermission(u, w, p, perms); }
+    public ProjectAccess requireProjectAccessWithModule(UUID u, UUID w, UUID p) { return accessGuard.requireProjectAccessWithModule(u, w, p); }
+    public WorkspaceAccess requireWorkspaceIssuesAccess(UUID u, UUID w) { return accessGuard.requireWorkspaceIssuesAccess(u, w); }
+    public void requireValidAssignee(UUID w, UUID p, UUID assigneeId) { accessGuard.requireValidAssignee(w, p, assigneeId); }
+    public List<ProjectEntity> filterReadableIssueProjects(UUID u, WorkspaceAccess a, List<ProjectEntity> c) { return accessGuard.filterReadableIssueProjects(u, a, c); }
 
     public Map<UUID, String> resolveUserNames(Collection<UUID> userIds) {
         Set<UUID> unique = userIds.stream().filter(Objects::nonNull).collect(Collectors.toSet());
@@ -103,16 +97,14 @@ public class IssueLookupHelper {
         Map<UUID, String> parentKeys = resolveParentKeys(parentIds);
         Map<UUID, int[]> subtaskCounts = resolveSubtaskCounts(issueIds);
         Map<UUID, Integer> commentCounts = resolveCommentCounts(issueIds);
-
         return items.stream().map(item -> {
             int[] sub = subtaskCounts.getOrDefault(item.getId(), new int[] {0, 0});
             String reporterName = lookupValue(userNames, item.getReporterId());
             String projectName = lookupValue(projectNames, item.getProjectId());
             return new IssueDto(
                 item.getId(), item.getWorkspaceId(), item.getProjectId(), projectName != null ? projectName : "",
-                item.getIssueNumber(), item.getIssueKey(),
-                item.getType().name(), item.getTitle(), item.getDescription(),
-                item.getStatus().name(), item.getPriority().name(), item.getStoryPoints(),
+                item.getIssueNumber(), item.getIssueKey(), item.getType().name(), item.getTitle(),
+                item.getDescription(), item.getStatus().name(), item.getPriority().name(), item.getStoryPoints(),
                 item.getSprintId(), lookupValue(sprintNames, item.getSprintId()),
                 item.getParentId(), lookupValue(parentKeys, item.getParentId()),
                 item.getAssigneeId(), lookupValue(userNames, item.getAssigneeId()),
@@ -151,9 +143,7 @@ public class IssueLookupHelper {
     private Map<UUID, String> resolveParentKeys(Set<UUID> parentIds) {
         if (parentIds.isEmpty()) return Map.of();
         Map<UUID, String> keys = new HashMap<>();
-        for (ProjectIssueEntity parent : issues.findAllById(parentIds)) {
-            keys.put(parent.getId(), parent.getIssueKey());
-        }
+        for (ProjectIssueEntity parent : issues.findAllById(parentIds)) keys.put(parent.getId(), parent.getIssueKey());
         return keys;
     }
 

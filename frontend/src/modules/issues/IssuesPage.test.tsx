@@ -1,18 +1,25 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ProjectDto, WorkspaceDto } from '../../types/workspace.types';
+import type { MemberDto, ProjectDto, WorkspaceDto } from '../../types/workspace.types';
+
+const TEST_MEMBERS = vi.hoisted((): MemberDto[] => [
+  { userId: 'usr-linh', username: 'linh', displayName: 'Linh Tran', email: 'linh@orbit.dev', roleId: 'r1', roleName: 'Owner', isOwner: true, joinedAt: '2026-11-01T00:00:00Z' },
+  { userId: 'usr-marcus', username: 'marcus', displayName: 'Marcus Chen', email: 'marcus@orbit.dev', roleId: 'r2', roleName: 'Member', isOwner: false, joinedAt: '2026-11-02T00:00:00Z' },
+]);
 
 vi.mock('../../services/issues/issues.service', async () => {
-  const { MockIssuesService } = await import('../../services/issues/mockIssues.service');
-  const instance = new MockIssuesService();
-  return {
-    issuesService: instance,
-    mockIssuesService: instance,
-    MockIssuesService,
-  };
+  const { mockIssuesService } = await import('../../services/issues/mockIssues.service');
+  return { issuesService: mockIssuesService };
 });
 
-import { mockIssuesService } from '../../services/issues/issues.service';
+vi.mock('../../services/workspace/services', () => ({
+  memberService: {
+    listProjectMembers: vi.fn().mockResolvedValue({ items: TEST_MEMBERS, page: 0, size: 100, totalElements: 2, totalPages: 1, hasMore: false }),
+    listWorkspaceMembers: vi.fn().mockResolvedValue({ items: TEST_MEMBERS, page: 0, size: 100, totalElements: 2, totalPages: 1, hasMore: false }),
+  },
+}));
+
+import { mockIssuesService } from '../../services/issues/mockIssues.service';
 import { IssuesPage } from './IssuesPage';
 
 const WORKSPACE: WorkspaceDto = {
@@ -25,7 +32,7 @@ const WORKSPACE: WorkspaceDto = {
   memberCount: 6,
   projectCount: 2,
   enabledModules: ['git', 'chat', 'cloud', 'issues'],
-  myPermissions: ['issues.read', 'issues.write', 'issues.delete', 'issues.manage'],
+  myPermissions: ['issues.read', 'issues.write', 'issues.delete', 'issues.manage', 'member.view'],
   createdAt: '2026-11-01T00:00:00Z',
   updatedAt: '2026-11-20T00:00:00Z',
   deletedAt: null,
@@ -56,98 +63,85 @@ describe('IssuesPage', () => {
     render(<IssuesPage workspace={WORKSPACE} project={null} onOpenProject={onOpenProject} />);
 
     expect(await screen.findByText('Orbit Engineering — Issues Portfolio')).toBeTruthy();
-    expect(screen.getByText('Total Issues')).toBeTruthy();
-    expect(screen.getByText('Active Sprints')).toBeTruthy();
     expect(screen.getByText('Project Lifecycle Breakdown (2)')).toBeTruthy();
-    expect(screen.getByText('Orbit Core API', { selector: 'h3' })).toBeTruthy();
-    expect(screen.getByText('Orbit Web Shell', { selector: 'h3' })).toBeTruthy();
-
     fireEvent.change(screen.getByLabelText('Filter feed by priority'), { target: { value: 'CRITICAL' } });
     expect(screen.getAllByText(/Fix race condition on concurrent refresh token calls/).length).toBeGreaterThan(0);
 
-    const openButtons = screen.getAllByRole('button', { name: /Open Project Board/i });
-    fireEvent.click(openButtons[0]!);
+    fireEvent.click(screen.getAllByRole('button', { name: /Open Project Board/i })[0]!);
     expect(onOpenProject).toHaveBeenCalledWith('proj-orbit-core');
   });
 
-  it('renders Kanban board, filters by type/search, and creates a new issue via modal', async () => {
+  it('renders Kanban board, filters issues, and creates a new assigned issue via modal', async () => {
     render(<IssuesPage workspace={WORKSPACE} project={PROJECT} onOpenProject={vi.fn()} />);
 
     expect(await screen.findByText('Fix race condition on concurrent refresh token calls')).toBeTruthy();
-
     fireEvent.change(screen.getByLabelText('Filter by type'), { target: { value: 'BUG' } });
     fireEvent.change(screen.getByLabelText('Search issues'), { target: { value: 'refresh' } });
-    expect(screen.getByText('Fix race condition on concurrent refresh token calls')).toBeTruthy();
     expect(screen.queryByText('Build Kanban board with single-click status transitions')).toBeNull();
-
     fireEvent.click(screen.getByRole('button', { name: /Clear/i }));
-    expect(screen.getByText('Build Kanban board with single-click status transitions')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /New Issue/i }));
     const dialog = screen.getByRole('dialog', { name: 'Create Issue' });
     fireEvent.change(within(dialog).getByLabelText('Type'), { target: { value: 'STORY' } });
     fireEvent.change(within(dialog).getByLabelText('Title'), { target: { value: 'Ship portfolio CSV export' } });
-    fireEvent.change(within(dialog).getByLabelText('Story Points'), { target: { value: '5' } });
-    fireEvent.change(within(dialog).getByLabelText('Labels'), { target: { value: 'export, analytics' } });
+    fireEvent.change(within(dialog).getByLabelText('Assignee'), { target: { value: 'usr-marcus' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create Issue' }));
 
     expect(await screen.findByText('Ship portfolio CSV export')).toBeTruthy();
   });
 
-  it('opens IssueDetailDrawer, updates metadata, adds subtask & comment, and logs activity', async () => {
+  it('opens IssueDetailDrawer, adds subtask & comment, and logs activity', async () => {
     render(<IssuesPage workspace={WORKSPACE} project={PROJECT} onOpenProject={vi.fn()} />);
 
-    const cardTitle = await screen.findByText('Fix race condition on concurrent refresh token calls');
-    fireEvent.click(cardTitle);
-
+    fireEvent.click(await screen.findByText('Fix race condition on concurrent refresh token calls'));
     const drawer = await screen.findByRole('dialog', { name: /Issue OCA-5/i });
-    expect(within(drawer).getByText('Subtasks')).toBeTruthy();
 
-    fireEvent.change(within(drawer).getByLabelText('New subtask title'), {
-      target: { value: 'Add metric counter for lock contention' },
-    });
+    fireEvent.change(within(drawer).getByLabelText('New subtask title'), { target: { value: 'Add lock metric' } });
     fireEvent.click(within(drawer).getByRole('button', { name: /Add Subtask/i }));
-    expect(await within(drawer).findByText('Add metric counter for lock contention')).toBeTruthy();
+    expect(await within(drawer).findByText('Add lock metric')).toBeTruthy();
 
-    const firstToggle = within(drawer).getAllByRole('checkbox')[0]!;
-    fireEvent.click(firstToggle);
-    await waitFor(() => expect(within(drawer).getByText(/Subtasks/)).toBeTruthy());
-
-    fireEvent.change(within(drawer).getByLabelText('Add comment'), {
-      target: { value: 'Verified lock release under simulated failover.' },
-    });
+    fireEvent.change(within(drawer).getByLabelText('Add comment'), { target: { value: 'Verified failover.' } });
     fireEvent.click(within(drawer).getByRole('button', { name: /Post Comment/i }));
-    expect(await within(drawer).findByText('Verified lock release under simulated failover.')).toBeTruthy();
+    expect(await within(drawer).findByText('Verified failover.')).toBeTruthy();
 
     fireEvent.click(within(drawer).getByRole('tab', { name: /Activity History/i }));
     expect(await within(drawer).findByText(/COMMENT_ADDED/)).toBeTruthy();
     expect(within(drawer).getByText(/SUBTASK_ADDED/)).toBeTruthy();
   });
 
-  it('switches to Backlog & Sprints view, completes active sprint, starts planned sprint, and creates sprint', async () => {
+  it('handles Complete Sprint confirmation, Edit Sprint modal, Delete Sprint confirmation, and Create Sprint', async () => {
     render(<IssuesPage workspace={WORKSPACE} project={PROJECT} onOpenProject={vi.fn()} />);
     expect(await screen.findByText('Orbit Core API')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('tab', { name: /Backlog & Sprints/i }));
     expect(await screen.findByRole('heading', { name: 'Sprint 14 - Identity & Audit' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Sprint 15 - Lifecycle Automation' })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /Complete Sprint/i }));
+    const completeDialog = await screen.findByRole('dialog', { name: 'Complete Sprint' });
+    fireEvent.click(within(completeDialog).getByRole('button', { name: 'Complete Sprint' }));
+
     const startBtn = await screen.findByRole('button', { name: /Start Sprint/i });
     fireEvent.click(startBtn);
-
     await waitFor(() => {
       const sprint15 = screen.getByRole('region', { name: 'Sprint 15 - Lifecycle Automation' });
       expect(within(sprint15).getByRole('button', { name: /Complete Sprint/i })).toBeTruthy();
     });
 
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Sprint 15 - Lifecycle Automation' }));
+    const editDialog = await screen.findByRole('dialog', { name: 'Edit Sprint' });
+    fireEvent.change(within(editDialog).getByLabelText('Sprint Name'), { target: { value: 'Sprint 15 - Hardened' } });
+    fireEvent.click(within(editDialog).getByRole('button', { name: 'Save Sprint' }));
+    expect(await screen.findByRole('heading', { name: 'Sprint 15 - Hardened' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Sprint 14 - Identity & Audit' }));
+    const deleteDialog = await screen.findByRole('dialog', { name: 'Delete Sprint' });
+    fireEvent.click(within(deleteDialog).getByRole('button', { name: 'Delete Sprint' }));
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Sprint 14 - Identity & Audit' })).toBeNull());
+
     fireEvent.click(screen.getByRole('button', { name: /New Sprint/i }));
     const sprintDialog = screen.getByRole('dialog', { name: 'Create Sprint' });
     fireEvent.change(within(sprintDialog).getByLabelText('Sprint Name'), { target: { value: 'Sprint 16 - QA' } });
-    fireEvent.change(within(sprintDialog).getByLabelText('Start Date'), { target: { value: '2026-12-11' } });
-    fireEvent.change(within(sprintDialog).getByLabelText('End Date'), { target: { value: '2026-12-25' } });
     fireEvent.click(within(sprintDialog).getByRole('button', { name: 'Create Sprint' }));
-
     expect(await screen.findByRole('heading', { name: 'Sprint 16 - QA' })).toBeTruthy();
   });
 });

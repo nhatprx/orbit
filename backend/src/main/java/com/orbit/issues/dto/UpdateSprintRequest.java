@@ -11,5 +11,19 @@ public record UpdateSprintRequest(
     String status,
     LocalDate startDate,
     LocalDate endDate,
-    Boolean moveIncompleteToBacklog
-) {}
+    Boolean moveIncompleteToBacklog,
+    Boolean clearStartDate,
+    Boolean clearEndDate
+) {
+
+    public UpdateSprintRequest(
+        String name,
+        String goal,
+        String status,
+        LocalDate startDate,
+        LocalDate endDate,
+        Boolean moveIncompleteToBacklog
+    ) {
+        this(name, goal, status, startDate, endDate, moveIncompleteToBacklog, null, null);
+    }
+}

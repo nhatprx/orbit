@@ -1,34 +1,15 @@
-import {
-  DEFAULT_PORTFOLIO_PROJECTS,
-  createMockProjectSeed,
-  type MockProjectSeed,
-} from '../../mocks/issues.mock';
+import { DEFAULT_PORTFOLIO_PROJECTS, createMockProjectSeed, type MockProjectSeed } from '../../mocks/issues.mock';
 import type {
-  CreateIssueCommentRequest,
-  CreateIssueRequest,
-  CreateSprintRequest,
-  IssueCommentDto,
-  IssueDetailDto,
-  IssueDto,
-  IssueFilterParams,
-  SprintDto,
-  UpdateIssueRequest,
-  UpdateSprintRequest,
-  WorkspaceIssuePortfolioDto,
+  CreateIssueCommentRequest, CreateIssueRequest, CreateSprintRequest,
+  IssueCommentDto, IssueDetailDto, IssueDto, IssueFilterParams,
+  SprintDto, UpdateIssueRequest, UpdateSprintRequest, WorkspaceIssuePortfolioDto,
 } from '../../types/issues.types';
 import type { IssuesService } from './issues.service';
 import {
-  DEFAULT_MOCK_ACTOR,
-  applyIssueCreate,
-  applyIssueUpdate,
-  recordMockActivity,
-  type MockClock,
+  DEFAULT_MOCK_ACTOR, applyIssueCreate, applyIssueUpdate, recordMockActivity, type MockClock,
 } from './mockIssues.mutations';
 import {
-  buildWorkspacePortfolio,
-  hydrateIssue,
-  hydrateSprint,
-  matchesIssueFilters,
+  buildWorkspacePortfolio, hydrateIssue, hydrateSprint, matchesIssueFilters,
 } from './mockIssues.projection';
 import { applySprintCreate, applySprintUpdate } from './mockIssues.sprintMutations';
 import { assertValidCommentBody, notFoundError } from './mockIssues.validation';
@@ -49,10 +30,13 @@ export class MockIssuesService implements IssuesService {
 
   async listIssues(workspaceId: string, projectId: string, filters?: IssueFilterParams): Promise<IssueDto[]> {
     const seed = this.getSeed(workspaceId, projectId);
+    const offset = Math.max(0, filters?.offset ?? 0);
+    const limit = Math.min(500, Math.max(1, filters?.limit ?? 200));
     return seed.issues
       .map((item) => hydrateIssue(item, seed))
       .filter((item) => matchesIssueFilters(item, filters))
-      .sort((a, b) => b.issueNumber - a.issueNumber);
+      .sort((a, b) => b.issueNumber - a.issueNumber)
+      .slice(offset, offset + limit);
   }
 
   async getIssueDetail(workspaceId: string, projectId: string, issueId: string): Promise<IssueDetailDto> {

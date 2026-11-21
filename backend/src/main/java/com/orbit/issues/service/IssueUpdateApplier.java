@@ -52,6 +52,7 @@ public class IssueUpdateApplier {
         if (Boolean.TRUE.equals(req.clearAssignee())) {
             issue.setAssigneeId(null);
         } else if (req.assigneeId() != null) {
+            lookup.requireValidAssignee(issue.getWorkspaceId(), projectId, req.assigneeId());
             issue.setAssigneeId(req.assigneeId());
         }
         return buildActivities(userId, issue, oldStatus, oldPriority, oldSprintId, oldAssigneeId, generalEdited);

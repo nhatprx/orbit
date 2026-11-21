@@ -57,32 +57,21 @@ export function matchesProjectIssueFilters(
 export function resolveProjectIssuePermissions(
   workspace: WorkspaceDto,
   project: ProjectDto
-): { canWrite: boolean; canDelete: boolean } {
+): { canWrite: boolean; canDelete: boolean; canManage: boolean } {
+  const projectPerms = new Set(project.myPermissions);
   const perms = new Set([...project.myPermissions, ...workspace.myPermissions]);
-  const hasExplicit =
-    perms.has('pissues.read') ||
-    perms.has('pissues.write') ||
-    perms.has('pissues.delete') ||
-    perms.has('pissues.manage') ||
-    perms.has('issues.read') ||
-    perms.has('issues.write') ||
-    perms.has('issues.delete') ||
-    perms.has('issues.manage');
-
-  if (!hasExplicit) {
-    const emptyFixtures = project.myPermissions.length === 0 && workspace.myPermissions.length === 0;
-    return { canWrite: emptyFixtures, canDelete: emptyFixtures };
-  }
+  const canManage = projectPerms.has('pissues.manage');
   return {
     canWrite:
+      canManage ||
       perms.has('pissues.write') ||
-      perms.has('pissues.manage') ||
       perms.has('issues.write') ||
       perms.has('issues.manage'),
     canDelete:
+      canManage ||
       perms.has('pissues.delete') ||
-      perms.has('pissues.manage') ||
       perms.has('issues.delete') ||
       perms.has('issues.manage'),
+    canManage,
   };
 }
