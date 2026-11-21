@@ -30,7 +30,7 @@ export const orbitUniverTheme: Theme = {
   },
 };
 
-const IGNORED_MUTATIONS = new Set([
+const IGNORED_SHEET_MUTATIONS = new Set([
   'sheet.mutation.set-worksheet-row-auto-height',
   'sheet.mutation.set-worksheet-row-is-auto-height',
   'sheet.mutation.set-worksheet-permission-points',
@@ -40,10 +40,33 @@ const IGNORED_MUTATIONS = new Set([
   'sheet.mutation.mark-dirty-filter-change',
 ]);
 
+const IGNORED_DOC_MUTATIONS = new Set([
+  'doc.mutation.set-permission-rule',
+  'doc.mutation.set-permission-rules',
+  'docs-formula.mutation.set-last-values',
+]);
+
+const IGNORED_SLIDE_OPERATIONS = new Set([
+  'slide.operation.activate-slide',
+  'slide.operation.set-slide-page-thumb',
+  'slide.operation.edit-arrow',
+]);
+
 export function isWorkbookContentMutation(cmd: { id: string; type?: number }): boolean {
   if (cmd.type !== CommandType.MUTATION) return false;
   if (!cmd.id.startsWith('sheet.mutation.')) return false;
-  return !IGNORED_MUTATIONS.has(cmd.id);
+  return !IGNORED_SHEET_MUTATIONS.has(cmd.id);
+}
+
+export function isDocContentMutation(cmd: { id: string; type?: number }): boolean {
+  if (cmd.type !== CommandType.MUTATION) return false;
+  if (IGNORED_DOC_MUTATIONS.has(cmd.id)) return false;
+  return cmd.id.startsWith('doc.mutation.') || cmd.id.startsWith('docs.mutation.');
+}
+
+export function isSlideContentMutation(cmd: { id: string; type?: number }): boolean {
+  if (cmd.id.startsWith('slide.operation.')) return !IGNORED_SLIDE_OPERATIONS.has(cmd.id);
+  return cmd.type === CommandType.MUTATION && cmd.id === 'doc.mutation.rich-text-editing';
 }
 
 let domEnvPatched = false;

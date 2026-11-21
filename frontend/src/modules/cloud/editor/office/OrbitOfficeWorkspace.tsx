@@ -117,11 +117,15 @@ export function OrbitOfficeWorkspace({
     onKeepEditing: () => setConfirmDiscard(false),
     onDiscard: () => { setConfirmDiscard(false); onBack(); },
   };
-  const renderSheetInline = !pdfMode && !loading && format === 'XLSX' && Boolean(sheet);
+  const renderEditorHeaderInline = !pdfMode && !loading && (
+    (format === 'XLSX' && Boolean(sheet)) ||
+    (format === 'PPTX' && Boolean(slide)) ||
+    (format === 'DOCX' && Boolean(doc))
+  );
 
   return (
     <div className="flex h-full w-full flex-col bg-[#0D1117]">
-      {!renderSheetInline && <OrbitOfficeHeader {...sharedHeaderProps} />}
+      {!renderEditorHeaderInline && <OrbitOfficeHeader {...sharedHeaderProps} />}
       <div className="min-h-0 flex-1 overflow-hidden">
         {pdfMode ? (
           <OrbitPdfViewer node={node} api={api} onDownload={onDownload} />
@@ -135,9 +139,21 @@ export function OrbitOfficeWorkspace({
             onChange={(next) => { setSheet(next); setDirty(true); setSavedNotice(false); }}
           />
         ) : format === 'PPTX' && slide ? (
-          <OrbitSlideEditor value={slide} readOnly={!canWrite} onChange={(next) => { setSlide(next); setDirty(true); setSavedNotice(false); }} />
+          <OrbitSlideEditor
+            value={slide}
+            readOnly={!canWrite}
+            headerProps={sharedHeaderProps}
+            onChange={(next) => { setSlide(next); setDirty(true); setSavedNotice(false); }}
+          />
         ) : (
-          doc && <OrbitDocEditor value={doc} readOnly={!canWrite} onChange={(next) => { setDoc(next); setDirty(true); setSavedNotice(false); }} />
+          doc && (
+            <OrbitDocEditor
+              value={doc}
+              readOnly={!canWrite}
+              headerProps={sharedHeaderProps}
+              onChange={(next) => { setDoc(next); setDirty(true); setSavedNotice(false); }}
+            />
+          )
         )}
       </div>
     </div>

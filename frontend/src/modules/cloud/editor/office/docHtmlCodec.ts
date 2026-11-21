@@ -55,6 +55,17 @@ export function stripHtmlTags(raw: string | null | undefined): string {
     .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
 }
 
+export function decodeHtmlEntities(raw: string): string {
+  return raw
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+    .replace(/[\r\n\v\f\0\x1A-\x1F]/g, ' ');
+}
+
+export function escapeHtmlEntities(raw: string): string {
+  return raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 export function normalizeDocAlign(raw?: string | null): DocAlign {
   const val = (raw ?? '').trim().toLowerCase();
   return val === 'center' || val === 'right' || val === 'justify' ? val : 'left';

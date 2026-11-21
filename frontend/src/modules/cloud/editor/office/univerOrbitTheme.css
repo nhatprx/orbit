@@ -1,4 +1,6 @@
 @import '@univerjs/preset-sheets-core/lib/index.css';
+@import '@univerjs/preset-docs-core/lib/index.css';
+@import '@univerjs/slides-ui/lib/index.css';
 
 :root,
 .univer-dark,
@@ -17,6 +19,7 @@
   --univer-green-600: 34 197 94 !important;
   --univer-blue-100: 5 46 22 !important;
   --univer-blue-500: 34 197 94 !important;
+  --univer-gray-0: 22 27 34 !important;
   --univer-gray-50: 230 237 243 !important;
   --univer-gray-100: 201 209 217 !important;
   --univer-gray-200: 139 148 158 !important;
@@ -60,6 +63,7 @@
 .orbit-univer-host input,
 .orbit-univer-host select,
 .orbit-univer-host textarea,
+.orbit-univer-host aside,
 [data-u-comp] {
   font-family: 'Outfit', sans-serif;
 }
@@ -74,9 +78,12 @@
 
 .orbit-univer-host header,
 .orbit-univer-host footer,
+.orbit-univer-host aside,
 .orbit-univer-host [data-u-comp="ribbon-toolbar"],
 .orbit-univer-host [data-u-comp="headerbar"],
-.orbit-univer-host [data-u-comp="sheet-bar"] {
+.orbit-univer-host [data-u-comp="sheet-bar"],
+.orbit-univer-host [data-u-comp="left-sidebar"],
+.orbit-univer-host [data-u-comp="sidebar"] {
   background-color: #161B22 !important;
   border-color: #30363D !important;
 }

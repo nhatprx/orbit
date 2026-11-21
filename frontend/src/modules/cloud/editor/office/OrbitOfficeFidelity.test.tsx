@@ -1,31 +1,13 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { CloudFilesApi } from '../../../../services/cloud/cloudApi';
-import type { CloudNodeDto } from '../../../../types/cloud.types';
-import { OrbitOfficeWorkspace } from './OrbitOfficeWorkspace';
+import { OrbitDocEditor } from './OrbitDocEditor';
 import { OrbitSheetEditor } from './OrbitSheetEditor';
+import { OrbitSlideEditor } from './OrbitSlideEditor';
+import type { UniverDocCanvasHandle } from './UniverDocCanvas';
 import type { UniverSheetCanvasHandle } from './UniverSheetCanvas';
+import type { UniverSlideCanvasHandle } from './UniverSlideCanvas';
 import { docDtoToHtml, htmlToDocDto } from './docHtmlCodec';
-import type { OfficeSheetContentDto } from './officeTypes';
-
-const BASE_NODE: CloudNodeDto = {
-  id: 'node-fidelity-1', scopeType: 'USER', scopeId: 'user-1', parentId: null, nodeType: 'FILE',
-  name: 'spec.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  sizeBytes: 4096, starred: false, depth: 0, createdBy: 'user-1', createdByName: 'Ada Lovelace',
-  deletedAt: null, purgeAfter: null, createdAt: '2026-03-01T00:00:00Z', updatedAt: '2026-03-01T00:00:00Z',
-};
-
-function stubApi(overrides: Partial<CloudFilesApi> = {}): CloudFilesApi {
-  return {
-    listNodes: vi.fn(), getBreadcrumbs: vi.fn(), getQuota: vi.fn(), createFolder: vi.fn(),
-    updateNode: vi.fn(), softDeleteNode: vi.fn(), restoreNode: vi.fn(), permanentDeleteNode: vi.fn(),
-    emptyTrash: vi.fn(), initUpload: vi.fn(), signUploadParts: vi.fn(), completeUpload: vi.fn(), abortUpload: vi.fn(),
-    getDownloadUrl: vi.fn(), createDocument: vi.fn(), getTextContent: vi.fn(), saveTextContent: vi.fn(),
-    getOfficeContent: vi.fn(),
-    saveOfficeContent: vi.fn().mockResolvedValue({ ...BASE_NODE, updatedAt: '2026-03-01T00:05:00Z' }),
-    ...overrides,
-  } as CloudFilesApi;
-}
+import type { OfficeDocContentDto, OfficeSheetContentDto, OfficeSlideContentDto } from './officeTypes';
 
 describe('OrbitOfficeFidelity', () => {
   it('round-trips hr blocks, justify alignment, and sanitized inline tags in docHtmlCodec', () => {
@@ -44,31 +26,42 @@ describe('OrbitOfficeFidelity', () => {
     expect(parsed).toEqual(dto);
   });
 
-  it('persists justify alignment and horizontal rule and hides unpersisted font controls in OrbitDocEditor', async () => {
-    const api = stubApi({
-      getOfficeContent: vi.fn().mockResolvedValue({
-        nodeId: BASE_NODE.id, name: 'spec.docx', mimeType: BASE_NODE.mimeType ?? '', format: 'DOCX',
-        sizeBytes: 2048, updatedAt: BASE_NODE.updatedAt, etag: 'e1',
-        doc: { blocks: [{ type: 'p', text: 'Body paragraph', align: 'left' }], tables: [] },
-        sheet: null, slide: null,
-      }),
+  it('mounts Univer Docs engine, loads blocks & tables, executes FDocument mutations, and syncs snapshot to onChange', async () => {
+    const initialDoc: OfficeDocContentDto = {
+      blocks: [
+        { type: 'h1', text: '<b>Orbit</b> Specification', align: 'left' },
+        { type: 'p', text: 'Body paragraph', align: 'justify' },
+      ],
+      tables: [{ rows: [['Key', 'Value'], ['Stack', 'Univer']] }],
+    };
+    const onChange = vi.fn();
+    let handle: UniverDocCanvasHandle | null = null;
+
+    render(
+      <OrbitDocEditor
+        value={initialDoc}
+        onChange={onChange}
+        onReady={(h) => { handle = h; }}
+      />
+    );
+
+    await waitFor(() => expect(handle?.getDocumentApi()).toBeTruthy());
+    expect(screen.getByTestId('orbit-univer-doc-host')).toBeTruthy();
+    expect(screen.getByText('Tables: 1')).toBeTruthy();
+
+    const fDoc = handle!.getDocumentApi()!;
+    act(() => {
+      fDoc.appendParagraph('Appended via Univer Docs API');
     });
 
-    render(<OrbitOfficeWorkspace node={BASE_NODE} api={api} canWrite={true} onBack={vi.fn()} onDownload={vi.fn()} onSaved={vi.fn()} />);
-
-    await screen.findByLabelText('Document canvas');
-    expect(screen.queryByLabelText('Font family')).toBeNull();
-    expect(screen.queryByLabelText('Font size')).toBeNull();
-
-    fireEvent.click(screen.getByLabelText('Align justify'));
-    fireEvent.click(screen.getByLabelText('Horizontal rule'));
-    fireEvent.click(screen.getByRole('button', { name: /Save/i }));
-
-    await waitFor(() => expect(api.saveOfficeContent).toHaveBeenCalledTimes(1));
-    const payload = (api.saveOfficeContent as ReturnType<typeof vi.fn>).mock.calls[0]?.[1];
-    expect(payload.doc.blocks[0]).toEqual({ type: 'p', text: 'Body paragraph', align: 'justify' });
-    expect(payload.doc.blocks[1]).toEqual({ type: 'hr', text: '', align: 'left' });
-  });
+    const flushed = handle!.flushNow();
+    expect(flushed).toBeTruthy();
+    expect(onChange).toHaveBeenCalled();
+    expect(flushed!.blocks[0]).toEqual({ type: 'h1', text: '<b>Orbit</b> Specification', align: 'left' });
+    expect(flushed!.blocks[1]).toEqual({ type: 'p', text: 'Body paragraph', align: 'justify' });
+    expect(flushed!.blocks[2]?.text).toBe('Appended via Univer Docs API');
+    expect(flushed!.tables).toEqual([{ rows: [['Key', 'Value'], ['Stack', 'Univer']] }]);
+  }, 15000);
 
   it('mounts Univer Sheets engine, loads and mutates formulas and styles, and syncs live snapshot to onChange', async () => {
     const initialDto: OfficeSheetContentDto = {
@@ -132,5 +125,39 @@ describe('OrbitOfficeFidelity', () => {
       numFmt: 'percent',
       decimals: 1,
     });
+  }, 15000);
+
+  it('mounts Univer Slides engine, creates SlideDataModel pages and elements, and flushes updates back to DTO', async () => {
+    const initialSlide: OfficeSlideContentDto = {
+      slides: [
+        { title: 'Deck Launch', subtitle: 'Phase 1', bullets: ['Univer Slides Engine'], notes: 'Speaker notes' },
+      ],
+    };
+    const onChange = vi.fn();
+    let handle: UniverSlideCanvasHandle | null = null;
+
+    render(
+      <OrbitSlideEditor
+        value={initialSlide}
+        onChange={onChange}
+        onReady={(h) => { handle = h; }}
+      />
+    );
+
+    await waitFor(() => expect(handle?.getSlideModel()).toBeTruthy());
+    const model = handle!.getSlideModel()!;
+    expect(model.getPageOrder()).toEqual(['slide-1']);
+
+    act(() => {
+      handle!.syncSlides({
+        slides: [
+          { title: 'Updated Deck Launch', subtitle: 'Phase 2', bullets: ['Univer Slides Engine', 'Second bullet'], notes: 'Speaker notes' },
+        ],
+      });
+    });
+
+    const flushed = handle!.flushNow();
+    expect(flushed?.slides[0]?.title).toBe('Updated Deck Launch');
+    expect(flushed?.slides[0]?.bullets).toEqual(['Univer Slides Engine', 'Second bullet']);
   }, 15000);
 });
