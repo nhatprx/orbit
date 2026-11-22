@@ -28,7 +28,7 @@ class ChatChannelCrudTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void channelCrudRbacDefaultProtectionAndVoiceSeed() {
+    void channelCrudRbacDeleteAndVoiceSeed() {
         UserEntity owner = newUser("owner");
         UserEntity member = newUser("member");
         UUID ws = Fixtures.idOf(Fixtures.createWorkspace(api(owner), Fixtures.unique("Channels"), "chat"));
@@ -60,9 +60,8 @@ class ChatChannelCrudTest extends AbstractIntegrationTest {
         assertEquals("design-crit", updated.<String>json("$.name"));
         assertEquals(403, api(member).patch("/api/v1/chat/channels/" + customId, "{\"description\":\"nope\"}").status());
 
-        Result delDefault = api(owner).delete("/api/v1/chat/channels/" + generalId);
-        assertEquals(400, delDefault.status());
-        assertEquals("CANNOT_DELETE_DEFAULT", delDefault.<String>json("$.code"));
+        Result delGeneral = api(owner).delete("/api/v1/chat/channels/" + generalId);
+        assertEquals(204, delGeneral.status());
 
         assertEquals(204, api(owner).delete("/api/v1/chat/channels/" + customId).status());
     }
