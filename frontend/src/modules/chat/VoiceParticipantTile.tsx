@@ -9,6 +9,7 @@ interface VoiceParticipantTileProps {
   videoStream: MediaStream | null;
   isScreenSharing: boolean;
   compact?: boolean;
+  solo?: boolean;
 }
 
 export function VoiceParticipantTile({
@@ -17,6 +18,7 @@ export function VoiceParticipantTile({
   videoStream,
   isScreenSharing,
   compact = false,
+  solo = false,
 }: VoiceParticipantTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const showVideo = participant.cameraOn && videoStream !== null;
@@ -32,11 +34,11 @@ export function VoiceParticipantTile({
 
   return (
     <div
-      className={`relative flex flex-col justify-between overflow-hidden border bg-[#161B22] ${
+      className={`relative flex h-full min-h-0 flex-col justify-between overflow-hidden border bg-[#161B22] ${
         compact ? 'min-h-[120px]' : 'min-h-[180px]'
       } ${participant.speaking ? 'border-[#22C55E]' : 'border-[#30363D]'}`}
     >
-      <div className="relative flex flex-1 items-center justify-center bg-[#0D1117]">
+      <div className="relative flex min-h-0 flex-1 items-center justify-center bg-[#0D1117]">
         {showVideo ? (
           <video
             ref={videoRef}
@@ -49,7 +51,7 @@ export function VoiceParticipantTile({
         ) : (
           <div
             className={`flex items-center justify-center border font-mono font-semibold ${
-              compact ? 'h-11 w-11 text-sm' : 'h-16 w-16 text-lg'
+              compact ? 'h-11 w-11 text-sm' : solo ? 'h-24 w-24 text-2xl' : 'h-16 w-16 text-lg'
             } ${
               participant.speaking
                 ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]'

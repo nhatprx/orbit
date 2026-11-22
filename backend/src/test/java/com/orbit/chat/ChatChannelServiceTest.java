@@ -108,12 +108,11 @@ class ChatChannelServiceTest {
 
         ChatChannelEntity general = entity(UUID.randomUUID(), "general", ChatChannelType.TEXT);
         when(guard.requireManageAccess(ownerId, general.getId())).thenReturn(general);
-        assertEquals("CANNOT_DELETE_DEFAULT", assertThrows(ApiException.class, () ->
-            service.deleteChannel(ownerId, general.getId())
-        ).getCode());
         assertEquals(HttpStatus.BAD_REQUEST, assertThrows(ApiException.class, () ->
             service.updateChannel(ownerId, general.getId(), new UpdateChatChannelRequest("   ", null, null))
         ).getStatus());
+        service.deleteChannel(ownerId, general.getId());
+        verify(channelRepo).delete(general);
 
         when(channelRepo.existsByScopeTypeAndScopeIdAndNameIgnoreCaseAndIdNot(
             ChatScopeType.WORKSPACE, workspaceId, "design-review", general.getId()

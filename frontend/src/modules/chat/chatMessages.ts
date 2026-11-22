@@ -54,6 +54,7 @@ export function markMessageDeleted(
       content: '',
       attachmentName: null,
       attachmentUrl: null,
+      attachments: [],
       pinned: false,
       pinnedAt: null,
       deletedAt,

@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { EmptyView, ErrorView, LoadingView } from '../../components/ui/StateViews';
 import { authService } from '../../services/auth.service';
 import type {
@@ -9,11 +8,13 @@ import type {
   UpdateChatChannelRequest,
   WorkspaceDto,
 } from '../../types/workspace.types';
-import { ChatChannelModal } from './ChatChannelModal';
+import { resolveCategory } from './chatCategoryGrouping';
+import { ChatPageDialogs } from './ChatPageDialogs';
 import { ChatSidebar } from './ChatSidebar';
 import { ChatThreadView } from './ChatThreadView';
 import { ChatVoiceRoom } from './ChatVoiceRoom';
 import { useChatChannels } from './useChatChannels';
+import { useChatOrder } from './useChatOrder';
 import { useVoiceSession } from './useVoiceSession';
 import { VoiceAudioSink } from './VoiceAudioSink';
 import { useChatMentionMembers } from './useChatMentionMembers';
@@ -41,14 +42,19 @@ export function ChatPage({ workspace, project }: ChatPageProps) {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null);
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [editingChannel, setEditingChannel] = useState<ChatChannelDto | null>(null);
+  const [targetCategory, setTargetCategory] = useState<string | null>(null);
   const [deletingChannel, setDeletingChannel] = useState<ChatChannelDto | null>(null);
+  const [deletingCategory, setDeletingCategory] = useState<string | null>(null);
+  const [showLeftSidebar, setShowLeftSidebar] = useState(true);
 
   const selectedChannel =
     chatChannels.channels.find((c) => c.id === selectedId) ?? chatChannels.channels[0] ?? null;
   const scopeName = project ? project.name : workspace.name;
   const scopeType = project ? 'PROJECT' : 'WORKSPACE';
   const scopeId = project?.id ?? workspace.id;
+  const order = useChatOrder(`${scopeType}:${scopeId}`);
   const onlineCount = useChatOnlineCount(selectedChannel?.id ?? null, scopeType, scopeId);
 
   async function handleSelectChannel(channel: ChatChannelDto) {
@@ -70,13 +76,24 @@ export function ChatPage({ workspace, project }: ChatPageProps) {
     await chatChannels.updateChannel(channelId, request);
   }
 
+  function channelsInCategory(category: string): ChatChannelDto[] {
+    return chatChannels.channels.filter((c) => resolveCategory(c) === category);
+  }
+
   async function handleRenameCategory(oldCategory: string, nextCategory: string) {
-    const targets = chatChannels.channels.filter((c) => {
-      const cat = c.category?.trim()
-        || (c.channelType === 'VOICE' ? 'VOICE CHANNELS' : c.channelType === 'FORUM' ? 'FORUMS' : 'TEXT CHANNELS');
-      return cat === oldCategory;
-    });
-    await Promise.all(targets.map((c) => chatChannels.updateChannel(c.id, { category: nextCategory })));
+    order.renameCustomCategory(oldCategory, nextCategory);
+    await Promise.all(channelsInCategory(oldCategory).map((c) => chatChannels.updateChannel(c.id, { category: nextCategory })));
+  }
+
+  async function handleConfirmDeleteCategory() {
+    if (!deletingCategory) return;
+    const targets = channelsInCategory(deletingCategory);
+    for (const ch of targets) {
+      if (voice.activeChannelId === ch.id) await voice.leaveChannel();
+      await chatChannels.deleteChannel(ch.id);
+      if (selectedId === ch.id) setSelectedId(null);
+    }
+    order.removeCustomCategory(deletingCategory);
   }
 
   async function handleConfirmDelete() {
@@ -96,22 +113,30 @@ export function ChatPage({ workspace, project }: ChatPageProps) {
 
   return (
     <div className="flex h-[calc(100vh-3rem)] w-full overflow-hidden border border-[#30363D] bg-[#0D1117]">
-      <ChatSidebar
-        scopeName={scopeName}
-        scopeType={scopeType}
-        channels={chatChannels.channels}
-        selectedChannelId={selectedChannel?.id ?? null}
-        voice={voice}
-        currentUser={currentUser}
-        canManageChannels={canManageChannels}
-        canWriteChat={canWriteChat}
-        onSelectChannel={handleSelectChannel}
-        onOpenCreateChannel={() => { setEditingChannel(null); setModalMode('create'); }}
-        onEditChannel={(channel) => { setEditingChannel(channel); setModalMode('edit'); }}
-        onDeleteChannel={setDeletingChannel}
-        onRenameCategory={handleRenameCategory}
-        onOpenVoiceStage={(channelId) => setSelectedId(channelId)}
-      />
+      {showLeftSidebar && (
+        <ChatSidebar
+          scopeName={scopeName}
+          scopeType={scopeType}
+          channels={chatChannels.channels}
+          order={order}
+          selectedChannelId={selectedChannel?.id ?? null}
+          voice={voice}
+          currentUser={currentUser}
+          canManageChannels={canManageChannels}
+          canWriteChat={canWriteChat}
+          onSelectChannel={handleSelectChannel}
+          onOpenCreateChannel={() => setCreateGroupOpen(true)}
+          onCreateCategorySubChannel={(category) => { setTargetCategory(category); setEditingChannel(null); setModalMode('create'); }}
+          onMoveChannelToCategory={async (channelId, nextCategory) => { await chatChannels.updateChannel(channelId, { category: nextCategory }); }}
+          onDeleteChannel={setDeletingChannel}
+          onRenameCategory={handleRenameCategory}
+          onDeleteCategory={(cat) => {
+            if (channelsInCategory(cat).length === 0) order.removeCustomCategory(cat);
+            else setDeletingCategory(cat);
+          }}
+          onOpenVoiceStage={(channelId) => setSelectedId(channelId)}
+        />
+      )}
 
       {!selectedChannel ? (
         <div className="flex flex-1 items-center justify-center p-6">
@@ -127,6 +152,8 @@ export function ChatPage({ workspace, project }: ChatPageProps) {
           canWriteChat={canWriteChat}
           onlineCount={onlineCount}
           mentionMembers={mentionMembers}
+          showLeftSidebar={showLeftSidebar}
+          onToggleLeftSidebar={() => setShowLeftSidebar((v) => !v)}
         />
       ) : (
         <ChatThreadView
@@ -138,29 +165,31 @@ export function ChatPage({ workspace, project }: ChatPageProps) {
           canWriteChat={canWriteChat}
           onlineCount={onlineCount}
           mentionMembers={mentionMembers}
+          showLeftSidebar={showLeftSidebar}
+          onToggleLeftSidebar={() => setShowLeftSidebar((v) => !v)}
           onEditChannel={(channel) => { setEditingChannel(channel); setModalMode('edit'); }}
+          onDeleteChannel={setDeletingChannel}
         />
       )}
 
       <VoiceAudioSink remoteMedia={voice.remoteMedia} deafened={voice.deafened} />
 
-      <ChatChannelModal
-        open={modalMode !== null}
-        mode={modalMode ?? 'create'}
-        initialChannel={editingChannel}
-        onClose={() => { setModalMode(null); setEditingChannel(null); }}
-        onCreate={handleCreateChannel}
-        onUpdate={handleUpdateChannel}
-      />
-
-      <ConfirmDialog
-        open={deletingChannel !== null}
-        title="Delete Channel"
-        message={deletingChannel ? `Delete "${deletingChannel.name}"? All channel messages will be permanently removed.` : ''}
-        confirmLabel="Delete Channel"
-        danger
-        onConfirm={handleConfirmDelete}
-        onClose={() => setDeletingChannel(null)}
+      <ChatPageDialogs
+        createGroupOpen={createGroupOpen}
+        onCloseCreateGroup={() => setCreateGroupOpen(false)}
+        onCreateGroup={(groupName) => order.addCustomCategory(groupName)}
+        modalMode={modalMode}
+        editingChannel={editingChannel}
+        targetCategory={targetCategory}
+        onCloseChannelModal={() => { setModalMode(null); setEditingChannel(null); setTargetCategory(null); }}
+        onCreateChannel={handleCreateChannel}
+        onUpdateChannel={handleUpdateChannel}
+        deletingChannel={deletingChannel}
+        onConfirmDeleteChannel={handleConfirmDelete}
+        onCloseDeleteChannel={() => setDeletingChannel(null)}
+        deletingCategory={deletingCategory}
+        onConfirmDeleteCategory={handleConfirmDeleteCategory}
+        onCloseDeleteCategory={() => setDeletingCategory(null)}
       />
     </div>
   );

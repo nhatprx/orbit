@@ -1,3 +1,8 @@
+export interface ChatAttachmentDto {
+  name: string;
+  url: string;
+}
+
 export type ChatReactionKey = 'LIKE';
 
 export interface ChatReactionSummaryDto {

@@ -13,8 +13,24 @@ public record ChatChannelDto(
     String category,
     int participantCount,
     Instant createdAt,
-    String avatarUrl
+    String avatarUrl,
+    UUID parentChannelId
 ) {
+    public ChatChannelDto(
+        UUID id,
+        String scopeType,
+        UUID scopeId,
+        String name,
+        String description,
+        String channelType,
+        String category,
+        int participantCount,
+        Instant createdAt,
+        String avatarUrl
+    ) {
+        this(id, scopeType, scopeId, name, description, channelType, category, participantCount, createdAt, avatarUrl, null);
+    }
+
     public ChatChannelDto(
         UUID id,
         String scopeType,
@@ -26,7 +42,7 @@ public record ChatChannelDto(
         int participantCount,
         Instant createdAt
     ) {
-        this(id, scopeType, scopeId, name, description, channelType, category, participantCount, createdAt, null);
+        this(id, scopeType, scopeId, name, description, channelType, category, participantCount, createdAt, null, null);
     }
 
     public ChatChannelDto(
@@ -37,6 +53,6 @@ public record ChatChannelDto(
         String description,
         Instant createdAt
     ) {
-        this(id, scopeType, scopeId, name, description, "TEXT", "TEXT CHANNELS", 0, createdAt, null);
+        this(id, scopeType, scopeId, name, description, "TEXT", "TEXT CHANNELS", 0, createdAt, null, null);
     }
 }

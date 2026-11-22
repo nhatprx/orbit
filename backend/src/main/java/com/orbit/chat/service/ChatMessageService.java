@@ -92,7 +92,8 @@ public class ChatMessageService {
         List<ChatMessageDto> enriched = newestFirst.stream().map(row -> row.withResolvedMedia(
             storage == null ? null : storage.resolveObjectUrl(row.senderAvatarUrl()),
             ChatImageService.resolveAttachmentUrl(storage, row.attachmentUrl()),
-            summaries.getOrDefault(row.id(), List.of()))).toList();
+            summaries.getOrDefault(row.id(), List.of()),
+            ChatAttachmentCodec.resolve(storage, row.attachments()))).toList();
         return new CursorPageResponse<>(enriched, nextCursor, hasMore, size);
     }
 
@@ -106,9 +107,12 @@ public class ChatMessageService {
         if (request == null) {
             throw ApiException.badRequest("VALIDATION_ERROR", "Message payload is required.");
         }
-        String attachmentName = ChatMessageValidator.validateAttachmentName(request.attachmentName());
-        String attachmentUrl = ChatMessageValidator.validateAttachmentUrl(request.attachmentUrl());
-        String content = ChatMessageValidator.validateContent(request.content(), attachmentUrl != null);
+        var attachments = ChatAttachmentCodec.validateList(
+            request.attachments(), request.attachmentName(), request.attachmentUrl()
+        );
+        String attachmentName = attachments.isEmpty() ? null : attachments.getFirst().name();
+        String attachmentUrl = attachments.isEmpty() ? null : attachments.getFirst().url();
+        String content = ChatMessageValidator.validateContent(request.content(), !attachments.isEmpty());
 
         UUID replyToId = null;
         String replySenderName = null;
@@ -128,17 +132,20 @@ public class ChatMessageService {
         rateLimiter.check(userId);
         UserEntity sender = users.findById(userId)
             .orElseThrow(() -> ApiException.notFound("USER_NOT_FOUND", "User not found."));
-        ChatMessageEntity saved = messages.save(new ChatMessageEntity(
+        ChatMessageEntity entity = new ChatMessageEntity(
             channelId, userId, content,
             replyToId, replySenderName, replySnippet,
             attachmentName, attachmentUrl
-        ));
+        );
+        entity.setAttachmentsJson(ChatAttachmentCodec.encode(attachments));
+        ChatMessageEntity saved = messages.save(entity);
         ChatMessageDto dto = new ChatMessageDto(
             saved.getId(), channelId, userId, sender.getDisplayName(), sender.getUsername(),
             saved.getContent(), saved.getReplyToId(), saved.getReplyToSenderName(),
             saved.getReplyToSnippet(), saved.getAttachmentName(),
             ChatImageService.resolveAttachmentUrl(storage, saved.getAttachmentUrl()),
-            saved.getCreatedAt(), storage == null ? null : storage.resolveObjectUrl(sender.getAvatarKey()), List.of()
+            saved.getCreatedAt(), storage == null ? null : storage.resolveObjectUrl(sender.getAvatarKey()),
+            List.of(), null, false, null, null, ChatAttachmentCodec.resolve(storage, attachments)
         );
         broadcaster.broadcast(dto);
         if (mentionNotifier != null && !content.isEmpty()) {
@@ -159,6 +166,7 @@ public class ChatMessageService {
         message.setContent("");
         message.setAttachmentName(null);
         message.setAttachmentUrl(null);
+        message.setAttachmentsJson(null);
         message.setPinned(false);
         message.setPinnedAt(null);
         message.setPinnedBy(null);

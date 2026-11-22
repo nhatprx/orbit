@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
+import { Upload } from 'lucide-react';
 import { ErrorView, LoadingView } from '../../components/ui/StateViews';
 import { errorMessage } from '../../services/workspace/httpClient';
 import type { ChatChannelDto, ChatMessageDto, MemberDto } from '../../types/workspace.types';
 import { ChatComposer } from './ChatComposer';
 import { ChatImageLightbox, type PreviewImageItem } from './ChatImageLightbox';
+import { useChatFileDrop } from './useChatFileDrop';
 import { ChatInfoSidebar } from './ChatInfoSidebar';
 import { ChatMessageList } from './ChatMessageList';
 import { ChatPinnedBanner } from './ChatPinnedBanner';
@@ -20,12 +22,15 @@ interface ChatThreadViewProps {
   canWriteChat?: boolean;
   onlineCount: number;
   mentionMembers?: MemberDto[];
+  showLeftSidebar?: boolean;
+  onToggleLeftSidebar?: () => void;
   onEditChannel?: (channel: ChatChannelDto) => void;
+  onDeleteChannel?: (channel: ChatChannelDto) => void;
 }
 
 export function ChatThreadView({
   channel, scopeLabel, currentUserId, canManageChannels,
-  canWriteChat = true, mentionMembers = [], onEditChannel,
+  canWriteChat = true, mentionMembers = [], showLeftSidebar = true, onToggleLeftSidebar, onEditChannel, onDeleteChannel,
 }: ChatThreadViewProps) {
   const chat = useChatChannel(channel.id, currentUserId);
   const [replyTo, setReplyTo] = useState<ChatMessageDto | null>(null);
@@ -35,6 +40,7 @@ export function ChatThreadView({
   const [searchQuery, setSearchQuery] = useState('');
   const [previewImage, setPreviewImage] = useState<PreviewImageItem | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const fileDrop = useChatFileDrop(canWriteChat);
 
   const selectionMode = selectedIds.size > 0;
   const activeReplyTo = canWriteChat && replyTo && chat.messages.some((m) => m.id === replyTo.id) ? replyTo : null;
@@ -85,12 +91,23 @@ export function ChatThreadView({
 
   return (
     <div className="flex min-w-0 flex-1 bg-[#0D1117]">
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="relative flex min-w-0 flex-1 flex-col" {...fileDrop.dropHandlers}>
+        {fileDrop.isDragOver && (
+          <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center border-2 border-dashed border-[#22C55E] bg-[#0D1117]/85">
+            <div className="flex flex-col items-center gap-2 border border-[#22C55E] bg-[#161B22] px-6 py-4 text-center">
+              <Upload className="h-6 w-6 text-[#22C55E]" strokeWidth={1.5} />
+              <p className="text-sm font-semibold text-[#E6EDF3]">Drop images, files, or folders</p>
+              <p className="text-xs text-[#8B949E]">Files will be attached as a single message</p>
+            </div>
+          </div>
+        )}
         <ChatThreadHeader
           channel={channel}
           scopeLabel={scopeLabel}
           members={mentionMembers}
           messages={chat.messages}
+          showLeftSidebar={showLeftSidebar}
+          onToggleLeftSidebar={onToggleLeftSidebar}
           showInfo={showInfo}
           onToggleInfo={() => setShowInfo((v) => !v)}
           onOpenInfo={() => setShowInfo(true)}
@@ -107,6 +124,7 @@ export function ChatThreadView({
         ) : (
           <ChatMessageList
             messages={chat.messages}
+            members={mentionMembers}
             currentUserId={currentUserId}
             canManageChannels={canManageChannels}
             canWriteChat={canWriteChat}
@@ -139,6 +157,8 @@ export function ChatThreadView({
             readOnlyNotice={canWriteChat ? null : 'Read-only access: you do not have permission to send messages or reply.'}
             replyTo={activeReplyTo}
             editingMessage={activeEditing}
+            droppedFiles={fileDrop.droppedFiles}
+            onClearDroppedFiles={fileDrop.clearDroppedFiles}
             onClearReply={() => setReplyTo(null)}
             onCancelEdit={() => setEditingMessage(null)}
             onSaveEdit={chat.editMessage}
@@ -160,6 +180,7 @@ export function ChatThreadView({
           searchQuery={searchQuery}
           onChangeSearch={setSearchQuery}
           onEditChannel={onEditChannel}
+          onDeleteChannel={onDeleteChannel}
           onUnpin={handleTogglePin}
           onPreviewImage={setPreviewImage}
           onClose={() => setShowInfo(false)}

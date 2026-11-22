@@ -1,8 +1,7 @@
-import type { ChatReactionSummaryDto } from './chat-reaction.types';
-
+import type { ChatAttachmentDto, ChatReactionSummaryDto } from './chat-reaction.types';
+export type { ChatAttachmentDto };
 export type ChatScopeType = 'WORKSPACE' | 'PROJECT';
 export type ChatChannelType = 'TEXT' | 'VOICE' | 'FORUM';
-
 export interface ChatChannelDto {
   id: string;
   scopeType: ChatScopeType;
@@ -14,6 +13,7 @@ export interface ChatChannelDto {
   participantCount: number;
   createdAt: string;
   avatarUrl?: string | null;
+  parentChannelId?: string | null;
 }
 
 export interface CreateChatChannelRequest {
@@ -21,6 +21,7 @@ export interface CreateChatChannelRequest {
   description?: string;
   channelType: ChatChannelType;
   category?: string;
+  parentChannelId?: string | null;
 }
 
 export interface UpdateChatChannelRequest {
@@ -43,6 +44,7 @@ export interface ChatMessageDto {
   replyToSnippet?: string | null;
   attachmentName?: string | null;
   attachmentUrl?: string | null;
+  attachments?: ChatAttachmentDto[];
   createdAt: string;
   editedAt?: string | null;
   pinned?: boolean;
@@ -50,14 +52,13 @@ export interface ChatMessageDto {
   deletedAt?: string | null;
   reactions?: ChatReactionSummaryDto[];
 }
-
 export interface SendChatMessageRequest {
   content: string;
   replyToId?: string | null;
   attachmentName?: string | null;
   attachmentUrl?: string | null;
+  attachments?: ChatAttachmentDto[];
 }
-
 export interface ChatMessageDeletedEvent {
   eventType: 'MESSAGE_DELETED';
   channelId: string;

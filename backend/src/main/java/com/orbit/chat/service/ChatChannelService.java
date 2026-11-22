@@ -106,10 +106,6 @@ public class ChatChannelService {
     @Transactional
     public void deleteChannel(UUID userId, UUID channelId) {
         ChatChannelEntity channel = guard.requireManageAccess(userId, channelId);
-        if (ChatChannelValidator.DEFAULT_CHANNEL.equalsIgnoreCase(channel.getName())
-            && channel.getChannelType() == ChatChannelType.TEXT) {
-            throw ApiException.badRequest("CANNOT_DELETE_DEFAULT", "The default general channel cannot be deleted.");
-        }
         voiceService.clearChannel(channel.getId());
         channels.delete(channel);
     }
@@ -141,7 +137,16 @@ public class ChatChannelService {
         }
         String description = ChatChannelValidator.normalizeDescription(request.description());
         String category = ChatChannelValidator.normalizeCategory(request.category(), type);
+        UUID parentId = null;
+        if (request.parentChannelId() != null) {
+            ChatChannelEntity parent = channels.findById(request.parentChannelId())
+                .filter(p -> p.getScopeType() == scopeType && p.getScopeId().equals(scopeId))
+                .orElseThrow(() -> ApiException.badRequest("INVALID_PARENT_CHANNEL", "Parent channel was not found in this scope."));
+            parentId = parent.getId();
+            category = parent.getCategory();
+        }
         ChatChannelEntity entity = new ChatChannelEntity(scopeType, scopeId, name, description, type, category, userId);
+        entity.setParentChannelId(parentId);
         return toDto(saveSafely(entity));
     }
 
@@ -155,16 +160,8 @@ public class ChatChannelService {
 
     private List<ChatChannelDto> ensureAndList(ChatScopeType scopeType, UUID scopeId, boolean seedVoice) {
         List<ChatChannelEntity> existing = channels.findByScopeTypeAndScopeIdOrderByCreatedAtAsc(scopeType, scopeId);
-        boolean seeded = false;
-        if (existing.isEmpty()) {
-            createDefaultIfAbsent(scopeType, scopeId);
-            seeded = true;
-        }
         if (seedVoice && !channels.existsByScopeTypeAndScopeIdAndChannelType(scopeType, scopeId, ChatChannelType.VOICE)) {
             channels.insertDefaultVoiceIfAbsent(UUID.randomUUID(), scopeType.name(), scopeId);
-            seeded = true;
-        }
-        if (seeded) {
             existing = channels.findByScopeTypeAndScopeIdOrderByCreatedAtAsc(scopeType, scopeId);
         }
         return existing.stream().map(this::toDto).toList();
@@ -174,7 +171,8 @@ public class ChatChannelService {
         return new ChatChannelDto(
             c.getId(), c.getScopeType().name(), c.getScopeId(), c.getName(), c.getDescription(),
             c.getChannelType().name(), c.getCategory(), voiceService.participantCount(c.getId()),
-            c.getCreatedAt(), ChatImageService.resolveAttachmentUrl(storage, c.getAvatarUrl())
+            c.getCreatedAt(), ChatImageService.resolveAttachmentUrl(storage, c.getAvatarUrl()),
+            c.getParentChannelId()
         );
     }
 }

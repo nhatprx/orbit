@@ -1,12 +1,13 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '../../components/ui/Button';
-import type { ChatMessageDto, ChatReactionKey } from '../../types/workspace.types';
+import type { ChatMessageDto, ChatReactionKey, MemberDto } from '../../types/workspace.types';
 import type { PreviewImageItem } from './ChatImageLightbox';
 import { groupChatMessages } from './chatMessageGrouping';
 import { ChatMessageRow } from './ChatMessageRow';
 
 interface ChatMessageListProps {
   messages: ChatMessageDto[];
+  members?: MemberDto[];
   currentUserId: string | null;
   canManageChannels: boolean;
   canWriteChat?: boolean;
@@ -43,6 +44,10 @@ export function ChatMessageList(props: ChatMessageListProps) {
   );
   const grouped = useMemo(() => groupChatMessages(messages), [messages]);
   const lastId = messages[messages.length - 1]?.id;
+  const seenByNames = useMemo(
+    () => (props.members ?? []).filter((m) => m.userId !== props.currentUserId).map((m) => m.displayName),
+    [props.members, props.currentUserId]
+  );
 
   useLayoutEffect(() => {
     if (scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight;
@@ -92,6 +97,8 @@ export function ChatMessageList(props: ChatMessageListProps) {
             canWriteChat={props.canWriteChat !== false}
             isFirstInGroup={isFirstInGroup}
             isLastInGroup={isLastInGroup}
+            showReadReceipt={message.id === lastId}
+            seenByNames={seenByNames}
             selectionMode={props.selectionMode}
             selected={props.selectedIds?.has(message.id) ?? false}
             menuOpen={openMenuId === message.id}

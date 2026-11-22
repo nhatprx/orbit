@@ -24,7 +24,6 @@ function isSafeUrl(url: string): boolean {
 }
 
 export function isImageUrl(name: string | null | undefined, url: string): boolean {
-  if (url.startsWith('/api/v1/chat/images?key=')) return true;
   if (name && IMAGE_EXT_RE.test(name)) return true;
   return IMAGE_EXT_RE.test(url);
 }
@@ -43,21 +42,25 @@ export function extractChannelMedia(messages: ChatMessageDto[]): {
     const msg = messages[i];
     if (!msg || msg.deletedAt) continue;
 
-    const attUrl = msg.attachmentUrl?.trim();
-    if (attUrl && isSafeUrl(attUrl)) {
+    const attList =
+      msg.attachments && msg.attachments.length > 0
+        ? msg.attachments
+        : msg.attachmentUrl?.trim()
+          ? [{ name: msg.attachmentName?.trim() || msg.attachmentUrl.trim(), url: msg.attachmentUrl.trim() }]
+          : [];
+    attList.forEach((att, idx) => {
+      const attUrl = att.url?.trim();
+      if (!attUrl || !isSafeUrl(attUrl)) return;
       const item: SharedMediaItem = {
-        id: msg.id,
+        id: `${msg.id}-${idx}`,
         url: attUrl,
-        name: msg.attachmentName?.trim() || attUrl,
+        name: att.name?.trim() || attUrl,
         senderName: msg.senderName,
         createdAt: msg.createdAt,
       };
-      if (isImageUrl(msg.attachmentName, attUrl)) {
-        images.push(item);
-      } else {
-        files.push(item);
-      }
-    }
+      if (isImageUrl(att.name, attUrl)) images.push(item);
+      else files.push(item);
+    });
 
     const matches = msg.content.match(URL_RE) ?? [];
     for (const raw of matches) {

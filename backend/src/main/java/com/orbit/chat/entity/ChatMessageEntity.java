@@ -40,6 +40,9 @@ public class ChatMessageEntity {
     @Column(name = "attachment_url", length = 1024)
     private String attachmentUrl;
 
+    @Column(name = "attachments_json", columnDefinition = "TEXT")
+    private String attachmentsJson;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -99,6 +102,7 @@ public class ChatMessageEntity {
     public String getReplyToSnippet() { return replyToSnippet; }
     public String getAttachmentName() { return attachmentName; }
     public String getAttachmentUrl() { return attachmentUrl; }
+    public String getAttachmentsJson() { return attachmentsJson; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getEditedAt() { return editedAt; }
     public boolean isPinned() { return pinned; }
@@ -109,6 +113,7 @@ public class ChatMessageEntity {
     public void setContent(String content) { this.content = content; }
     public void setAttachmentName(String attachmentName) { this.attachmentName = attachmentName; }
     public void setAttachmentUrl(String attachmentUrl) { this.attachmentUrl = attachmentUrl; }
+    public void setAttachmentsJson(String attachmentsJson) { this.attachmentsJson = attachmentsJson; }
     public void setEditedAt(Instant editedAt) { this.editedAt = editedAt; }
     public void setPinned(boolean pinned) { this.pinned = pinned; }
     public void setPinnedAt(Instant pinnedAt) { this.pinnedAt = pinnedAt; }

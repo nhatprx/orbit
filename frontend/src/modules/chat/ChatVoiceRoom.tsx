@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, MessageSquare, Users, Volume2, X } from 'lucide-react';
+import { AlertTriangle, MessageSquare, PanelLeft, Users, Volume2, X } from 'lucide-react';
 import type { ChatChannelDto, MemberDto } from '../../types/workspace.types';
 import type { VoiceSessionState } from './chatVoiceTypes';
 import { VoicePreJoinCard } from './VoicePreJoinCard';
@@ -14,6 +14,8 @@ interface ChatVoiceRoomProps {
   canWriteChat?: boolean;
   onlineCount: number;
   mentionMembers?: MemberDto[];
+  showLeftSidebar?: boolean;
+  onToggleLeftSidebar?: () => void;
 }
 
 export function ChatVoiceRoom({
@@ -24,6 +26,8 @@ export function ChatVoiceRoom({
   canWriteChat = true,
   onlineCount,
   mentionMembers = [],
+  showLeftSidebar = true,
+  onToggleLeftSidebar,
 }: ChatVoiceRoomProps) {
   const [showSideChat, setShowSideChat] = useState(false);
   const isJoined = voice.activeChannelId === channel.id;
@@ -38,27 +42,40 @@ export function ChatVoiceRoom({
   return (
     <div className="flex min-w-0 flex-1 bg-[#0D1117]">
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#30363D] bg-[#161B22] px-5 py-3">
+        <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-[#30363D] bg-[#161B22] px-4">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 text-base font-semibold text-[#E6EDF3]">
-              <Volume2 className="h-4 w-4 shrink-0 text-[#22C55E]" strokeWidth={1.5} />
+            <div className="flex items-center gap-2 text-sm font-semibold text-[#E6EDF3]">
+              <Volume2 className="h-3.5 w-3.5 shrink-0 text-[#22C55E]" strokeWidth={1.5} />
               <span className="truncate">{channel.name}</span>
-              <span className="border border-[#30363D] bg-[#21262D] px-1.5 py-0.5 font-mono text-[11px] font-medium text-[#BDBDBD]">
+              <span className="border border-[#30363D] bg-[#21262D] px-1.5 py-0.5 font-mono text-[10px] font-medium text-[#BDBDBD]">
                 {participants.length} in call
               </span>
             </div>
-            {channel.description && (
-              <p className="mt-0.5 truncate text-xs text-[#8A8A8A]">{channel.description}</p>
-            )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            {onToggleLeftSidebar && (
+              <button
+                type="button"
+                aria-label="Toggle channels sidebar"
+                aria-pressed={showLeftSidebar}
+                title={showLeftSidebar ? 'Collapse channels sidebar' : 'Expand channels sidebar'}
+                onClick={onToggleLeftSidebar}
+                className={`flex h-7 w-7 items-center justify-center border transition-colors ${
+                  showLeftSidebar
+                    ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]'
+                    : 'border-[#30363D] bg-[#161B22] text-[#8B949E] hover:border-[#22C55E] hover:text-[#E6EDF3]'
+                }`}
+              >
+                <PanelLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
+              </button>
+            )}
             <button
               type="button"
               aria-label="Toggle voice text chat"
               aria-pressed={showSideChat}
               onClick={() => setShowSideChat((prev) => !prev)}
-              className={`flex h-8 items-center gap-1.5 border px-2.5 text-xs font-medium ${
+              className={`flex h-7 items-center gap-1.5 border px-2 text-xs font-medium ${
                 showSideChat
                   ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]'
                   : 'border-[#30363D] bg-[#21262D] text-[#BDBDBD] hover:border-[#22C55E] hover:text-[#E6EDF3]'
@@ -68,7 +85,7 @@ export function ChatVoiceRoom({
               Chat
             </button>
 
-            <span className="flex h-8 items-center gap-1.5 border border-[#30363D] bg-[#0D1117] px-2.5 font-mono text-xs text-[#8A8A8A]" role="status" aria-label={`${onlineCount} people online`}>
+            <span className="flex h-7 items-center gap-1.5 border border-[#30363D] bg-[#0D1117] px-2 font-mono text-[11px] text-[#8A8A8A]" role="status" aria-label={`${onlineCount} people online`}>
               <Users className="h-3.5 w-3.5 text-[#22C55E]" strokeWidth={1.5} />
               <span className="text-[#22C55E]">{onlineCount}</span> online
             </span>

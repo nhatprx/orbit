@@ -73,10 +73,10 @@ describe('ChatPage', () => {
     const { rerender } = render(
       <ChatPage workspace={makeTestWorkspace(['chat.read', 'chat.write', 'chat.manage'])} project={null} />
     );
-    expect(screen.queryByLabelText('Delete general')).toBeNull();
 
-    fireEvent.click(screen.getByLabelText('New channel'));
-    const dialog = screen.getByRole('dialog', { name: 'Create Channel' });
+    fireEvent.click(screen.getByLabelText('Channel settings for VOICE CHANNELS'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Add sub-channel' }));
+    const dialog = screen.getByRole('dialog', { name: 'Create Sub-channel' });
     fireEvent.click(within(dialog).getByRole('button', { name: /Voice/i }));
     fireEvent.change(within(dialog).getByLabelText('Channel Name'), { target: { value: 'standup' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create Channel' }));
@@ -168,7 +168,8 @@ describe('ChatPage', () => {
     expect(specLinks.length).toBeGreaterThan(0);
     expect(specLinks[0]?.getAttribute('href')).toBe('HTTPS://orbit.dev/spec.pdf');
 
-    fireEvent.click(screen.getByLabelText('Edit category TEXT CHANNELS'));
+    fireEvent.click(screen.getByLabelText('Channel settings for TEXT CHANNELS'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rename channel' }));
     expect((screen.getByLabelText('Category title') as HTMLInputElement).maxLength).toBe(64);
 
     const fakeStream = {} as MediaStream;

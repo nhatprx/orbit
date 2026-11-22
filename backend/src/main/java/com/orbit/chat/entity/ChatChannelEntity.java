@@ -41,6 +41,9 @@ public class ChatChannelEntity {
     @Column(name = "avatar_url", length = 512)
     private String avatarUrl;
 
+    @Column(name = "parent_channel_id")
+    private UUID parentChannelId;
+
     @Column(name = "created_by")
     private UUID createdBy;
 
@@ -87,6 +90,7 @@ public class ChatChannelEntity {
     public ChatChannelType getChannelType() { return channelType == null ? ChatChannelType.TEXT : channelType; }
     public String getCategory() { return category; }
     public String getAvatarUrl() { return avatarUrl; }
+    public UUID getParentChannelId() { return parentChannelId; }
     public UUID getCreatedBy() { return createdBy; }
     public Instant getCreatedAt() { return createdAt; }
 
@@ -94,6 +98,7 @@ public class ChatChannelEntity {
     public void setDescription(String description) { this.description = description; }
     public void setCategory(String category) { this.category = category; }
     public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
+    public void setParentChannelId(UUID parentChannelId) { this.parentChannelId = parentChannelId; }
 
     private static String defaultCategory(ChatChannelType type) {
         return switch (type) {

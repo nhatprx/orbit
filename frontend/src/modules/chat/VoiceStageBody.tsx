@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react';
+import { Users } from 'lucide-react';
 import type { VoiceParticipantDto } from '../../types/workspace.types';
 import type { VoiceSessionState } from './chatVoiceTypes';
 import { VoiceCallToolbar } from './VoiceCallToolbar';
 import { VoiceParticipantTile } from './VoiceParticipantTile';
 import { VoiceScreenStage, type ActiveScreenShare } from './VoiceScreenStage';
+
+const MAX_VISIBLE_TILES = 5;
 
 interface VoiceStageBodyProps {
   participants: VoiceParticipantDto[];
@@ -11,6 +14,15 @@ interface VoiceStageBodyProps {
   currentUserId: string | null;
   showSideChat: boolean;
   onToggleSideChat: () => void;
+}
+
+function resolveGridClass(tileCount: number, hasScreenShare: boolean): string {
+  if (hasScreenShare) return 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-6';
+  if (tileCount <= 1) return 'h-full grid-cols-1 grid-rows-1';
+  if (tileCount === 2) return 'h-full grid-cols-1 md:grid-cols-2 md:grid-rows-1';
+  if (tileCount === 3) return 'h-full grid-cols-1 md:grid-cols-3 md:grid-rows-1';
+  if (tileCount === 4) return 'h-full grid-cols-2 grid-rows-2';
+  return 'h-full grid-cols-2 md:grid-cols-3 grid-rows-2';
 }
 
 export function VoiceStageBody({
@@ -21,6 +33,7 @@ export function VoiceStageBody({
   onToggleSideChat,
 }: VoiceStageBodyProps) {
   const [pinnedScreenId, setPinnedScreenId] = useState<string | null>(null);
+  const [showAllParticipants, setShowAllParticipants] = useState(false);
 
   const screenShares = useMemo<ActiveScreenShare[]>(() => {
     const list: ActiveScreenShare[] = [];
@@ -51,9 +64,21 @@ export function VoiceStageBody({
   const activeShare =
     screenShares.find((item) => item.userId === pinnedScreenId) ?? screenShares[0] ?? null;
 
+  const hasOverflow = !showAllParticipants && participants.length > MAX_VISIBLE_TILES;
+  const visibleParticipants = hasOverflow ? participants.slice(0, MAX_VISIBLE_TILES) : participants;
+  const overflowParticipants = hasOverflow ? participants.slice(MAX_VISIBLE_TILES) : [];
+  const totalSlots = visibleParticipants.length + (hasOverflow ? 1 : 0);
+  const isSolo = !activeShare && totalSlots === 1;
+
   return (
     <>
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
+      <div
+        className={
+          activeShare || showAllParticipants
+            ? 'min-h-0 flex-1 space-y-4 overflow-y-auto p-4'
+            : 'flex min-h-0 flex-1 flex-col p-4'
+        }
+      >
         {activeShare && (
           <VoiceScreenStage
             shares={screenShares}
@@ -62,14 +87,28 @@ export function VoiceStageBody({
             onStopLocalShare={() => void voice.toggleScreenShare()}
           />
         )}
+
+        {showAllParticipants && participants.length > MAX_VISIBLE_TILES && (
+          <div className="flex items-center justify-between border border-[#30363D] bg-[#161B22] px-3 py-1.5 text-xs">
+            <span className="font-mono text-[#8B949E]">Showing all {participants.length} participants</span>
+            <button
+              type="button"
+              onClick={() => setShowAllParticipants(false)}
+              className="font-mono text-[#22C55E] hover:underline"
+            >
+              Collapse grid
+            </button>
+          </div>
+        )}
+
         <div
-          className={`grid gap-3 ${
-            activeShare
+          className={`grid min-h-0 flex-1 gap-3 ${
+            showAllParticipants
               ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
-              : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+              : resolveGridClass(totalSlots, Boolean(activeShare))
           }`}
         >
-          {participants.map((participant) => {
+          {visibleParticipants.map((participant) => {
             const isLocal = participant.userId === currentUserId;
             const media = voice.remoteMedia[participant.userId];
             const videoStream = isLocal ? voice.localCameraStream : (media?.videoStream ?? null);
@@ -85,9 +124,30 @@ export function VoiceStageBody({
                 videoStream={videoStream}
                 isScreenSharing={sharing}
                 compact={Boolean(activeShare)}
+                solo={isSolo}
               />
             );
           })}
+
+          {hasOverflow && (
+            <button
+              type="button"
+              onClick={() => setShowAllParticipants(true)}
+              aria-label={`Show ${overflowParticipants.length} more participants`}
+              title={overflowParticipants.map((p) => p.displayName).join(', ')}
+              className={`flex h-full min-h-0 flex-col items-center justify-center gap-2 border border-[#30363D] bg-[#161B22] text-center transition-colors hover:border-[#22C55E] hover:bg-[#052E16]/40 ${
+                activeShare ? 'min-h-[120px]' : 'min-h-[180px]'
+              }`}
+            >
+              <span className="flex h-14 w-14 items-center justify-center border border-[#22C55E] bg-[#052E16] font-mono text-xl font-bold text-[#4ADE80]">
+                +{overflowParticipants.length}
+              </span>
+              <span className="inline-flex items-center gap-1.5 font-mono text-xs text-[#8B949E]">
+                <Users className="h-3.5 w-3.5 text-[#22C55E]" strokeWidth={1.5} />
+                {overflowParticipants.length} more in call
+              </span>
+            </button>
+          )}
         </div>
       </div>
 

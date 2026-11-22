@@ -89,7 +89,8 @@ public class ChatMessageMutationService {
             saved.getContent(), saved.getReplyToId(), saved.getReplyToSenderName(), saved.getReplyToSnippet(),
             saved.getAttachmentName(), ChatImageService.resolveAttachmentUrl(storage, saved.getAttachmentUrl()),
             saved.getCreatedAt(), avatarUrl, summaries,
-            saved.getEditedAt(), saved.isPinned(), saved.getPinnedAt(), saved.getDeletedAt()
+            saved.getEditedAt(), saved.isPinned(), saved.getPinnedAt(), saved.getDeletedAt(),
+            ChatAttachmentCodec.resolve(storage, ChatAttachmentCodec.decode(saved.getAttachmentsJson()))
         );
         broadcaster.broadcast(dto);
         return dto;

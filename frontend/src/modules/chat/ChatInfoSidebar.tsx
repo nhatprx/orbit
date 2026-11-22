@@ -5,6 +5,7 @@ import {
 import { UserAvatar } from '../../components/ui/UserAvatar';
 import type { ChatChannelDto, ChatMessageDto, MemberDto } from '../../types/workspace.types';
 import type { PreviewImageItem } from './ChatImageLightbox';
+import { ChatInfoDangerActions } from './ChatInfoDangerActions';
 import { extractChannelMedia } from './chatInfoExtractors';
 import { ChatInfoMediaSections } from './ChatInfoMediaSections';
 
@@ -19,6 +20,7 @@ interface ChatInfoSidebarProps {
   searchQuery: string;
   onChangeSearch: (value: string) => void;
   onEditChannel?: (channel: ChatChannelDto) => void;
+  onDeleteChannel?: (channel: ChatChannelDto) => void;
   onUnpin: (messageId: string) => Promise<void>;
   onPreviewImage?: (image: PreviewImageItem) => void;
   onClose: () => void;
@@ -27,7 +29,7 @@ interface ChatInfoSidebarProps {
 export function ChatInfoSidebar({
   channel, scopeLabel, members, messages, pinnedMessages,
   canManageChannels, canWriteChat, searchQuery, onChangeSearch,
-  onEditChannel, onUnpin, onPreviewImage, onClose,
+  onEditChannel, onDeleteChannel, onUnpin, onPreviewImage, onClose,
 }: ChatInfoSidebarProps) {
   const [muted, setMuted] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -38,34 +40,31 @@ export function ChatInfoSidebar({
   const mosaicMembers = members.slice(0, 3);
 
   return (
-    <aside aria-label="Channel info panel" className="flex w-72 shrink-0 flex-col border-l border-[#30363D] bg-[#0D1117]">
-      <div className="flex items-center justify-between border-b border-[#30363D] bg-[#161B22] px-4 py-3">
+    <aside aria-label="Channel info panel" className="flex w-96 shrink-0 flex-col border-l border-[#30363D] bg-[#0D1117]">
+      <div className="flex h-12 shrink-0 items-center justify-between border-b border-[#30363D] bg-[#161B22] px-4">
         <span className="text-xs font-semibold uppercase tracking-wider text-[#E6EDF3]">Channel Info</span>
-        <button type="button" aria-label="Close channel info" onClick={onClose} className="text-[#8B949E] hover:text-[#E6EDF3]">
-          <X className="h-4 w-4" strokeWidth={1.5} />
+        <button
+          type="button"
+          aria-label="Close channel info"
+          onClick={onClose}
+          className="flex h-7 w-7 items-center justify-center border border-[#30363D] bg-[#161B22] text-[#8B949E] transition-colors hover:border-[#22C55E] hover:text-[#E6EDF3]"
+        >
+          <X className="h-3.5 w-3.5" strokeWidth={1.5} />
         </button>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="border-b border-[#21262D] px-4 py-4 text-center">
-          {channel.avatarUrl ? (
-            <img
-              src={channel.avatarUrl}
-              alt={channel.name}
-              className="mx-auto h-14 w-14 border border-[#30363D] bg-[#161B22] object-cover"
-            />
-          ) : (
-            <div className="mx-auto grid h-14 w-14 grid-cols-2 gap-0.5 border border-[#30363D] bg-[#161B22] p-0.5">
-              {mosaicMembers.map((m) => (
-                <div key={m.userId} className="flex items-center justify-center bg-[#052E16] font-mono text-[10px] font-semibold text-[#4ADE80]">
-                  {m.displayName.slice(0, 1).toUpperCase()}
-                </div>
-              ))}
-              <div className="flex items-center justify-center bg-[#21262D] font-mono text-[10px] font-semibold text-[#E6EDF3]">
-                {members.length || 1}
+          <div className="mx-auto grid h-14 w-14 grid-cols-2 gap-0.5 border border-[#30363D] bg-[#161B22] p-0.5">
+            {mosaicMembers.map((m) => (
+              <div key={m.userId} className="flex items-center justify-center bg-[#052E16] font-mono text-[10px] font-semibold text-[#4ADE80]">
+                {m.displayName.slice(0, 1).toUpperCase()}
               </div>
+            ))}
+            <div className="flex items-center justify-center bg-[#21262D] font-mono text-[10px] font-semibold text-[#E6EDF3]">
+              {members.length || 1}
             </div>
-          )}
+          </div>
 
           <h3 className="mt-2.5 truncate text-sm font-semibold text-[#E6EDF3]">{channel.name}</h3>
           <p className="mt-0.5 truncate text-[11px] text-[#7D8590]">{channel.description || scopeLabel}</p>
@@ -157,6 +156,12 @@ export function ChatInfoSidebar({
 
         <ChatInfoMediaSections images={images} files={files} links={links} onPreviewImage={onPreviewImage} />
       </div>
+
+      <ChatInfoDangerActions
+        channel={channel}
+        canManageChannels={canManageChannels}
+        onDeleteChannel={onDeleteChannel}
+      />
     </aside>
   );
 }

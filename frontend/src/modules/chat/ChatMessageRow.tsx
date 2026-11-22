@@ -1,10 +1,11 @@
-import { Ban, CheckCheck, CheckSquare, CornerUpLeft, Pin, Square } from 'lucide-react';
+import { Ban, CheckSquare, CornerUpLeft, Pin, Square } from 'lucide-react';
 import { UserAvatar } from '../../components/ui/UserAvatar';
 import type { ChatMessageDto, ChatReactionKey } from '../../types/workspace.types';
 import { formatTime } from '../../utils/format';
 import { ChatMessageActions } from './ChatMessageActions';
 import type { PreviewImageItem } from './ChatImageLightbox';
-import { ChatMessageAttachment } from './ChatMessageAttachment';
+import { ChatMessageAttachment, isImageAttachment, resolveMessageAttachments } from './ChatMessageAttachment';
+import { ChatMessageReadReceipt } from './ChatMessageReadReceipt';
 import { ChatReactionDock } from './ChatReactionDock';
 
 interface ChatMessageRowProps {
@@ -14,6 +15,8 @@ interface ChatMessageRowProps {
   canWriteChat: boolean;
   isFirstInGroup?: boolean;
   isLastInGroup?: boolean;
+  showReadReceipt?: boolean;
+  seenByNames?: string[];
   selectionMode?: boolean;
   selected?: boolean;
   menuOpen?: boolean;
@@ -32,28 +35,22 @@ const MENTION_SPLIT = /(@[A-Za-z0-9_.-]{1,64})/g;
 
 function renderContent(text: string) {
   return text.split(MENTION_SPLIT).map((part, idx) => {
-    if (part.startsWith('@') && part.length > 1) {
-      const isAll = part.toLowerCase() === '@all';
-      return (
-        <span
-          key={idx}
-          className={
-            isAll
-              ? 'border border-[#1E5631] bg-[#052E16] px-1 font-semibold text-[#4ADE80]'
-              : 'font-medium text-[#4ADE80]'
-          }
-        >
-          {part}
-        </span>
-      );
-    }
-    return part;
+    if (!part.startsWith('@') || part.length <= 1) return part;
+    const isAll = part.toLowerCase() === '@all';
+    return (
+      <span
+        key={idx}
+        className={isAll ? 'border border-[#1E5631] bg-[#052E16] px-1 font-semibold text-[#4ADE80]' : 'font-medium text-[#4ADE80]'}
+      >
+        {part}
+      </span>
+    );
   });
 }
 
 export function ChatMessageRow({
   message, mine, canDelete, canWriteChat,
-  isFirstInGroup = true, isLastInGroup = true,
+  isFirstInGroup = true, isLastInGroup = true, showReadReceipt = false, seenByNames = [],
   selectionMode = false, selected = false, menuOpen, onMenuOpenChange, onToggleSelect,
   onReply, onEdit, onTogglePin, onStartSelect, onDelete, onToggleReaction, onPreviewImage,
 }: ChatMessageRowProps) {
@@ -61,12 +58,18 @@ export function ChatMessageRow({
   const hasReply = !isDeleted && Boolean(message.replyToSenderName || message.replyToSnippet);
   const reactions = isDeleted ? [] : (message.reactions ?? []);
   const hasText = !isDeleted && message.content.trim().length > 0;
+  const resolvedAtts = isDeleted ? [] : resolveMessageAttachments(message.attachments, message.attachmentName, message.attachmentUrl);
+  const isImageOnly =
+    !isDeleted && !hasText && !hasReply && !message.pinned &&
+    resolvedAtts.length > 0 && resolvedAtts.every((a) => isImageAttachment(a.name, a.url));
 
-  const bubbleClass = isDeleted
-    ? 'border-dashed border-[#30363D] bg-[#0D1117]/70 text-[#7D8590]'
-    : mine
-      ? 'border-[#1E5631] bg-[#0B2918] text-[#E6EDF3]'
-      : 'border-[#2D333B] bg-[#161B22] text-[#E6EDF3]';
+  const bubbleClass = isImageOnly
+    ? 'border-0 bg-transparent p-0 text-[#E6EDF3]'
+    : isDeleted
+      ? 'border border-dashed border-[#30363D] bg-[#0D1117]/70 px-3.5 py-2 text-[#7D8590]'
+      : mine
+        ? 'border border-[#1E5631] bg-[#0B2918] px-3.5 py-2 text-[#E6EDF3]'
+        : 'border border-[#2D333B] bg-[#161B22] px-3.5 py-2 text-[#E6EDF3]';
   const quoteClass = mine
     ? 'border-l-2 border-[#22C55E] bg-[#051C0F]/90'
     : 'border-l-2 border-[#22C55E] bg-[#0D1117]/90';
@@ -118,7 +121,7 @@ export function ChatMessageRow({
       {mine && actionBar}
 
       <div className={`flex min-w-0 max-w-[76%] flex-col ${mine ? 'items-end' : 'items-start'} ${reactions.length > 0 ? 'mb-2.5' : ''}`}>
-        <div className={`relative w-fit max-w-full border px-3.5 py-2 ${bubbleClass} ${message.pinned ? 'border-[#22C55E]' : ''}`}>
+        <div className={`relative w-fit max-w-full ${bubbleClass} ${message.pinned ? 'border-[#22C55E]' : ''}`}>
           {(!mine && isFirstInGroup) || message.pinned ? (
             <div className="mb-1 flex items-center justify-between gap-2">
               {!mine && isFirstInGroup && (
@@ -158,6 +161,7 @@ export function ChatMessageRow({
                 </p>
               )}
               <ChatMessageAttachment
+                attachments={message.attachments}
                 attachmentName={message.attachmentName}
                 attachmentUrl={message.attachmentUrl}
                 mine={mine}
@@ -177,7 +181,7 @@ export function ChatMessageRow({
 
         {(isLastInGroup || message.editedAt) && (
           <div className={`flex items-center gap-1 font-mono text-[10px] text-[#7D8590] ${reactions.length > 0 ? 'mt-3.5' : 'mt-1.5'}`}>
-            {mine && isLastInGroup && <CheckCheck className="h-3 w-3 text-[#22C55E]" strokeWidth={1.75} />}
+            {mine && showReadReceipt && !isDeleted && <ChatMessageReadReceipt seenByNames={seenByNames} />}
             {isLastInGroup && <time dateTime={message.createdAt}>{formatTime(message.createdAt)}</time>}
             {message.editedAt && <span className="text-[#7D8590]">(edited)</span>}
           </div>
