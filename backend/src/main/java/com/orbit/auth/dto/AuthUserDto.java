@@ -3,6 +3,7 @@ package com.orbit.auth.dto;
 import com.orbit.auth.entity.UserEntity;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 public record AuthUserDto(
     String id,
@@ -40,7 +41,7 @@ public record AuthUserDto(
             user.getEmail(),
             user.getCountry(),
             user.isEmailPreference(),
-            user.getRole(),
+            normalizedRole(user.getRole()),
             user.getWorkspaceId(),
             avatarUrl,
             user.getBio(),
@@ -53,6 +54,11 @@ public record AuthUserDto(
             parsePinnedIds(user.getPinnedProjectIds()),
             user.getCreatedAt() != null ? user.getCreatedAt().toString() : null
         );
+    }
+
+    /** The API contract is lowercase ("user" or "admin"); rows seeded as "ADMIN" must read the same. */
+    static String normalizedRole(String stored) {
+        return stored == null || stored.isBlank() ? "user" : stored.trim().toLowerCase(Locale.ROOT);
     }
 
     private static List<String> parsePinnedIds(String raw) {

@@ -104,7 +104,7 @@ class AdminSeedCliContextTest {
 
         UserEntity saved = captor.getValue();
         assertEquals("cli-admin@orbit.dev", saved.getEmail());
-        assertEquals("ADMIN", saved.getRole());
+        assertEquals("admin", saved.getRole());
         assertEquals("CLI Orbit Admin", saved.getDisplayName());
         assertTrue(passwordEncoder.matches("CliAdmin!2026", saved.getPasswordHash()));
     }

@@ -17,7 +17,8 @@ public class AdminSeedService {
 
     private static final Logger log = LoggerFactory.getLogger(AdminSeedService.class);
     private static final int MIN_PASSWORD_LENGTH = 8;
-    private static final String ADMIN_ROLE = "ADMIN";
+    /** Roles are stored lowercase everywhere else ("user"), and the frontend compares them that way. */
+    private static final String ADMIN_ROLE = "admin";
     private static final String DEFAULT_WORKSPACE_ID = "ws_orbit_core";
     private static final String DEFAULT_DISPLAY_NAME = "Orbit Admin";
     private static final Pattern EMAIL_PATTERN = Pattern.compile(

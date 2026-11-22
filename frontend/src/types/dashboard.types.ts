@@ -1,5 +1,3 @@
-import type { UserRole } from './auth.types';
-
 export type WorkspaceAreaId =
   | 'overview'
   | 'ai'
@@ -16,13 +14,14 @@ export type WorkspaceAreaId =
   | 'issues'
   | 'whiteboard'
   | 'personal-cloud'
-  | 'admin';
+  | 'admin'
+  | 'admin-users';
 
 /** Tabs inside the Profile area (D-10, O-08). */
 export type ProfileSectionId = 'overview' | 'workspaces' | 'projects' | 'settings';
 
 export interface WorkspaceAreaTile {
-  id: Exclude<WorkspaceAreaId, 'overview' | 'admin'>;
+  id: Exclude<WorkspaceAreaId, 'overview' | 'admin' | 'admin-users'>;
   name: string;
   status: 'ready' | 'pending';
   summary: string;
@@ -51,10 +50,3 @@ export interface UserWorkspace {
   updatedAt: string;
 }
 
-export interface DirectoryUser {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  status: 'active' | 'invited';
-}

@@ -1,31 +1,26 @@
 import { useEffect, useState } from 'react';
-import { ShieldAlert } from 'lucide-react';
+import { ArrowRight, ShieldAlert, Users } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
+import { Panel } from '../../components/ui/Panel';
 import { dashboardService } from '../../services/dashboard.service';
 import type { AuthUser } from '../../types/auth.types';
-import type { DirectoryUser, PlatformMetric } from '../../types/dashboard.types';
+import type { PlatformMetric } from '../../types/dashboard.types';
 import { AdminAiConfigPanel } from './AdminAiConfigPanel';
 
 interface AdminOverviewProps {
   user: AuthUser;
+  onOpenUsers: () => void;
 }
 
-export function AdminOverview({ user }: AdminOverviewProps) {
+export function AdminOverview({ user, onOpenUsers }: AdminOverviewProps) {
   const [metrics, setMetrics] = useState<PlatformMetric[]>([]);
-  const [users, setUsers] = useState<DirectoryUser[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user.role !== 'admin') return;
     let active = true;
-    Promise.all([
-      dashboardService.getPlatformMetrics(),
-      dashboardService.getDirectoryUsers(10),
-    ]).then(([metricData, userData]) => {
-      if (!active) return;
-      setMetrics(metricData);
-      setUsers(userData);
-      setLoading(false);
+    void dashboardService.getPlatformMetrics().then((metricData) => {
+      if (active) setMetrics(metricData);
     });
     return () => {
       active = false;
@@ -55,7 +50,7 @@ export function AdminOverview({ user }: AdminOverviewProps) {
             Admin Console
           </h2>
           <p className="mt-0.5 text-[13px] text-[#8B949E]">
-            Platform governance, capacity targets, and workspace user directory.
+            Platform governance, capacity targets, and user administration.
           </p>
         </div>
         <Badge tone="green" withDot>
@@ -77,58 +72,18 @@ export function AdminOverview({ user }: AdminOverviewProps) {
         ))}
       </div>
 
-      <AdminAiConfigPanel />
+      <Panel
+        title="User Management"
+        description="Search accounts, change roles, disable access, and end sessions."
+        actions={<Users className="h-4 w-4 text-[#22C55E]" strokeWidth={1.5} />}
+      >
+        <Button type="button" variant="primary" onClick={onOpenUsers}>
+          Open user management
+          <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} />
+        </Button>
+      </Panel>
 
-      <div>
-        <h3 className="mb-2.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-[#8B949E]">
-          Workspace User Directory (Page 1 / Limit 10)
-        </h3>
-        <div className="overflow-x-auto border border-[#30363D] bg-[#161B22]">
-          <table className="w-full text-left text-[13px]">
-            <thead className="border-b border-[#30363D] bg-[#21262D] text-[11px] uppercase tracking-wider text-[#8B949E]">
-              <tr>
-                <th className="px-4 py-3 font-medium">Name</th>
-                <th className="px-4 py-3 font-medium">Email</th>
-                <th className="px-4 py-3 font-medium">Role</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={4} className="px-4 py-6 text-[#666666]">
-                    Loading directory...
-                  </td>
-                </tr>
-              ) : (
-                users.map((entry) => (
-                  <tr key={entry.id} className="border-t border-[#30363D]">
-                    <td className="px-4 py-3 font-medium text-[#E6EDF3]">
-                      {entry.name}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-[#A3A3A3]">
-                      {entry.email}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge tone={entry.role === 'admin' ? 'green' : 'neutral'}>
-                        {entry.role}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge
-                        tone={entry.status === 'active' ? 'green' : 'warning'}
-                        withDot
-                      >
-                        {entry.status}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <AdminAiConfigPanel />
     </div>
   );
 }

@@ -10,6 +10,7 @@ import com.orbit.workspace.entity.WorkspaceMemberEntity;
 import com.orbit.workspace.repository.WorkspaceMemberRepository;
 import com.orbit.workspace.repository.WorkspaceRoleRepository;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -86,12 +87,26 @@ public abstract class AbstractIntegrationTest {
         return userRepository.save(user);
     }
 
+    /** A user with the platform admin role (role values are stored lowercase). */
+    protected UserEntity newAdmin(String prefix) {
+        UserEntity admin = newUser(prefix);
+        admin.setRole("admin");
+        return userRepository.save(admin);
+    }
+
+    /** Authenticates as the user, with the token claiming the role stored on the entity. */
     protected static RequestPostProcessor as(UserEntity user) {
+        return asClaiming(user, user.getRole());
+    }
+
+    /** Authenticates as the user while the token claims a different role than the database holds. */
+    protected static RequestPostProcessor asClaiming(UserEntity user, String claimedRole) {
         AuthenticatedUserPrincipal principal =
-            new AuthenticatedUserPrincipal(user.getId(), "test-jti", "user", "none");
+            new AuthenticatedUserPrincipal(user.getId(), "test-jti", claimedRole, "none");
         return SecurityMockMvcRequestPostProcessors.authentication(
             new UsernamePasswordAuthenticationToken(
-                principal, null, List.of(new SimpleGrantedAuthority("ROLE_USER"))
+                principal, null,
+                List.of(new SimpleGrantedAuthority("ROLE_" + claimedRole.toUpperCase(Locale.ROOT)))
             )
         );
     }

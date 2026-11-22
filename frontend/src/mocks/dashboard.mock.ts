@@ -1,6 +1,5 @@
 import type {
   ActivityRecord,
-  DirectoryUser,
   PlatformMetric,
   UserWorkspace,
   WorkspaceAreaTile,
@@ -35,9 +34,3 @@ export const MOCK_PLATFORM_METRICS: PlatformMetric[] = [
   { id: 'm_aws', label: 'AWS Docker Target', value: 'READY', state: 'healthy' },
 ];
 
-export const MOCK_DIRECTORY_USERS: DirectoryUser[] = [
-  { id: 'usr_admin_01', name: 'Alex Mercer', email: 'admin@orbit.dev', role: 'admin', status: 'active' },
-  { id: 'usr_dev_01', name: 'Taylor Lin', email: 'user@orbit.dev', role: 'user', status: 'active' },
-  { id: 'usr_dev_02', name: 'Jordan Vance', email: 'jordan@orbit.dev', role: 'user', status: 'active' },
-  { id: 'usr_dev_03', name: 'Samira Patel', email: 'samira@orbit.dev', role: 'user', status: 'invited' },
-];
