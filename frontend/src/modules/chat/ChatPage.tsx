@@ -16,6 +16,7 @@ import { ChatVoiceRoom } from './ChatVoiceRoom';
 import { useChatChannels } from './useChatChannels';
 import { useVoiceSession } from './useVoiceSession';
 import { VoiceAudioSink } from './VoiceAudioSink';
+import { useChatMentionMembers } from './useChatMentionMembers';
 import { useChatOnlineCount } from './useChatOnlineCount';
 
 interface ChatPageProps {
@@ -36,6 +37,7 @@ export function ChatPage({ workspace, project }: ChatPageProps) {
 
   const chatChannels = useChatChannels(workspace.id, project?.id ?? null);
   const voice = useVoiceSession(chatChannels.channels, currentUser);
+  const mentionMembers = useChatMentionMembers(workspace.id, project?.id ?? null);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null);
@@ -114,6 +116,7 @@ export function ChatPage({ workspace, project }: ChatPageProps) {
           canManageChannels={canManageChannels}
           canWriteChat={canWriteChat}
           onlineCount={onlineCount}
+          mentionMembers={mentionMembers}
         />
       ) : (
         <ChatThreadView
@@ -124,6 +127,8 @@ export function ChatPage({ workspace, project }: ChatPageProps) {
           canManageChannels={canManageChannels}
           canWriteChat={canWriteChat}
           onlineCount={onlineCount}
+          mentionMembers={mentionMembers}
+          onEditChannel={(channel) => { setEditingChannel(channel); setModalMode('edit'); }}
         />
       )}
 
