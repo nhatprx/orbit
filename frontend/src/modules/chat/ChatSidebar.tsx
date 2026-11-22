@@ -19,6 +19,7 @@ interface ChatSidebarProps {
   onOpenCreateChannel: () => void;
   onEditChannel: (channel: ChatChannelDto) => void;
   onDeleteChannel: (channel: ChatChannelDto) => void;
+  onRenameCategory?: (oldCategory: string, nextCategory: string) => Promise<void>;
   onOpenVoiceStage: (channelId: string) => void;
 }
 
@@ -35,6 +36,7 @@ export function ChatSidebar({
   onOpenCreateChannel,
   onEditChannel,
   onDeleteChannel,
+  onRenameCategory,
   onOpenVoiceStage,
 }: ChatSidebarProps) {
   const [filterQuery, setFilterQuery] = useState('');
@@ -110,6 +112,7 @@ export function ChatSidebar({
           onSelectChannel={onSelectChannel}
           onEditChannel={onEditChannel}
           onDeleteChannel={onDeleteChannel}
+          onRenameCategory={onRenameCategory}
         />
       </nav>
 

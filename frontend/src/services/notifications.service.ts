@@ -3,14 +3,14 @@ import { apiRequest } from './workspace/httpClient';
 
 export interface NotificationDto {
   id: string;
-  type: 'ISSUE_ASSIGNED' | 'ISSUE_MENTION';
+  type: 'ISSUE_ASSIGNED' | 'ISSUE_MENTION' | 'CHAT_MENTION';
   title: string;
   message: string;
   actorId: string | null;
   actorName: string | null;
   workspaceId: string;
-  projectId: string;
-  issueId: string;
+  projectId: string | null;
+  issueId: string | null;
   issueKey: string;
   createdAt: string;
   readAt: string | null;

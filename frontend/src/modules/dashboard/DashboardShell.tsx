@@ -74,7 +74,9 @@ export function DashboardShell({
   }
 
   async function handleOpenIssue(notification: NotificationDto) {
-    await nav.openProjectIn(notification.workspaceId, notification.projectId, 'issues');
+    if (notification.projectId) {
+      await nav.openProjectIn(notification.workspaceId, notification.projectId, 'issues');
+    }
   }
 
   return (

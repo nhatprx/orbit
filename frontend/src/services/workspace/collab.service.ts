@@ -44,6 +44,8 @@ export interface ChatService {
     limit?: number
   ): Promise<CursorPageResponse<ChatMessageDto>>;
   sendMessage(channelId: string, request: SendChatMessageRequest): Promise<ChatMessageDto>;
+  editMessage(channelId: string, messageId: string, content: string): Promise<ChatMessageDto>;
+  setMessagePinned(channelId: string, messageId: string, pinned: boolean): Promise<ChatMessageDto>;
   deleteMessage(channelId: string, messageId: string): Promise<void>;
   setReaction(channelId: string, messageId: string, key: ChatReactionKey, active: boolean): Promise<ChatReactionEvent>;
   subscribeChannel(

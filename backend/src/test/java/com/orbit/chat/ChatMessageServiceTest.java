@@ -129,7 +129,9 @@ class ChatMessageServiceTest {
         // Manager can delete another user's message and emits MESSAGE_DELETED event.
         when(guard.canManage(memberId, channel)).thenReturn(true);
         service.deleteMessage(memberId, channelId, msgId);
-        verify(messageRepo).delete(message);
+        verify(messageRepo).save(message);
+        assertEquals("", message.getContent());
+        org.junit.jupiter.api.Assertions.assertNotNull(message.getDeletedAt());
 
         // Sender can delete own message even without manage permission.
         when(guard.canManage(ownerId, channel)).thenReturn(false);

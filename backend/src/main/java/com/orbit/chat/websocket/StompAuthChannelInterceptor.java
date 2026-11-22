@@ -99,6 +99,9 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         if (ERROR_QUEUE.equals(destination)) {
             return;
         }
+        if (("/topic/notifications." + userId).equals(destination)) {
+            return;
+        }
         if (destination != null && destination.startsWith("/topic/collab.")) {
             collabAuthorizer.authorizeSubscribe(userId, destination);
             return;

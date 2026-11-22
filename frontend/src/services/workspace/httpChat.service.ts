@@ -95,6 +95,22 @@ class HttpChatService implements ChatService {
     });
   }
 
+  editMessage(channelId: string, messageId: string, content: string) {
+    return apiRequest<ChatMessageDto>(
+      'PATCH',
+      `/api/v1/chat/channels/${seg(channelId)}/messages/${seg(messageId)}`,
+      { body: { content } }
+    );
+  }
+
+  setMessagePinned(channelId: string, messageId: string, pinned: boolean) {
+    return apiRequest<ChatMessageDto>(
+      'PUT',
+      `/api/v1/chat/channels/${seg(channelId)}/messages/${seg(messageId)}/pin`,
+      { body: { pinned } }
+    );
+  }
+
   deleteMessage(channelId: string, messageId: string) {
     return apiRequest<void>(
       'DELETE',

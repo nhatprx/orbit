@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Button } from '../../components/ui/Button';
 import { TextField } from '../../components/ui/Field';
 import { Modal } from '../../components/ui/Modal';
+import { uploadChatImage, validateChatImageFile } from '../../services/workspace/chatImageUpload';
 import { errorMessage } from '../../services/workspace/httpClient';
 import type {
   ChatChannelDto,
@@ -9,6 +10,7 @@ import type {
   CreateChatChannelRequest,
   UpdateChatChannelRequest,
 } from '../../types/workspace.types';
+import { ChatChannelAvatarField } from './ChatChannelAvatarField';
 import { ChatChannelTypeOptions } from './ChatChannelTypeOptions';
 
 interface ChatChannelModalProps {
@@ -36,33 +38,48 @@ export function ChatChannelModal({
 }: ChatChannelModalProps) {
   const [channelType, setChannelType] = useState<ChatChannelType>('TEXT');
   const [name, setName] = useState('');
-  const [category, setCategory] = useState(DEFAULT_CATEGORY.TEXT);
   const [description, setDescription] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
     if (!open) return;
     setError(null);
+    setAvatarFile(null);
+    setAvatarPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
     if (mode === 'edit' && initialChannel) {
       setChannelType(initialChannel.channelType);
       setName(initialChannel.name);
-      setCategory(initialChannel.category || DEFAULT_CATEGORY[initialChannel.channelType]);
       setDescription(initialChannel.description || '');
+      setAvatarUrl(initialChannel.avatarUrl || '');
     } else {
       setChannelType('TEXT');
       setName('');
-      setCategory(DEFAULT_CATEGORY.TEXT);
       setDescription('');
+      setAvatarUrl('');
     }
   }, [open, mode, initialChannel]);
 
-  function handleTypeSelect(nextType: ChatChannelType) {
-    setChannelType(nextType);
-    const trimmedCat = category.trim().toUpperCase();
-    if (Object.values(DEFAULT_CATEGORY).includes(trimmedCat)) {
-      setCategory(DEFAULT_CATEGORY[nextType]);
-    }
+  useEffect(() => () => { if (avatarPreview) URL.revokeObjectURL(avatarPreview); }, [avatarPreview]);
+
+  function handleAvatarSelect(file: File) {
+    const validationError = validateChatImageFile(file);
+    if (validationError) return setError(validationError);
+    setError(null);
+    setAvatarFile(file);
+    setAvatarPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(file);
+    });
+  }
+
+  function handleRemoveAvatar() {
+    setAvatarFile(null);
+    setAvatarPreview((prev) => { if (prev) URL.revokeObjectURL(prev); return null; });
+    setAvatarUrl('');
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -74,12 +91,25 @@ export function ChatChannelModal({
     setError(null);
     setPending(true);
     try {
-      const trimmedCategory = category.trim() || DEFAULT_CATEGORY[channelType];
       const trimmedDesc = description.trim();
       if (mode === 'edit' && initialChannel) {
-        await onUpdate(initialChannel.id, { name: trimmedName, category: trimmedCategory, description: trimmedDesc });
+        let nextAvatarUrl = avatarUrl;
+        if (avatarFile) {
+          const uploaded = await uploadChatImage(initialChannel.id, avatarFile);
+          nextAvatarUrl = uploaded.attachmentUrl;
+        }
+        await onUpdate(initialChannel.id, {
+          name: trimmedName,
+          description: trimmedDesc,
+          avatarUrl: nextAvatarUrl,
+        });
       } else {
-        await onCreate({ name: trimmedName, channelType, category: trimmedCategory, description: trimmedDesc });
+        await onCreate({
+          name: trimmedName,
+          channelType,
+          category: DEFAULT_CATEGORY[channelType],
+          description: trimmedDesc,
+        });
       }
       onClose();
     } catch (err) {
@@ -92,7 +122,7 @@ export function ChatChannelModal({
   return (
     <Modal
       open={open}
-      title={mode === 'edit' ? 'Edit Channel' : 'Create Channel'}
+      title={mode === 'edit' ? 'Channel Settings' : 'Create Channel'}
       subtitle={mode === 'edit' ? initialChannel?.name : 'Create a text, voice, or forum channel'}
       onClose={onClose}
     >
@@ -100,8 +130,17 @@ export function ChatChannelModal({
         {mode === 'create' && (
           <div>
             <p className="mb-1.5 text-xs text-[#BDBDBD]">Channel Type</p>
-            <ChatChannelTypeOptions value={channelType} onChange={handleTypeSelect} />
+            <ChatChannelTypeOptions value={channelType} onChange={setChannelType} />
           </div>
+        )}
+
+        {mode === 'edit' && (
+          <ChatChannelAvatarField
+            previewUrl={avatarPreview || avatarUrl}
+            channelName={name}
+            onSelectFile={handleAvatarSelect}
+            onRemove={handleRemoveAvatar}
+          />
         )}
 
         <TextField
@@ -111,13 +150,6 @@ export function ChatChannelModal({
           onChange={(e) => setName(e.target.value)}
           placeholder={channelType === 'VOICE' ? 'e.g. standup-room' : channelType === 'FORUM' ? 'e.g. product-feedback' : 'e.g. announcements'}
           autoFocus
-        />
-        <TextField
-          label="Category"
-          value={category}
-          maxLength={64}
-          onChange={(e) => setCategory(e.target.value)}
-          placeholder={DEFAULT_CATEGORY[channelType]}
         />
         <TextField
           label="Description"

@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -28,10 +29,17 @@ public class NotificationService {
     private static final int MAX_MENTIONS = 10;
     private final NotificationRepository notifications;
     private final UserRepository users;
+    private NotificationBroadcaster broadcaster;
 
+    @Autowired
     public NotificationService(NotificationRepository notifications, UserRepository users) {
         this.notifications = notifications;
         this.users = users;
+    }
+
+    @Autowired(required = false)
+    void setBroadcaster(NotificationBroadcaster broadcaster) {
+        this.broadcaster = broadcaster;
     }
 
     @Transactional
@@ -98,7 +106,11 @@ public class NotificationService {
         item.setType(type);
         item.setTitle(title);
         item.setMessage(message.length() > 500 ? message.substring(0, 500) : message);
-        notifications.save(item);
+        NotificationEntity saved = notifications.save(item);
+        if (broadcaster != null) {
+            String actorName = actorId == null ? null : users.findById(actorId).map(UserEntity::getDisplayName).orElse(null);
+            broadcaster.publish(saved, actorName);
+        }
     }
 
     private Map<UUID, String> resolveActorNames(Collection<NotificationEntity> items) {

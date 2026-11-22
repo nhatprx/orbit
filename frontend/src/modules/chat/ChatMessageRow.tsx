@@ -1,84 +1,190 @@
-import { useState } from 'react';
-import { Check, Copy, CornerUpLeft, ExternalLink, Heart, Laugh, MoreHorizontal, Paperclip, PartyPopper, Reply, ThumbsUp, Trash2 } from 'lucide-react';
+import { Ban, CheckCheck, CheckSquare, CornerUpLeft, Pin, Square } from 'lucide-react';
 import { UserAvatar } from '../../components/ui/UserAvatar';
 import type { ChatMessageDto, ChatReactionKey } from '../../types/workspace.types';
 import { formatTime } from '../../utils/format';
+import { ChatMessageActions } from './ChatMessageActions';
+import type { PreviewImageItem } from './ChatImageLightbox';
+import { ChatMessageAttachment } from './ChatMessageAttachment';
+import { ChatReactionDock } from './ChatReactionDock';
 
 interface ChatMessageRowProps {
   message: ChatMessageDto;
   mine: boolean;
   canDelete: boolean;
   canWriteChat: boolean;
+  isFirstInGroup?: boolean;
+  isLastInGroup?: boolean;
+  selectionMode?: boolean;
+  selected?: boolean;
+  menuOpen?: boolean;
+  onMenuOpenChange?: (open: boolean) => void;
+  onToggleSelect?: (messageId: string) => void;
   onReply: (message: ChatMessageDto) => void;
+  onEdit?: (message: ChatMessageDto) => void;
+  onTogglePin?: (messageId: string) => Promise<void>;
+  onStartSelect?: (messageId: string) => void;
   onDelete: (messageId: string) => Promise<void>;
   onToggleReaction: (messageId: string, key: ChatReactionKey) => Promise<void>;
+  onPreviewImage?: (image: PreviewImageItem) => void;
 }
 
-const reactions: { key: ChatReactionKey; label: string; Icon: typeof ThumbsUp }[] = [
-  { key: 'LIKE', label: 'Like', Icon: ThumbsUp }, { key: 'LOVE', label: 'Love', Icon: Heart },
-  { key: 'LAUGH', label: 'Laugh', Icon: Laugh }, { key: 'CELEBRATE', label: 'Celebrate', Icon: PartyPopper },
-];
+const MENTION_SPLIT = /(@[A-Za-z0-9_.-]{1,64})/g;
 
-function safeUrl(url: string): boolean {
-  const value = url.toLowerCase();
-  return value.startsWith('https://') || value.startsWith('http://') || url.startsWith('/api/');
+function renderContent(text: string) {
+  return text.split(MENTION_SPLIT).map((part, idx) => {
+    if (part.startsWith('@') && part.length > 1) {
+      const isAll = part.toLowerCase() === '@all';
+      return (
+        <span
+          key={idx}
+          className={
+            isAll
+              ? 'border border-[#1E5631] bg-[#052E16] px-1 font-semibold text-[#4ADE80]'
+              : 'font-medium text-[#4ADE80]'
+          }
+        >
+          {part}
+        </span>
+      );
+    }
+    return part;
+  });
 }
 
-export function ChatMessageRow({ message, mine, canDelete, canWriteChat, onReply, onDelete, onToggleReaction }: ChatMessageRowProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const attachmentUrl = message.attachmentUrl?.trim();
-  const hasReply = Boolean(message.replyToSenderName || message.replyToSnippet);
-  const toggleQuick = () => void onToggleReaction(message.id, 'LIKE');
+export function ChatMessageRow({
+  message, mine, canDelete, canWriteChat,
+  isFirstInGroup = true, isLastInGroup = true,
+  selectionMode = false, selected = false, menuOpen, onMenuOpenChange, onToggleSelect,
+  onReply, onEdit, onTogglePin, onStartSelect, onDelete, onToggleReaction, onPreviewImage,
+}: ChatMessageRowProps) {
+  const isDeleted = Boolean(message.deletedAt);
+  const hasReply = !isDeleted && Boolean(message.replyToSenderName || message.replyToSnippet);
+  const reactions = isDeleted ? [] : (message.reactions ?? []);
+  const hasText = !isDeleted && message.content.trim().length > 0;
 
-  async function copyMessage() {
-    try { await navigator.clipboard.writeText(message.content); } catch { return; }
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1400);
-    setMenuOpen(false);
-  }
+  const bubbleClass = isDeleted
+    ? 'border-dashed border-[#30363D] bg-[#0D1117]/70 text-[#7D8590]'
+    : mine
+      ? 'border-[#1E5631] bg-[#0B2918] text-[#E6EDF3]'
+      : 'border-[#2D333B] bg-[#161B22] text-[#E6EDF3]';
+  const quoteClass = mine
+    ? 'border-l-2 border-[#22C55E] bg-[#051C0F]/90'
+    : 'border-l-2 border-[#22C55E] bg-[#0D1117]/90';
 
-  async function deleteMessage() {
-    setDeleting(true);
-    try { await onDelete(message.id); } finally { setDeleting(false); setMenuOpen(false); }
-  }
+  const actionBar = selectionMode || isDeleted ? null : (
+    <ChatMessageActions
+      message={message}
+      mine={mine}
+      canDelete={canDelete}
+      canWriteChat={canWriteChat}
+      menuOpen={menuOpen}
+      onMenuOpenChange={onMenuOpenChange}
+      onReply={onReply}
+      onEdit={onEdit}
+      onTogglePin={onTogglePin}
+      onStartSelect={onStartSelect}
+      onDelete={onDelete}
+      onToggleReaction={onToggleReaction}
+    />
+  );
 
   return (
-    <div className={`group relative flex items-start gap-2 border border-transparent px-2 py-1.5 hover:border-[#30363D] hover:bg-[#161B22] ${mine ? 'justify-end' : 'justify-start'}`}>
-      {!mine && <UserAvatar name={message.senderName} avatarUrl={message.senderAvatarUrl} />}
-      <div className={`min-w-0 max-w-[80%] ${mine ? 'text-right' : 'flex-1 text-left'}`}>
-        <div className={`relative flex min-w-0 items-baseline gap-2 ${mine ? 'justify-end' : 'justify-start'}`}>
-          <span className="min-w-0 break-words text-sm font-semibold text-[#E6EDF3]">{message.senderName}</span>
-          <time dateTime={message.createdAt} className={`absolute top-0 font-mono text-xs text-[#7D8590] opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 ${mine ? 'right-full mr-2' : 'left-full ml-2'}`}>{formatTime(message.createdAt)}</time>
+    <div
+      onClick={selectionMode && !isDeleted ? () => onToggleSelect?.(message.id) : undefined}
+      className={`group flex items-start gap-2.5 ${isFirstInGroup ? 'mt-3.5' : 'mt-1.5'} ${
+        mine ? 'justify-end' : 'justify-start'
+      } ${selectionMode && !isDeleted ? 'cursor-pointer px-1.5 py-1 hover:bg-[#161B22]/60' : ''} ${
+        selected && !isDeleted ? 'bg-[#052E16]/40' : ''
+      }`}
+    >
+      {selectionMode && !isDeleted && (
+        <button
+          type="button"
+          aria-label={selected ? 'Deselect message' : 'Select message'}
+          aria-pressed={selected}
+          onClick={(e) => { e.stopPropagation(); onToggleSelect?.(message.id); }}
+          className={`mt-1.5 shrink-0 ${selected ? 'text-[#22C55E]' : 'text-[#7D8590] hover:text-[#E6EDF3]'}`}
+        >
+          {selected ? <CheckSquare className="h-4 w-4" strokeWidth={1.75} /> : <Square className="h-4 w-4" strokeWidth={1.5} />}
+        </button>
+      )}
+
+      {!mine && (
+        <div className="w-7 shrink-0 pt-0.5">
+          {isFirstInGroup && <UserAvatar name={message.senderName} avatarUrl={message.senderAvatarUrl} />}
         </div>
-        {hasReply && <div className={`mt-1 flex items-center gap-1.5 border-l-2 border-[#22C55E] bg-[#0D1117] px-2.5 py-1 text-xs text-[#8A8A8A] ${mine ? 'justify-end border-l-0 border-r-2' : ''}`}>
-          <CornerUpLeft className="h-3 w-3 shrink-0 text-[#22C55E]" strokeWidth={1.5} />
-          {message.replyToSenderName && <span className="shrink-0 font-semibold text-[#BDBDBD]">{message.replyToSenderName}:</span>}
-          <span className="truncate">{message.replyToSnippet ?? 'Replied message'}</span>
-        </div>}
-        <p className={`mt-1 inline-block max-w-full border px-3 py-2 text-left whitespace-pre-wrap break-words text-sm leading-relaxed text-[#E6EDF3] ${mine ? 'border-[#14532D] bg-[#052E16]' : 'border-transparent bg-transparent px-0'}`}>{message.content}</p>
-        {attachmentUrl && safeUrl(attachmentUrl) && <a href={attachmentUrl} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex max-w-md items-center gap-2 border border-[#30363D] bg-[#0D1117] px-3 py-1.5 text-xs text-[#E6EDF3] hover:border-[#22C55E] hover:text-[#4ADE80]">
-          <Paperclip className="h-3.5 w-3.5 shrink-0 text-[#22C55E]" strokeWidth={1.5} /><span className="truncate font-mono">{message.attachmentName || attachmentUrl}</span><ExternalLink className="h-3 w-3 shrink-0 text-[#8A8A8A]" strokeWidth={1.5} />
-        </a>}
-        {(message.reactions ?? []).length > 0 && <div className={`mt-1 flex flex-wrap gap-1 ${mine ? 'justify-end' : ''}`}>
-          {message.reactions?.map((reaction) => {
-            const Icon = reactions.find((item) => item.key === reaction.reactionKey)?.Icon ?? ThumbsUp;
-            return <button key={reaction.reactionKey} type="button" disabled={!canWriteChat} aria-pressed={reaction.reactedByMe} onClick={() => void onToggleReaction(message.id, reaction.reactionKey)} className={`inline-flex items-center gap-1 border px-1.5 py-0.5 text-xs ${reaction.reactedByMe ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]' : 'border-[#30363D] bg-[#0D1117] text-[#8A8A8A]'} disabled:cursor-not-allowed`}><Icon className="h-3 w-3" />{reaction.count}</button>;
-          })}
-        </div>}
+      )}
+
+      {mine && actionBar}
+
+      <div className={`flex min-w-0 max-w-[76%] flex-col ${mine ? 'items-end' : 'items-start'} ${reactions.length > 0 ? 'mb-2.5' : ''}`}>
+        <div className={`relative w-fit max-w-full border px-3.5 py-2 ${bubbleClass} ${message.pinned ? 'border-[#22C55E]' : ''}`}>
+          {(!mine && isFirstInGroup) || message.pinned ? (
+            <div className="mb-1 flex items-center justify-between gap-2">
+              {!mine && isFirstInGroup && (
+                <span className="text-xs font-semibold leading-tight text-[#4ADE80]">{message.senderName}</span>
+              )}
+              {message.pinned && (
+                <span className="inline-flex items-center gap-0.5 font-mono text-[10px] text-[#22C55E]">
+                  <Pin className="h-2.5 w-2.5" strokeWidth={1.75} />
+                  Pinned
+                </span>
+              )}
+            </div>
+          ) : null}
+
+          {hasReply && (
+            <div className={`mb-1.5 px-2.5 py-1 text-xs ${quoteClass}`}>
+              <div className="flex items-center gap-1 font-semibold text-[#4ADE80]">
+                <CornerUpLeft className="h-3 w-3 shrink-0" strokeWidth={1.5} />
+                <span className="truncate">{message.replyToSenderName ?? 'Reply'}</span>
+              </div>
+              <p className="mt-0.5 truncate text-[11px] text-[#8B949E]">
+                {message.replyToSnippet || 'Replied message'}
+              </p>
+            </div>
+          )}
+
+          {isDeleted ? (
+            <p className="flex items-center gap-1.5 text-xs italic text-[#7D8590]">
+              <Ban className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
+              <span>This message was deleted</span>
+            </p>
+          ) : (
+            <>
+              {hasText && (
+                <p className="whitespace-pre-wrap break-words text-[13.5px] leading-[1.45] text-[#E6EDF3]">
+                  {renderContent(message.content)}
+                </p>
+              )}
+              <ChatMessageAttachment
+                attachmentName={message.attachmentName}
+                attachmentUrl={message.attachmentUrl}
+                mine={mine}
+                hasText={hasText}
+                onPreviewImage={onPreviewImage}
+              />
+              <ChatReactionDock
+                messageId={message.id}
+                mine={mine}
+                canWriteChat={canWriteChat}
+                reactions={reactions}
+                onToggleReaction={onToggleReaction}
+              />
+            </>
+          )}
+        </div>
+
+        {(isLastInGroup || message.editedAt) && (
+          <div className={`flex items-center gap-1 font-mono text-[10px] text-[#7D8590] ${reactions.length > 0 ? 'mt-3.5' : 'mt-1.5'}`}>
+            {mine && isLastInGroup && <CheckCheck className="h-3 w-3 text-[#22C55E]" strokeWidth={1.75} />}
+            {isLastInGroup && <time dateTime={message.createdAt}>{formatTime(message.createdAt)}</time>}
+            {message.editedAt && <span className="text-[#7D8590]">(edited)</span>}
+          </div>
+        )}
       </div>
-      {mine && <UserAvatar name={message.senderName} avatarUrl={message.senderAvatarUrl} />}
-      <div className={`absolute top-1.5 z-10 flex items-start gap-0.5 border border-[#30363D] bg-[#21262D] p-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 ${mine ? 'right-10' : 'left-10'}`}>
-        <button type="button" disabled={!canWriteChat} title="React" aria-label="React to message" onClick={toggleQuick} className="p-1 text-[#BDBDBD] hover:bg-[#161B22] hover:text-[#22C55E] disabled:opacity-40"><ThumbsUp className="h-3.5 w-3.5" /></button>
-        <button type="button" disabled={!canWriteChat} title="Reply" aria-label={`Reply to ${message.senderName}`} onClick={() => onReply(message)} className="p-1 text-[#BDBDBD] hover:bg-[#161B22] hover:text-[#22C55E] disabled:opacity-40"><Reply className="h-3.5 w-3.5" /></button>
-        <button type="button" title="More" aria-label="More message actions" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)} className="p-1 text-[#BDBDBD] hover:bg-[#161B22] hover:text-[#E6EDF3]"><MoreHorizontal className="h-3.5 w-3.5" /></button>
-        {menuOpen && <div className={`absolute top-full mt-1 flex flex-col border border-[#30363D] bg-[#0D1117] p-1 shadow-lg ${mine ? 'right-0' : 'left-0'}`}>
-          <div className="flex border-b border-[#30363D] pb-1">{reactions.map(({ key, label, Icon }) => <button key={key} type="button" title={label} disabled={!canWriteChat} onClick={() => { void onToggleReaction(message.id, key); setMenuOpen(false); }} className="p-1.5 text-[#8A8A8A] hover:bg-[#161B22] hover:text-[#4ADE80] disabled:opacity-40"><Icon className="h-3.5 w-3.5" /></button>)}</div>
-          <button type="button" onClick={() => void copyMessage()} className="flex items-center gap-2 px-2 py-1.5 text-left text-xs text-[#BDBDBD] hover:bg-[#161B22]">{copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}Copy</button>
-          {canDelete && <button type="button" disabled={deleting} onClick={() => void deleteMessage()} className="flex items-center gap-2 px-2 py-1.5 text-left text-xs text-[#BDBDBD] hover:bg-[#161B22] hover:text-red-400 disabled:opacity-40"><Trash2 className="h-3 w-3" />Delete</button>}
-        </div>}
-      </div>
+
+      {!mine && actionBar}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-export type ChatReactionKey = 'LIKE' | 'LOVE' | 'LAUGH' | 'CELEBRATE';
+export type ChatReactionKey = 'LIKE';
 
 export interface ChatReactionSummaryDto {
   reactionKey: ChatReactionKey;

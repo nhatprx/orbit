@@ -83,6 +83,7 @@ export function useFakeChatChannel(store: ChatTestStore, channelId: string) {
   const [messages, setMessages] = useState<ChatMessageDto[]>(() => store.messages.filter((m) => m.channelId === channelId));
   return {
     messages, loading: false, loadingOlder: false, error: null, hasOlder: false, loadOlder: vi.fn(),
+    typingUsers: [] as string[], sendTyping: vi.fn(), setReaction: vi.fn().mockResolvedValue(undefined),
     send: async (req: SendChatMessageRequest) => {
       store.sendMessage(req);
       const replied = req.replyToId ? messages.find((m) => m.id === req.replyToId) : null;
@@ -99,6 +100,20 @@ export function useFakeChatChannel(store: ChatTestStore, channelId: string) {
     deleteMessage: async (messageId: string) => {
       store.deleteMessage(messageId);
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
+    },
+    editMessage: async (messageId: string, content: string) => {
+      setMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, content, editedAt: '2026-11-21T08:06:00Z' } : m))
+      );
+    },
+    togglePin: async (messageId: string) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? { ...m, pinned: !m.pinned, pinnedAt: !m.pinned ? '2026-11-21T08:07:00Z' : null }
+            : m
+        )
+      );
     },
   };
 }

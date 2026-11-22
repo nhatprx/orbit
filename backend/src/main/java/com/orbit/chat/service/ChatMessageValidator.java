@@ -15,8 +15,12 @@ final class ChatMessageValidator {
     private ChatMessageValidator() {}
 
     static String validateContent(String raw) {
+        return validateContent(raw, false);
+    }
+
+    static String validateContent(String raw, boolean hasAttachment) {
         String content = raw == null ? "" : raw.trim();
-        if (content.isEmpty() || content.length() > MAX_CONTENT_LENGTH) {
+        if (content.length() > MAX_CONTENT_LENGTH || (content.isEmpty() && !hasAttachment)) {
             throw ApiException.badRequest(
                 "VALIDATION_ERROR", "Message must be between 1 and " + MAX_CONTENT_LENGTH + " characters."
             );

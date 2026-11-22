@@ -17,10 +17,11 @@ interface Subscription {
 }
 
 const DEFAULT_BACKOFF = [1000, 2000, 5000, 10000, 30000];
+const IDLE_CLOSE_DELAY_MS = 250;
 
 /**
- * One shared STOMP-over-WebSocket session. It connects lazily on the first subscription,
- * re-subscribes after reconnects, and closes when the last subscriber leaves.
+ * One shared STOMP-over-WebSocket session. Connects lazily on the first subscription,
+ * reuses the warm socket across rapid channel switches, and auto-recovers on reconnect/visibility.
  */
 export class StompConnection {
   private socket: WebSocket | null = null;
@@ -29,15 +30,20 @@ export class StompConnection {
   private nextId = 0;
   private lastActivity = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+  private closeTimer: ReturnType<typeof setTimeout> | undefined;
   private heartbeatTimer: ReturnType<typeof setInterval> | undefined;
   private readonly subscriptions = new Map<string, Subscription>();
   private readonly listeners = new Set<(state: ConnectionState) => void>();
 
-  constructor(private readonly options: StompConnectionOptions) {}
-
-  getState(): ConnectionState {
-    return this.state;
+  constructor(private readonly options: StompConnectionOptions) {
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this.handleVisibilityOrOnline);
+      window.addEventListener('online', this.handleVisibilityOrOnline);
+      window.addEventListener('focus', this.handleVisibilityOrOnline);
+    }
   }
+
+  getState(): ConnectionState { return this.state; }
 
   onStateChange(listener: (state: ConnectionState) => void): () => void {
     this.listeners.add(listener);
@@ -45,6 +51,7 @@ export class StompConnection {
   }
 
   subscribe(destination: string, handler: FrameHandler): () => void {
+    clearTimeout(this.closeTimer);
     const id = `sub-${this.nextId++}`;
     this.subscriptions.set(id, { destination, handler });
     if (this.state === 'idle') this.open();
@@ -53,7 +60,12 @@ export class StompConnection {
     return () => {
       if (!this.subscriptions.delete(id)) return;
       if (this.state === 'connected') this.transmit('UNSUBSCRIBE', { id });
-      if (this.subscriptions.size === 0) this.close();
+      if (this.subscriptions.size === 0) {
+        clearTimeout(this.closeTimer);
+        this.closeTimer = setTimeout(() => {
+          if (this.subscriptions.size === 0) this.close();
+        }, IDLE_CLOSE_DELAY_MS);
+      }
     };
   }
 
@@ -64,6 +76,7 @@ export class StompConnection {
 
   close(): void {
     clearTimeout(this.reconnectTimer);
+    clearTimeout(this.closeTimer);
     clearInterval(this.heartbeatTimer);
     const socket = this.socket;
     this.socket = null;
@@ -72,20 +85,38 @@ export class StompConnection {
     socket?.close();
   }
 
+  private readonly handleVisibilityOrOnline = (): void => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    this.lastActivity = Date.now();
+    if (this.subscriptions.size === 0) return;
+    const isBroken = this.state === 'connected' && this.socket?.readyState !== WebSocket.OPEN;
+    if (isBroken) {
+      this.socket?.close();
+      return;
+    }
+    if (this.state !== 'connected' && this.state !== 'connecting') {
+      clearTimeout(this.reconnectTimer);
+      this.attempt = 0;
+      this.open();
+    }
+  };
+
   private open(): void {
     const token = this.options.token();
     if (!token) return;
+    clearTimeout(this.reconnectTimer);
     this.setState(this.attempt > 0 ? 'reconnecting' : 'connecting');
     const socket = (this.options.createSocket ?? ((u) => new WebSocket(u)))(this.options.url());
     this.socket = socket;
     socket.onopen = () => {
       this.lastActivity = Date.now();
       const beat = String(this.options.heartbeatMs ?? 10000);
+      // Advertise 0 for client->server heartbeat so Chrome background-tab timer throttling never causes server disconnect.
       this.transmit('CONNECT', {
         'accept-version': '1.2',
         host: 'orbit',
         Authorization: `Bearer ${token}`,
-        'heart-beat': `${beat},${beat}`,
+        'heart-beat': `0,${beat}`,
       });
     };
     socket.onmessage = (event: MessageEvent) => this.handleMessage(String(event.data));
@@ -107,13 +138,15 @@ export class StompConnection {
     } else if (frame.command === 'MESSAGE') {
       this.subscriptions.get(frame.headers.subscription ?? '')?.handler(frame);
     } else if (frame.command === 'ERROR') {
-      this.failPermanently(this.state !== 'connected');
+      const msg = `${frame.headers.message ?? ''} ${frame.body}`.toLowerCase();
+      const authRejected = msg.includes('invalid token') || msg.includes('session expired') || msg.includes('authentication required');
+      if (this.state !== 'connected' && authRejected) {
+        this.failPermanently();
+      }
     }
   }
 
-  /** An ERROR before CONNECTED means the server rejected our credentials: do not retry blindly. */
-  private failPermanently(beforeConnected: boolean): void {
-    if (!beforeConnected) return;
+  private failPermanently(): void {
     const socket = this.socket;
     this.socket = null;
     clearInterval(this.heartbeatTimer);
@@ -140,11 +173,14 @@ export class StompConnection {
     clearInterval(this.heartbeatTimer);
     const every = this.options.heartbeatMs ?? 10000;
     this.heartbeatTimer = setInterval(() => {
-      if (Date.now() - this.lastActivity > every * 3) {
+      const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+      if (!hidden && Date.now() - this.lastActivity > every * 3) {
         this.socket?.close();
         return;
       }
-      this.socket?.send('\n');
+      if (this.socket?.readyState === WebSocket.OPEN) {
+        this.socket.send('\n');
+      }
     }, every);
   }
 

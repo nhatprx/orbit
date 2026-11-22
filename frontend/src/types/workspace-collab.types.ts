@@ -13,6 +13,7 @@ export interface ChatChannelDto {
   category: string;
   participantCount: number;
   createdAt: string;
+  avatarUrl?: string | null;
 }
 
 export interface CreateChatChannelRequest {
@@ -26,6 +27,7 @@ export interface UpdateChatChannelRequest {
   name?: string;
   description?: string;
   category?: string;
+  avatarUrl?: string;
 }
 
 export interface ChatMessageDto {
@@ -42,6 +44,10 @@ export interface ChatMessageDto {
   attachmentName?: string | null;
   attachmentUrl?: string | null;
   createdAt: string;
+  editedAt?: string | null;
+  pinned?: boolean;
+  pinnedAt?: string | null;
+  deletedAt?: string | null;
   reactions?: ChatReactionSummaryDto[];
 }
 

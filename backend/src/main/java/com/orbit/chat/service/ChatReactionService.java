@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ChatReactionService {
-    private static final Set<String> ALLOWED = Set.of("LIKE", "LOVE", "LAUGH", "CELEBRATE");
+    private static final Set<String> ALLOWED = Set.of("LIKE");
     private final ChatMessageReactionRepository reactions;
     private final ChatMessageRepository messages;
     private final ChatAccessGuard guard;

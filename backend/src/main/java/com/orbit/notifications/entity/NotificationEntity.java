@@ -16,7 +16,7 @@ public class NotificationEntity {
     @Column(name = "recipient_id", nullable = false) private UUID recipientId;
     @Column(name = "actor_id") private UUID actorId;
     @Column(name = "workspace_id", nullable = false) private UUID workspaceId;
-    @Column(name = "project_id", nullable = false) private UUID projectId;
+    @Column(name = "project_id") private UUID projectId;
     @Column(name = "issue_id") private UUID issueId;
     @Column(name = "issue_key", nullable = false, length = 32) private String issueKey;
     @Column(nullable = false, length = 32) private String type;

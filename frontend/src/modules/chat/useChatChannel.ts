@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage } from '../../services/workspace/httpClient';
+import { chatConnection } from '../../services/workspace/httpChat.service';
 import { chatService } from '../../services/workspace/services';
 import type { ChatMessageDto, ChatReactionKey, ChatTypingEvent, SendChatMessageRequest } from '../../types/workspace.types';
-import { applyReaction, mergeMessage, mergeOlder, removeMessage } from './chatMessages';
+import { applyReaction, markMessageDeleted, mergeMessage, mergeOlder } from './chatMessages';
 
 const PAGE_SIZE = 50;
 
@@ -47,7 +48,7 @@ export function useChatChannel(channelId: string, currentUserId: string | null =
       },
       (deleted) => {
         if (active && deleted.channelId === channelId) {
-          setMessages((current) => removeMessage(current, deleted.messageId));
+          setMessages((current) => markMessageDeleted(current, deleted.messageId, deleted.deletedAt));
         }
       },
       receiveTyping,
@@ -67,9 +68,34 @@ export function useChatChannel(channelId: string, currentUserId: string | null =
         if (active) setLoading(false);
       });
 
+    const resyncLatest = () => {
+      if (!active) return;
+      void chatService
+        .listMessages(channelId, undefined, PAGE_SIZE)
+        .then((page) => {
+          if (!active) return;
+          setMessages((current) => page.items.reduce((acc, item) => mergeMessage(acc, item), current));
+        })
+        .catch(() => { /* best-effort resync */ });
+    };
+
+    let hasConnectedOnce = chatConnection.getState() === 'connected';
+    const unsubState = chatConnection.onStateChange((state) => {
+      if (state === 'connected') {
+        if (hasConnectedOnce) resyncLatest();
+        hasConnectedOnce = true;
+      }
+    });
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') resyncLatest();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
     return () => {
       active = false;
       unsubscribe();
+      unsubState();
+      document.removeEventListener('visibilitychange', onVisible);
       typingTimers.current.forEach(window.clearTimeout);
       typingTimers.current.clear();
     };
@@ -100,9 +126,27 @@ export function useChatChannel(channelId: string, currentUserId: string | null =
   const deleteMessage = useCallback(
     async (messageId: string) => {
       await chatService.deleteMessage(channelId, messageId);
-      setMessages((current) => removeMessage(current, messageId));
+      setMessages((current) => markMessageDeleted(current, messageId));
     },
     [channelId]
+  );
+
+  const editMessage = useCallback(
+    async (messageId: string, content: string) => {
+      const updated = await chatService.editMessage(channelId, messageId, content);
+      setMessages((current) => mergeMessage(current, updated));
+    },
+    [channelId]
+  );
+
+  const togglePin = useCallback(
+    async (messageId: string) => {
+      const target = messages.find((m) => m.id === messageId);
+      if (!target) return;
+      const updated = await chatService.setMessagePinned(channelId, messageId, !target.pinned);
+      setMessages((current) => mergeMessage(current, updated));
+    },
+    [channelId, messages]
   );
 
   const sendTyping = useCallback((active: boolean) => chatService.sendTyping(channelId, active), [channelId]);
@@ -123,6 +167,8 @@ export function useChatChannel(channelId: string, currentUserId: string | null =
     hasOlder: nextCursor !== null,
     loadOlder,
     send,
+    editMessage,
+    togglePin,
     deleteMessage,
     setReaction,
     typingUsers: Object.values(typingUsers),

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AlertTriangle, MessageSquare, Users, Volume2, X } from 'lucide-react';
-import type { ChatChannelDto } from '../../types/workspace.types';
+import type { ChatChannelDto, MemberDto } from '../../types/workspace.types';
 import type { VoiceSessionState } from './chatVoiceTypes';
 import { VoicePreJoinCard } from './VoicePreJoinCard';
 import { VoiceSideChat } from './VoiceSideChat';
@@ -13,6 +13,7 @@ interface ChatVoiceRoomProps {
   canManageChannels: boolean;
   canWriteChat?: boolean;
   onlineCount: number;
+  mentionMembers?: MemberDto[];
 }
 
 export function ChatVoiceRoom({
@@ -22,6 +23,7 @@ export function ChatVoiceRoom({
   canManageChannels,
   canWriteChat = true,
   onlineCount,
+  mentionMembers = [],
 }: ChatVoiceRoomProps) {
   const [showSideChat, setShowSideChat] = useState(false);
   const isJoined = voice.activeChannelId === channel.id;
@@ -122,6 +124,7 @@ export function ChatVoiceRoom({
           currentUserId={currentUserId}
           canManageChannels={canManageChannels}
           canWriteChat={canWriteChat}
+          mentionMembers={mentionMembers}
           onClose={() => setShowSideChat(false)}
         />
       )}

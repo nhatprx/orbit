@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AtSign, Bell, Check, CheckCheck, ExternalLink, Users, X } from 'lucide-react';
+import { getStoredSession } from '../../services/auth.storage';
+import { chatConnection } from '../../services/workspace/httpChat.service';
 import { invitationService } from '../../services/workspace/services';
 import type { InvitationInboxDto } from '../../types/workspace.types';
 import { notificationService, type NotificationDto } from '../../services/notifications.service';
@@ -36,8 +38,28 @@ export function DashboardNotificationsMenu({ onInviteAccepted, onOpenIssue }: Da
 
   useEffect(() => {
     void load();
-    const interval = window.setInterval(() => void load(), 60000);
-    return () => window.clearInterval(interval);
+    const interval = window.setInterval(() => void load(), 15000);
+    const onVisible = () => { if (document.visibilityState === 'visible') void load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    const userId = getStoredSession()?.user.id;
+    const unsub = userId
+      ? chatConnection.subscribe(`/topic/notifications.${userId}`, (frame) => {
+          try {
+            const incoming = JSON.parse(frame.body) as NotificationDto;
+            if (!incoming?.id) return;
+            setItems((current) => {
+              if (current.some((n) => n.id === incoming.id)) return current;
+              setUnreadCount((count) => count + 1);
+              return [incoming, ...current].slice(0, 20);
+            });
+          } catch { /* ignore malformed notification frame */ }
+        })
+      : () => {};
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+      unsub();
+    };
   }, [load]);
 
   useEffect(() => {
@@ -94,6 +116,7 @@ export function DashboardNotificationsMenu({ onInviteAccepted, onOpenIssue }: Da
       setUnreadCount((count) => Math.max(0, count - 1));
     }
     setOpen(false);
+    if (item.type === 'CHAT_MENTION' || !item.issueId) return;
     try {
       await onOpenIssue(item);
     } catch (cause) {
@@ -117,7 +140,7 @@ export function DashboardNotificationsMenu({ onInviteAccepted, onOpenIssue }: Da
     <div ref={menuRef} className="relative">
       <button
         type="button" title="Notifications" aria-label={`Notifications${badgeCount ? `, ${badgeCount} unread` : ''}`}
-        aria-expanded={open} onClick={() => setOpen((value) => !value)}
+        aria-expanded={open} onClick={() => { if (!open) void load(); setOpen((value) => !value); }}
         className={`relative flex h-7 w-7 items-center justify-center border bg-[#161B22] transition-colors hover:border-[#22C55E] hover:text-[#E6EDF3] ${open ? 'border-[#22C55E] text-[#22C55E]' : 'border-[#30363D] text-[#8B949E]'}`}
       >
         <Bell className="h-3.5 w-3.5" strokeWidth={1.5} />

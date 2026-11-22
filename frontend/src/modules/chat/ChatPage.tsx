@@ -70,6 +70,15 @@ export function ChatPage({ workspace, project }: ChatPageProps) {
     await chatChannels.updateChannel(channelId, request);
   }
 
+  async function handleRenameCategory(oldCategory: string, nextCategory: string) {
+    const targets = chatChannels.channels.filter((c) => {
+      const cat = c.category?.trim()
+        || (c.channelType === 'VOICE' ? 'VOICE CHANNELS' : c.channelType === 'FORUM' ? 'FORUMS' : 'TEXT CHANNELS');
+      return cat === oldCategory;
+    });
+    await Promise.all(targets.map((c) => chatChannels.updateChannel(c.id, { category: nextCategory })));
+  }
+
   async function handleConfirmDelete() {
     if (!deletingChannel) return;
     const targetId = deletingChannel.id;
@@ -100,6 +109,7 @@ export function ChatPage({ workspace, project }: ChatPageProps) {
         onOpenCreateChannel={() => { setEditingChannel(null); setModalMode('create'); }}
         onEditChannel={(channel) => { setEditingChannel(channel); setModalMode('edit'); }}
         onDeleteChannel={setDeletingChannel}
+        onRenameCategory={handleRenameCategory}
         onOpenVoiceStage={(channelId) => setSelectedId(channelId)}
       />
 

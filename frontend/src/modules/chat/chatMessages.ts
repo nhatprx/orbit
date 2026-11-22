@@ -4,9 +4,26 @@ function compare(a: ChatMessageDto, b: ChatMessageDto): number {
   return a.createdAt === b.createdAt ? a.id.localeCompare(b.id) : a.createdAt.localeCompare(b.createdAt);
 }
 
-/** Inserts a live or sent message in chronological position; duplicates (same id) are ignored. */
+/** Inserts a live or sent message in chronological position, or updates an existing message when edited/pinned. */
 export function mergeMessage(messages: ChatMessageDto[], incoming: ChatMessageDto): ChatMessageDto[] {
-  if (messages.some((m) => m.id === incoming.id)) return messages;
+  const index = messages.findIndex((m) => m.id === incoming.id);
+  if (index >= 0) {
+    const existing = messages[index];
+    if (!existing) return messages;
+    const unchanged =
+      existing.content === incoming.content &&
+      existing.editedAt === incoming.editedAt &&
+      Boolean(existing.pinned) === Boolean(incoming.pinned) &&
+      existing.pinnedAt === incoming.pinnedAt;
+    if (unchanged) return messages;
+    const reactions =
+      incoming.reactions && incoming.reactions.length > 0
+        ? incoming.reactions
+        : existing.reactions;
+    const next = [...messages];
+    next[index] = reactions !== undefined ? { ...existing, ...incoming, reactions } : { ...existing, ...incoming };
+    return next;
+  }
   return [...messages, incoming].sort(compare);
 }
 
@@ -20,6 +37,30 @@ export function mergeOlder(messages: ChatMessageDto[], older: ChatMessageDto[]):
 export function removeMessage(messages: ChatMessageDto[], messageId: string): ChatMessageDto[] {
   const next = messages.filter((m) => m.id !== messageId);
   return next.length === messages.length ? messages : next;
+}
+
+/** Soft-deletes a message in place so the thread displays a tombstone instead of removing it. */
+export function markMessageDeleted(
+  messages: ChatMessageDto[],
+  messageId: string,
+  deletedAt: string = new Date().toISOString()
+): ChatMessageDto[] {
+  let changed = false;
+  const next = messages.map((m) => {
+    if (m.id !== messageId) return m;
+    changed = true;
+    return {
+      ...m,
+      content: '',
+      attachmentName: null,
+      attachmentUrl: null,
+      pinned: false,
+      pinnedAt: null,
+      deletedAt,
+      reactions: [],
+    };
+  });
+  return changed ? next : messages;
 }
 
 export function applyReaction(messages: ChatMessageDto[], event: ChatReactionEvent, currentUserId: string | null): ChatMessageDto[] {

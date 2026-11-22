@@ -71,7 +71,7 @@ describe('StompConnection', () => {
     const connect = latest().commands()[0];
     expect(connect?.command).toBe('CONNECT');
     expect(connect?.headers.Authorization).toBe('Bearer jwt-token');
-    expect(connect?.headers['heart-beat']).toBe('1000,1000');
+    expect(connect?.headers['heart-beat']).toBe('0,1000');
 
     latest().receive({ command: 'CONNECTED', headers: { version: '1.2' } });
     expect(conn.getState()).toBe('connected');
@@ -96,7 +96,7 @@ describe('StompConnection', () => {
     expect(second.mock.calls[0]?.[0].body).toBe('hi');
   });
 
-  it('unsubscribes and closes the socket when the last subscriber leaves', () => {
+  it('unsubscribes and closes the socket after idle grace period when the last subscriber leaves', () => {
     const conn = build();
     const off = conn.subscribe('/topic/chat.1', vi.fn());
     latest().open();
@@ -105,6 +105,8 @@ describe('StompConnection', () => {
     off();
 
     expect(latest().commands().some((f) => f.command === 'UNSUBSCRIBE')).toBe(true);
+    expect(latest().closed).toBe(false);
+    vi.advanceTimersByTime(300);
     expect(latest().closed).toBe(true);
     expect(conn.getState()).toBe('idle');
   });

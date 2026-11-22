@@ -11,6 +11,7 @@ import com.orbit.chat.repository.ChatMessageRepository;
 import com.orbit.common.ApiException;
 import com.orbit.common.CursorPageResponse;
 import com.orbit.common.PageParams;
+import com.orbit.common.Timestamps;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -33,6 +34,7 @@ public class ChatMessageService {
     private final ChatRateLimiter rateLimiter;
     private final ChatReactionService reactions;
     private final StorageService storage;
+    private ChatMentionNotificationService mentionNotifier;
 
     @Autowired
     public ChatMessageService(
@@ -51,6 +53,11 @@ public class ChatMessageService {
         this.rateLimiter = rateLimiter;
         this.reactions = reactions;
         this.storage = storage;
+    }
+
+    @Autowired(required = false)
+    void setMentionNotifier(ChatMentionNotificationService mentionNotifier) {
+        this.mentionNotifier = mentionNotifier;
     }
 
     public ChatMessageService(ChatMessageRepository messages, UserRepository users, ChatAccessGuard guard,
@@ -82,8 +89,9 @@ public class ChatMessageService {
         List<UUID> ids = newestFirst.stream().map(ChatMessageDto::id).toList();
         var summaries = reactions == null ? java.util.Map.<UUID, List<com.orbit.chat.dto.ChatReactionSummaryDto>>of()
             : reactions.summaries(userId, ids);
-        List<ChatMessageDto> enriched = newestFirst.stream().map(row -> row.withAvatarAndReactions(
+        List<ChatMessageDto> enriched = newestFirst.stream().map(row -> row.withResolvedMedia(
             storage == null ? null : storage.resolveObjectUrl(row.senderAvatarUrl()),
+            ChatImageService.resolveAttachmentUrl(storage, row.attachmentUrl()),
             summaries.getOrDefault(row.id(), List.of()))).toList();
         return new CursorPageResponse<>(enriched, nextCursor, hasMore, size);
     }
@@ -94,13 +102,13 @@ public class ChatMessageService {
 
     /** Shared by REST and STOMP. Persists first, then broadcasts the committed message. */
     public ChatMessageDto send(UUID userId, UUID channelId, SendChatMessageRequest request) {
-        guard.requireAccess(userId, channelId, true);
+        ChatChannelEntity channel = guard.requireAccess(userId, channelId, true);
         if (request == null) {
             throw ApiException.badRequest("VALIDATION_ERROR", "Message payload is required.");
         }
-        String content = ChatMessageValidator.validateContent(request.content());
         String attachmentName = ChatMessageValidator.validateAttachmentName(request.attachmentName());
         String attachmentUrl = ChatMessageValidator.validateAttachmentUrl(request.attachmentUrl());
+        String content = ChatMessageValidator.validateContent(request.content(), attachmentUrl != null);
 
         UUID replyToId = null;
         String replySenderName = null;
@@ -128,10 +136,14 @@ public class ChatMessageService {
         ChatMessageDto dto = new ChatMessageDto(
             saved.getId(), channelId, userId, sender.getDisplayName(), sender.getUsername(),
             saved.getContent(), saved.getReplyToId(), saved.getReplyToSenderName(),
-            saved.getReplyToSnippet(), saved.getAttachmentName(), saved.getAttachmentUrl(),
+            saved.getReplyToSnippet(), saved.getAttachmentName(),
+            ChatImageService.resolveAttachmentUrl(storage, saved.getAttachmentUrl()),
             saved.getCreatedAt(), storage == null ? null : storage.resolveObjectUrl(sender.getAvatarKey()), List.of()
         );
         broadcaster.broadcast(dto);
+        if (mentionNotifier != null && !content.isEmpty()) {
+            mentionNotifier.notifyMentions(channel, sender, content);
+        }
         return dto;
     }
 
@@ -143,7 +155,14 @@ public class ChatMessageService {
         if (!message.getSenderId().equals(userId) && !guard.canManage(userId, channel)) {
             throw ApiException.forbidden("FORBIDDEN", "You can only delete your own messages.");
         }
-        messages.delete(message);
+        message.setDeletedAt(Timestamps.now());
+        message.setContent("");
+        message.setAttachmentName(null);
+        message.setAttachmentUrl(null);
+        message.setPinned(false);
+        message.setPinnedAt(null);
+        message.setPinnedBy(null);
+        messages.save(message);
         broadcaster.broadcastDeletion(ChatMessageDeletedDto.of(channelId, messageId));
     }
 }

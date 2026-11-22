@@ -126,7 +126,10 @@ describe('useChatChannels and useChatChannel', () => {
     await act(async () => { await msgHook.result.current.send({ content: 'reply', replyToId: 'm1' }); });
     act(() => { onLive?.(makeMessage('m3', 't3', 'live')); });
     await act(async () => { await msgHook.result.current.deleteMessage('m2'); });
-    expect(msgHook.result.current.messages.map((m) => m.id)).toEqual(['m1', 'm3']);
+    expect(msgHook.result.current.messages.map((m) => m.id)).toEqual(['m1', 'm2', 'm3']);
+    const deletedMsg = msgHook.result.current.messages.find((m) => m.id === 'm2');
+    expect(deletedMsg?.deletedAt).toBeTruthy();
+    expect(deletedMsg?.content).toBe('');
   });
 });
 

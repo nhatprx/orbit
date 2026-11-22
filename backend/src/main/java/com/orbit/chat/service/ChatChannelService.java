@@ -8,9 +8,11 @@ import com.orbit.chat.entity.ChatChannelType;
 import com.orbit.chat.entity.ChatScopeType;
 import com.orbit.chat.repository.ChatChannelRepository;
 import com.orbit.common.ApiException;
+import com.orbit.storage.service.StorageService;
 import com.orbit.workspace.permission.Permissions;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,11 +24,18 @@ public class ChatChannelService {
     private final ChatChannelRepository channels;
     private final ChatAccessGuard guard;
     private final ChatVoiceService voiceService;
+    private StorageService storage;
 
+    @Autowired
     public ChatChannelService(ChatChannelRepository channels, ChatAccessGuard guard, ChatVoiceService voiceService) {
         this.channels = channels;
         this.guard = guard;
         this.voiceService = voiceService;
+    }
+
+    @Autowired(required = false)
+    void setStorage(StorageService storage) {
+        this.storage = storage;
     }
 
     @Transactional
@@ -86,6 +95,10 @@ public class ChatChannelService {
         }
         if (request.category() != null) {
             channel.setCategory(ChatChannelValidator.normalizeCategory(request.category(), channel.getChannelType()));
+        }
+        if (request.avatarUrl() != null) {
+            String trimmed = request.avatarUrl().trim();
+            channel.setAvatarUrl(trimmed.isEmpty() ? null : ChatMessageValidator.validateAttachmentUrl(trimmed));
         }
         return toDto(saveSafely(channel));
     }
@@ -160,7 +173,8 @@ public class ChatChannelService {
     private ChatChannelDto toDto(ChatChannelEntity c) {
         return new ChatChannelDto(
             c.getId(), c.getScopeType().name(), c.getScopeId(), c.getName(), c.getDescription(),
-            c.getChannelType().name(), c.getCategory(), voiceService.participantCount(c.getId()), c.getCreatedAt()
+            c.getChannelType().name(), c.getCategory(), voiceService.participantCount(c.getId()),
+            c.getCreatedAt(), ChatImageService.resolveAttachmentUrl(storage, c.getAvatarUrl())
         );
     }
 }

@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { MessageSquare, X } from 'lucide-react';
 import { ErrorView, LoadingView } from '../../components/ui/StateViews';
 import { errorMessage } from '../../services/workspace/httpClient';
-import type { ChatChannelDto, ChatMessageDto } from '../../types/workspace.types';
+import type { ChatChannelDto, ChatMessageDto, MemberDto } from '../../types/workspace.types';
 import { ChatComposer } from './ChatComposer';
+import { ChatImageLightbox, type PreviewImageItem } from './ChatImageLightbox';
 import { ChatMessageList } from './ChatMessageList';
 import { useChatChannel } from './useChatChannel';
 
@@ -12,6 +13,7 @@ interface VoiceSideChatProps {
   currentUserId: string | null;
   canManageChannels: boolean;
   canWriteChat?: boolean;
+  mentionMembers?: MemberDto[];
   onClose: () => void;
 }
 
@@ -20,10 +22,12 @@ export function VoiceSideChat({
   currentUserId,
   canManageChannels,
   canWriteChat = true,
+  mentionMembers = [],
   onClose,
 }: VoiceSideChatProps) {
   const chat = useChatChannel(channel.id, currentUserId);
   const [replyTo, setReplyTo] = useState<ChatMessageDto | null>(null);
+  const [previewImage, setPreviewImage] = useState<PreviewImageItem | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const activeReplyTo =
     canWriteChat && replyTo && chat.messages.some((m) => m.id === replyTo.id) ? replyTo : null;
@@ -78,10 +82,13 @@ export function VoiceSideChat({
           onReply={(message) => setReplyTo(message)}
           onDeleteMessage={handleDelete}
           onToggleReaction={chat.setReaction}
+          onPreviewImage={setPreviewImage}
         />
       )}
 
       <ChatComposer
+        channelId={channel.id}
+        mentionMembers={mentionMembers}
         placeholder={canWriteChat ? `Message ${channel.name}` : 'Read-only access'}
         disabled={!canWriteChat}
         readOnlyNotice={canWriteChat ? null : 'Read-only access: you cannot send messages.'}
@@ -89,6 +96,7 @@ export function VoiceSideChat({
         onClearReply={() => setReplyTo(null)}
         onSend={chat.send}
       />
+      <ChatImageLightbox image={previewImage} onClose={() => setPreviewImage(null)} />
     </aside>
   );
 }

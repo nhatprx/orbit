@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Pencil, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import type { ChatChannelDto, VoiceParticipantDto } from '../../types/workspace.types';
+import { ChatCategoryHeader } from './ChatCategoryHeader';
 import { VoiceChannelUsers } from './VoiceChannelUsers';
 import { ChatChannelIcon } from './ChatChannelIcon';
 
@@ -14,6 +15,7 @@ interface ChatSidebarChannelsProps {
   onSelectChannel: (channel: ChatChannelDto) => void;
   onEditChannel: (channel: ChatChannelDto) => void;
   onDeleteChannel: (channel: ChatChannelDto) => void;
+  onRenameCategory?: (oldCategory: string, nextCategory: string) => Promise<void>;
 }
 
 const DEFAULT_ORDER = ['TEXT CHANNELS', 'VOICE CHANNELS', 'FORUMS'];
@@ -41,8 +43,8 @@ export function ChatSidebarChannels({
   canManageChannels,
   filterQuery,
   onSelectChannel,
-  onEditChannel,
   onDeleteChannel,
+  onRenameCategory,
 }: ChatSidebarChannelsProps) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
@@ -74,19 +76,13 @@ export function ChatSidebarChannels({
         const isCollapsed = Boolean(collapsed[category]);
         return (
           <div key={category}>
-            <button
-              type="button"
-              aria-expanded={!isCollapsed}
-              onClick={() => setCollapsed((prev) => ({ ...prev, [category]: !prev[category] }))}
-              className="flex w-full items-center gap-1 px-1.5 py-1 text-left font-mono text-[11px] font-semibold uppercase tracking-wider text-[#8A8A8A] hover:text-[#E6EDF3]"
-            >
-              {isCollapsed ? (
-                <ChevronRight className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
-              ) : (
-                <ChevronDown className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
-              )}
-              <span className="truncate">{category}</span>
-            </button>
+            <ChatCategoryHeader
+              category={category}
+              isCollapsed={isCollapsed}
+              canManageChannels={canManageChannels}
+              onToggle={() => setCollapsed((prev) => ({ ...prev, [category]: !prev[category] }))}
+              onRename={onRenameCategory}
+            />
 
             {!isCollapsed && (
               <div className="mt-1 space-y-0.5">
@@ -125,28 +121,17 @@ export function ChatSidebarChannels({
                           </span>
                         )}
 
-                        {canManageChannels && (
-                          <div className="flex shrink-0 items-center gap-0.5 opacity-80 group-hover:opacity-100">
+                        {canManageChannels && !isDefaultGeneral && (
+                          <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
                             <button
                               type="button"
-                              aria-label={`Edit ${channel.name}`}
-                              title={`Edit ${channel.name}`}
-                              onClick={() => onEditChannel(channel)}
-                              className="p-0.5 text-[#8A8A8A] hover:text-[#E6EDF3]"
+                              aria-label={`Delete ${channel.name}`}
+                              title={`Delete ${channel.name}`}
+                              onClick={() => onDeleteChannel(channel)}
+                              className="p-0.5 text-[#8A8A8A] hover:text-[#EF4444]"
                             >
-                              <Pencil className="h-3 w-3" strokeWidth={1.5} />
+                              <Trash2 className="h-3 w-3" strokeWidth={1.5} />
                             </button>
-                            {!isDefaultGeneral && (
-                              <button
-                                type="button"
-                                aria-label={`Delete ${channel.name}`}
-                                title={`Delete ${channel.name}`}
-                                onClick={() => onDeleteChannel(channel)}
-                                className="p-0.5 text-[#8A8A8A] hover:text-[#EF4444]"
-                              >
-                                <Trash2 className="h-3 w-3" strokeWidth={1.5} />
-                              </button>
-                            )}
                           </div>
                         )}
                       </div>

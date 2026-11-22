@@ -43,6 +43,21 @@ public class ChatMessageEntity {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(name = "edited_at")
+    private Instant editedAt;
+
+    @Column(nullable = false)
+    private boolean pinned;
+
+    @Column(name = "pinned_at")
+    private Instant pinnedAt;
+
+    @Column(name = "pinned_by")
+    private UUID pinnedBy;
+
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
     protected ChatMessageEntity() {}
 
     public ChatMessageEntity(UUID channelId, UUID senderId, String content) {
@@ -85,4 +100,18 @@ public class ChatMessageEntity {
     public String getAttachmentName() { return attachmentName; }
     public String getAttachmentUrl() { return attachmentUrl; }
     public Instant getCreatedAt() { return createdAt; }
+    public Instant getEditedAt() { return editedAt; }
+    public boolean isPinned() { return pinned; }
+    public Instant getPinnedAt() { return pinnedAt; }
+    public UUID getPinnedBy() { return pinnedBy; }
+    public Instant getDeletedAt() { return deletedAt; }
+
+    public void setContent(String content) { this.content = content; }
+    public void setAttachmentName(String attachmentName) { this.attachmentName = attachmentName; }
+    public void setAttachmentUrl(String attachmentUrl) { this.attachmentUrl = attachmentUrl; }
+    public void setEditedAt(Instant editedAt) { this.editedAt = editedAt; }
+    public void setPinned(boolean pinned) { this.pinned = pinned; }
+    public void setPinnedAt(Instant pinnedAt) { this.pinnedAt = pinnedAt; }
+    public void setPinnedBy(UUID pinnedBy) { this.pinnedBy = pinnedBy; }
+    public void setDeletedAt(Instant deletedAt) { this.deletedAt = deletedAt; }
 }
