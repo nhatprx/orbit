@@ -18,6 +18,7 @@ import { IssuesToolbar, type IssuesViewMode } from './IssuesToolbar';
 import { useProjectIssues } from './useProjectIssues';
 import { useProjectMembers } from './useProjectMembers';
 import { WorkspaceIssuesPortfolio } from './WorkspaceIssuesPortfolio';
+import { useScopeCatalogSync } from '../collab/useScopeCatalogSync';
 
 export interface IssuesPageProps {
   workspace: WorkspaceDto;
@@ -35,6 +36,11 @@ interface IssueModalState {
 
 function ProjectIssuesWorkspace({ workspace, project }: { workspace: WorkspaceDto; project: ProjectDto }) {
   const state = useProjectIssues(workspace.id, project.id);
+  useScopeCatalogSync({
+    scope: { type: 'PROJECT', workspaceId: workspace.id, projectId: project.id },
+    module: 'issues',
+    onRefresh: () => void state.refresh(),
+  });
   const { canWrite, canDelete, canManage } = useMemo(
     () => resolveProjectIssuePermissions(workspace, project),
     [workspace, project]

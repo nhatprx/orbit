@@ -51,6 +51,15 @@ public class WhiteboardEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Column(name = "is_locked", nullable = false)
+    private boolean locked;
+
+    @Column(name = "locked_by")
+    private UUID lockedBy;
+
+    @Column(name = "locked_at")
+    private Instant lockedAt;
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 
@@ -86,4 +95,10 @@ public class WhiteboardEntity {
 
     public Instant getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+    public boolean isLocked() { return locked; }
+    public void setLocked(boolean locked) { this.locked = locked; }
+    public UUID getLockedBy() { return lockedBy; }
+    public void setLockedBy(UUID lockedBy) { this.lockedBy = lockedBy; }
+    public Instant getLockedAt() { return lockedAt; }
+    public void setLockedAt(Instant lockedAt) { this.lockedAt = lockedAt; }
 }

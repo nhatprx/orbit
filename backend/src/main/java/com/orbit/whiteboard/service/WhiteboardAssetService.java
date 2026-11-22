@@ -20,15 +20,19 @@ public class WhiteboardAssetService {
 
     private final WhiteboardService whiteboardService;
     private final WhiteboardAssetRepository assets;
+    private WhiteboardCollabEvents collabEvents;
 
     public WhiteboardAssetService(WhiteboardService whiteboardService, WhiteboardAssetRepository assets) {
         this.whiteboardService = whiteboardService;
         this.assets = assets;
     }
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setCollabEvents(WhiteboardCollabEvents events) { this.collabEvents = events; }
+
     @Transactional(readOnly = true)
     public List<WhiteboardAssetResponse> listAssets(WhiteboardScope scope, UUID boardId) {
-        whiteboardService.requireBoardExistsInScope(scope, boardId);
+        whiteboardService.requireUnlocked(scope, boardId);
         return assets.findByWhiteboardIdOrderByCreatedAtAsc(
             boardId, PageRequest.of(0, WhiteboardValidation.MAX_ASSETS_PER_BOARD)
         ).stream().map(WhiteboardAssetResponse::from).toList();
@@ -39,7 +43,7 @@ public class WhiteboardAssetService {
         WhiteboardScope scope, UUID boardId, UUID userId, String fileId, UpsertWhiteboardAssetRequest request
     ) {
         ValidatedAsset validated = WhiteboardValidation.validateAsset(fileId, request);
-        whiteboardService.requireBoardExistsInScope(scope, boardId);
+        whiteboardService.requireUnlocked(scope, boardId);
 
         Optional<WhiteboardAssetEntity> existing = assets.findByWhiteboardIdAndFileId(boardId, validated.fileId());
         if (existing.isPresent()) {
@@ -47,7 +51,9 @@ public class WhiteboardAssetService {
             entity.setMimeType(validated.mimeType());
             entity.setDataUrl(validated.dataUrl());
             entity.setByteSize(validated.byteSize());
-            return WhiteboardAssetResponse.from(assets.save(entity));
+            WhiteboardAssetResponse response = WhiteboardAssetResponse.from(assets.save(entity));
+            broadcastAsset(scope, boardId, userId, validated.fileId());
+            return response;
         }
 
         if (assets.countByWhiteboardId(boardId) >= WhiteboardValidation.MAX_ASSETS_PER_BOARD) {
@@ -66,7 +72,9 @@ public class WhiteboardAssetService {
         entity.setByteSize(validated.byteSize());
         entity.setCreatedBy(userId);
         entity.setCreatedAt(Timestamps.now());
-        return WhiteboardAssetResponse.from(assets.save(entity));
+        WhiteboardAssetResponse response = WhiteboardAssetResponse.from(assets.save(entity));
+        broadcastAsset(scope, boardId, userId, validated.fileId());
+        return response;
     }
 
     @Transactional
@@ -74,5 +82,10 @@ public class WhiteboardAssetService {
         String validId = WhiteboardValidation.requireFileId(fileId);
         whiteboardService.requireBoardExistsInScope(scope, boardId);
         assets.deleteByWhiteboardIdAndFileId(boardId, validId);
+        broadcastAsset(scope, boardId, null, validId);
+    }
+
+    private void broadcastAsset(WhiteboardScope scope, UUID boardId, UUID userId, String fileId) {
+        if (collabEvents != null) collabEvents.assetReady(scope, boardId, userId, fileId);
     }
 }

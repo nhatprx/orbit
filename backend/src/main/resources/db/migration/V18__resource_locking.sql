@@ -1,0 +1,9 @@
+ALTER TABLE whiteboards
+    ADD COLUMN is_locked BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN locked_by UUID,
+    ADD COLUMN locked_at TIMESTAMPTZ;
+
+ALTER TABLE cloud_nodes
+    ADD COLUMN is_locked BOOLEAN NOT NULL DEFAULT FALSE,
+    ADD COLUMN locked_by UUID,
+    ADD COLUMN locked_at TIMESTAMPTZ;

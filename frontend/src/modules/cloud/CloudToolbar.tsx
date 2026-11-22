@@ -7,6 +7,7 @@ import {
   FolderPlus,
   LayoutGrid,
   List,
+  Lock,
   PanelRight,
   Trash2,
   Upload,
@@ -36,6 +37,7 @@ interface CloudToolbarProps {
   sortBy: CloudSortBy;
   sortDir: CloudSortDir;
   permissions: CloudPermissions;
+  folderLocked?: boolean;
   hasNodes: boolean;
   onGoBack: () => void;
   onGoForward: () => void;
@@ -58,7 +60,7 @@ const MODES: Array<{ id: FinderViewMode; label: string; icon: typeof List }> = [
 
 export function CloudToolbar({
   view, viewMode, inspectorOpen, locationLabel, breadcrumbs, canGoBack, canGoForward,
-  search, sortBy, sortDir, permissions, hasNodes, onGoBack, onGoForward,
+  search, sortBy, sortDir, permissions, folderLocked = false, hasNodes, onGoBack, onGoForward,
   onViewModeChange, onToggleInspector, onSearchChange, onSortByChange, onToggleSortDir,
   onUploadFiles, onOpenNewDocument, onOpenNewFolder, onEmptyTrash,
 }: CloudToolbarProps) {
@@ -83,6 +85,16 @@ export function CloudToolbar({
           </button>
         </div>
         <h2 className="max-w-44 truncate text-sm font-semibold text-[#E6EDF3]" title={title}>{title}</h2>
+        {folderLocked && (
+          <span
+            data-testid="cloud-folder-locked-badge"
+            title="This folder is locked by the owner"
+            className="inline-flex h-6 items-center gap-1 rounded-none border border-[#EAB308]/60 bg-[#EAB308]/10 px-2 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#EAB308]"
+          >
+            <Lock className="h-3 w-3 shrink-0" strokeWidth={1.5} />
+            LOCKED
+          </span>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
@@ -131,13 +143,13 @@ export function CloudToolbar({
                 e.target.value = '';
               }}
             />
-            <Button type="button" variant="secondary" onClick={onOpenNewDocument} className="h-7 px-2.5 py-0 text-xs">
+            <Button type="button" variant="secondary" disabled={folderLocked} onClick={onOpenNewDocument} className="h-7 px-2.5 py-0 text-xs">
               <FilePlus2 className="h-3.5 w-3.5" strokeWidth={1.5} />New Document
             </Button>
-            <Button type="button" variant="secondary" onClick={onOpenNewFolder} className="h-7 px-2.5 py-0 text-xs">
+            <Button type="button" variant="secondary" disabled={folderLocked} onClick={onOpenNewFolder} className="h-7 px-2.5 py-0 text-xs">
               <FolderPlus className="h-3.5 w-3.5" strokeWidth={1.5} />New Folder
             </Button>
-            <Button type="button" variant="primary" onClick={() => fileInputRef.current?.click()} className="h-7 px-2.5 py-0 text-xs">
+            <Button type="button" variant="primary" disabled={folderLocked} onClick={() => fileInputRef.current?.click()} className="h-7 px-2.5 py-0 text-xs">
               <Upload className="h-3.5 w-3.5" strokeWidth={1.5} />Upload Files
             </Button>
           </>

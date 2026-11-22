@@ -3,6 +3,8 @@ package com.orbit.cloud.service;
 import com.orbit.cloud.entity.CloudScopeType;
 import com.orbit.common.ApiException;
 import com.orbit.project.repository.ProjectModuleRepository;
+import com.orbit.project.repository.ProjectMemberRepository;
+import com.orbit.project.repository.ProjectRoleRepository;
 import com.orbit.workspace.permission.Permissions;
 import com.orbit.workspace.permission.WorkspacePermissionEvaluator;
 import com.orbit.workspace.repository.KeyValue;
@@ -22,19 +24,44 @@ public class CloudAccessGuard {
     private final WorkspacePermissionEvaluator evaluator;
     private final WorkspaceModuleService workspaceModules;
     private final ProjectModuleRepository projectModules;
+    private final ProjectMemberRepository projectMembers;
+    private final ProjectRoleRepository projectRoles;
 
     public CloudAccessGuard(
         WorkspacePermissionEvaluator evaluator,
         WorkspaceModuleService workspaceModules,
-        ProjectModuleRepository projectModules
+        ProjectModuleRepository projectModules,
+        ProjectMemberRepository projectMembers,
+        ProjectRoleRepository projectRoles
     ) {
         this.evaluator = evaluator;
         this.workspaceModules = workspaceModules;
         this.projectModules = projectModules;
+        this.projectMembers = projectMembers;
+        this.projectRoles = projectRoles;
     }
 
     public CloudScope requireUserScope(UUID userId) {
         return CloudScope.user(userId);
+    }
+
+    public CloudScope requireOwnerScope(UUID userId, CloudScopeType type, UUID workspaceId, UUID projectId) {
+        if (type == CloudScopeType.USER) return requireUserScope(userId);
+        if (type == CloudScopeType.WORKSPACE) {
+            if (!evaluator.requireWorkspaceAccess(userId, workspaceId).owner()) {
+                throw ApiException.forbidden("OWNER_REQUIRED", "Only the workspace owner can change this lock.");
+            }
+            return CloudScope.workspace(workspaceId);
+        }
+        var access = evaluator.requireProjectAccess(userId, workspaceId, projectId);
+        boolean projectOwner = projectMembers.findRoleId(projectId, userId)
+            .flatMap(roleId -> projectRoles.findByProjectIdAndNameIgnoreCase(projectId, "Owner")
+                .filter(role -> role.getId().equals(roleId)))
+            .isPresent();
+        if (!access.workspace().owner() && !projectOwner) {
+            throw ApiException.forbidden("OWNER_REQUIRED", "Only an owner can change this lock.");
+        }
+        return CloudScope.project(workspaceId, projectId);
     }
 
     public CloudScope requireWorkspaceScope(UUID userId, UUID workspaceId, String permissionKey) {

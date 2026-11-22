@@ -84,7 +84,11 @@ class CloudQuotaGuardAndControllerTest {
         WorkspacePermissionEvaluator eval = mock(WorkspacePermissionEvaluator.class);
         WorkspaceModuleService wsModules = mock(WorkspaceModuleService.class);
         ProjectModuleRepository projModules = mock(ProjectModuleRepository.class);
-        CloudAccessGuard guard = new CloudAccessGuard(eval, wsModules, projModules);
+        CloudAccessGuard guard = new CloudAccessGuard(
+            eval, wsModules, projModules,
+            mock(com.orbit.project.repository.ProjectMemberRepository.class),
+            mock(com.orbit.project.repository.ProjectRoleRepository.class)
+        );
 
         UUID userId = UUID.randomUUID();
         UUID wsId = UUID.randomUUID();

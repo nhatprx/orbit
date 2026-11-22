@@ -1,5 +1,4 @@
 package com.orbit.cloud.service;
-
 import com.orbit.cloud.config.CloudProperties;
 import com.orbit.cloud.dto.CloudNodeResponse;
 import com.orbit.cloud.dto.CompleteUploadRequest;
@@ -31,7 +30,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 @Service
 public class CloudUploadService {
 
@@ -44,12 +42,13 @@ public class CloudUploadService {
     private final CloudStorageClient storageClient;
     private final CloudProperties properties;
     private final CloudUploadHelper helper;
+    private final CloudUploadGuard uploadGuard;
     private final ApplicationEventPublisher eventPublisher;
 
     public CloudUploadService(
         CloudNodeRepository nodeRepo, CloudUploadSessionRepository sessionRepo, CloudNodeService nodeService,
         CloudNodeMapper mapper, CloudQuotaService quotaService, CloudRateLimiter rateLimiter,
-        CloudStorageClient storageClient, CloudProperties properties, CloudUploadHelper helper,
+        CloudStorageClient storageClient, CloudProperties properties, CloudUploadHelper helper, CloudUploadGuard uploadGuard,
         ApplicationEventPublisher eventPublisher
     ) {
         this.nodeRepo = nodeRepo;
@@ -61,17 +60,19 @@ public class CloudUploadService {
         this.storageClient = storageClient;
         this.properties = properties;
         this.helper = helper;
+        this.uploadGuard = uploadGuard;
         this.eventPublisher = eventPublisher;
     }
 
     @Transactional
     public InitUploadResponse initUpload(CloudScope scope, UUID actorId, InitUploadRequest req) {
+        if (req.parentId() != null) nodeService.requireWritable(scope, req.parentId());
         rateLimiter.checkPresignLimit(actorId, "upload-init");
         String name = CloudNameValidator.validateAndTrim(req.name());
         if (req.sizeBytes() > properties.getMaxFileSizeBytes()) {
             throw new ApiException(HttpStatus.PAYLOAD_TOO_LARGE, "FILE_TOO_LARGE", "File exceeds maximum allowed size.");
         }
-        int depth = resolveParentDepth(scope, req.parentId());
+        int depth = uploadGuard.resolveParentDepth(scope, req.parentId());
         String mimeType = CloudUploadHelper.normalizeMimeType(req.mimeType());
         quotaService.reserve(scope, req.sizeBytes());
         UUID nodeId = UUID.randomUUID();
@@ -118,6 +119,7 @@ public class CloudUploadService {
     public SignPartsResponse signParts(CloudScope scope, UUID actorId, UUID sessionId, SignPartsRequest req) {
         rateLimiter.checkPresignLimit(actorId, "upload-sign");
         CloudUploadSessionEntity session = helper.requireOpenSession(scope, sessionId);
+        uploadGuard.requireSessionWritable(scope, session);
         if (session.getStrategy() != CloudUploadStrategy.MULTIPART) {
             throw ApiException.badRequest("NOT_MULTIPART", "Upload session does not use multipart strategy.");
         }
@@ -137,6 +139,7 @@ public class CloudUploadService {
         CloudUploadSessionEntity session = helper.requireOpenSession(scope, sessionId);
         CloudNodeEntity node = nodeRepo.findByIdAndScopeTypeAndScopeId(session.getNodeId(), scope.type(), scope.scopeId())
             .orElseThrow(() -> ApiException.notFound("NODE_NOT_FOUND", "Upload node not found."));
+        if (node.getParentId() != null) nodeService.requireWritable(scope, node.getParentId());
         String etag = completeMultipartIfNeeded(session, req);
         HeadObjectResult head = storageClient.headObject(session.getStorageKey())
             .orElseThrow(() -> ApiException.badRequest("UPLOAD_OBJECT_MISSING", "Uploaded object was not found in storage."));
@@ -162,12 +165,14 @@ public class CloudUploadService {
         sessionRepo.save(session);
         CloudNodeEntity saved = nodeRepo.save(node);
         eventPublisher.publishEvent(new CloudFileReadyEvent(saved.getId()));
+        nodeService.publishCatalog(scope, "CREATE", saved.getId(), null);
         return mapper.toResponse(saved);
     }
 
     @Transactional
     public void abortUpload(CloudScope scope, UUID sessionId) {
         CloudUploadSessionEntity session = helper.requireOpenSession(scope, sessionId);
+        uploadGuard.requireSessionWritable(scope, session);
         quotaService.releaseReservation(scope, session.getExpectedSizeBytes());
         helper.cleanupStorage(session);
         session.setStatus(CloudUploadSessionStatus.ABORTED);
@@ -176,13 +181,6 @@ public class CloudUploadService {
     }
 
     public int expireStaleSessions() { return helper.expireStaleSessions(); }
-
-    private int resolveParentDepth(CloudScope scope, UUID parentId) {
-        if (parentId == null) return 0;
-        int depth = nodeService.requireActiveFolder(scope, parentId).getDepth() + 1;
-        if (depth > CloudNodeService.MAX_DEPTH) throw ApiException.badRequest("MAX_DEPTH_EXCEEDED", "Maximum folder depth of 20 exceeded.");
-        return depth;
-    }
 
     private String completeMultipartIfNeeded(CloudUploadSessionEntity session, CompleteUploadRequest req) {
         if (session.getStrategy() != CloudUploadStrategy.MULTIPART) return null;

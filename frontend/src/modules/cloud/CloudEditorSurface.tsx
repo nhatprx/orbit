@@ -53,6 +53,7 @@ export function CloudDropOverlay({ active }: { active: boolean }) {
 interface CloudEditorSurfaceProps {
   api: CloudFilesApi;
   canWrite: boolean;
+  canManage: boolean;
   textNode: CloudNodeDto | null;
   officeNode: CloudNodeDto | null;
   onCloseText: () => void;
@@ -64,6 +65,7 @@ interface CloudEditorSurfaceProps {
 export function CloudEditorSurface({
   api,
   canWrite,
+  canManage,
   textNode,
   officeNode,
   onCloseText,
@@ -78,6 +80,7 @@ export function CloudEditorSurface({
           node={textNode}
           api={api}
           canWrite={canWrite}
+          canManage={canManage}
           onClose={onCloseText}
           onSaved={onSaved}
         />
@@ -91,6 +94,7 @@ export function CloudEditorSurface({
           node={officeNode}
           api={api}
           canWrite={canWrite}
+          canManage={canManage}
           isPdf={classifyFileEditor(officeNode.name, officeNode.mimeType) === 'PDF'}
           onBack={onCloseOffice}
           onDownload={onDownload}

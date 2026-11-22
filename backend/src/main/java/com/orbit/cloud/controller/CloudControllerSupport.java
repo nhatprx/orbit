@@ -68,6 +68,10 @@ public class CloudControllerSupport {
         return nodes.updateNode(scope, actorId, nodeId, req);
     }
 
+    public CloudNodeResponse setLocked(CloudScope scope, UUID actorId, UUID nodeId, boolean locked) {
+        return nodes.setLocked(scope, nodeId, actorId, locked);
+    }
+
     public CloudNodeResponse softDelete(CloudScope scope, UUID actorId, UUID nodeId) {
         return trash.softDelete(scope, actorId, nodeId);
     }

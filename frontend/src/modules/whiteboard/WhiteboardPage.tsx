@@ -4,6 +4,7 @@ import { EmptyView } from '../../components/ui/StateViews';
 import type { WhiteboardService } from '../../services/whiteboard/whiteboard.service';
 import type { ProjectDto, WorkspaceDto } from '../../types/workspace.types';
 import type { WhiteboardSummary } from '../../types/whiteboard.types';
+import { useScopeCatalogSync } from '../collab/useScopeCatalogSync';
 import { useWhiteboardList } from './useWhiteboardList';
 import { WhiteboardListView } from './WhiteboardListView';
 import { CreateWhiteboardModal, RenameWhiteboardModal } from './WhiteboardModals';
@@ -33,6 +34,16 @@ export function WhiteboardPage({ workspace, project, service }: WhiteboardPagePr
 
   const list = useWhiteboardList(scope, permissions.canRead, service);
 
+  useScopeCatalogSync({
+    scope:
+      scope.type === 'PROJECT'
+        ? { type: 'PROJECT', workspaceId: scope.workspaceId, projectId: scope.projectId }
+        : { type: 'WORKSPACE', workspaceId: scope.workspaceId },
+    module: 'whiteboard',
+    enabled: permissions.canRead && !activeBoardId,
+    onRefresh: () => void list.refresh(),
+  });
+
   useEffect(() => {
     setActiveBoardId(null);
     setCreateOpen(false);
@@ -58,6 +69,7 @@ export function WhiteboardPage({ workspace, project, service }: WhiteboardPagePr
         scope={scope}
         boardId={activeBoardId}
         canWrite={permissions.canWrite}
+        canManage={permissions.canManage}
         service={service}
         onBack={() => {
           setActiveBoardId(null);
@@ -88,6 +100,7 @@ export function WhiteboardPage({ workspace, project, service }: WhiteboardPagePr
         onOpenCreate={() => setCreateOpen(true)}
         onOpenRename={setRenamingBoard}
         onOpenDelete={setDeletingBoard}
+        onToggleLock={(board, locked) => void list.toggleBoardLock(board.id, locked)}
       />
 
       <CreateWhiteboardModal

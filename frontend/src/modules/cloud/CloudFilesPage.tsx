@@ -21,6 +21,7 @@ import { useCloudBrowser } from './useCloudBrowser';
 import { useCloudNodeActions } from './useCloudNodeActions';
 import { useCloudSelection } from './useCloudSelection';
 import { useCloudUploads } from './useCloudUploads';
+import { useCloudScopeCatalogSync } from './useCloudScopeCatalogSync';
 import { useFinderShortcuts } from './useFinderShortcuts';
 
 interface CloudFilesPageProps {
@@ -53,19 +54,16 @@ function CloudFinderWorkspace({ scope, scopeLabel, apiOverride, apiFactory }: Cl
   const [newFolderOpen, setNewFolderOpen] = useState(false);
 
   useEffect(() => { setActiveScope(scope); setActiveLabel(scopeLabel); }, [initialScopeKey, scope, scopeLabel]);
-
   const scopeKey = cloudScopeKey(activeScope);
   const permissions = useMemo(() => resolveCloudPermissions(activeScope), [activeScope]);
   const locations = useCloudLocations(scope, scopeLabel);
   const locationTitle = activeLabel ?? scopeDisplay(activeScope).badge;
-
   const apiForScope = useCallback(
     (target: CloudScope) => (apiFactory ? apiFactory(target) : (apiOverride ?? createHttpCloudFilesApi(target))),
     [apiFactory, apiOverride]
   );
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const api = useMemo(() => apiForScope(activeScope), [apiForScope, scopeKey]);
-
   const browser = useCloudBrowser(api, scopeKey, permissions.canRead, 'ALL');
   const selection = useCloudSelection();
   const uploads = useCloudUploads(api, scopeKey, browser.quota, () => void browser.refresh());
@@ -74,9 +72,16 @@ function CloudFinderWorkspace({ scope, scopeLabel, apiOverride, apiFactory }: Cl
     api, scope: activeScope, nodes: browser.nodes, selectedIds: selection.selectedIds,
     selectOnly: selection.selectOnly, clearSelection: selection.clearSelection, runMutation: browser.runMutation,
   });
-
   const activeParentId = browser.view === 'ALL' ? browser.parentId : null;
-  const drop = useExternalFileDrop(permissions.canWrite && browser.view !== 'TRASH', (files) => uploads.enqueueFiles(files, activeParentId));
+  const folderLocked = browser.activeFolderLocked;
+  const drop = useExternalFileDrop(
+    permissions.canWrite && !folderLocked && browser.view !== 'TRASH',
+    (files) => uploads.enqueueFiles(files, activeParentId)
+  );
+  useCloudScopeCatalogSync(
+    activeScope, permissions.canRead && !editor.textNode && !editor.officeNode,
+    () => void browser.refresh()
+  );
 
   useEffect(() => {
     selection.clearSelection();
@@ -91,10 +96,8 @@ function CloudFinderWorkspace({ scope, scopeLabel, apiOverride, apiFactory }: Cl
 
   useFinderShortcuts({
     enabled: permissions.canRead && !editorOpen && !modalOpen,
-    quickLookOpen: Boolean(quickLookNode),
-    selectedSingleFile: singleFile,
-    onOpenQuickLook: setQuickLookNode,
-    onToggleInspector: () => setInspectorOpen((prev) => !prev),
+    quickLookOpen: Boolean(quickLookNode), selectedSingleFile: singleFile,
+    onOpenQuickLook: setQuickLookNode, onToggleInspector: () => setInspectorOpen((prev) => !prev),
   });
 
   if (!permissions.canRead) {
@@ -115,10 +118,9 @@ function CloudFinderWorkspace({ scope, scopeLabel, apiOverride, apiFactory }: Cl
         onSelectScope={(nextScope, nextLabel) => { editor.closeTextEditor(); editor.closeOfficeEditor(); setActiveScope(nextScope); setActiveLabel(nextLabel); }}
         onDropNodesToScope={(ids, targetScope) => actions.dropMoveNodes(ids, targetScope, null)}
       />
-
       {editorOpen ? (
         <CloudEditorSurface
-          api={api} canWrite={permissions.canWrite} textNode={editor.textNode} officeNode={editor.officeNode}
+          api={api} canWrite={permissions.canWrite} canManage={permissions.canManage} textNode={editor.textNode} officeNode={editor.officeNode}
           onCloseText={editor.closeTextEditor} onCloseOffice={editor.closeOfficeEditor}
           onDownload={actions.downloadNode} onSaved={editor.handleTextSaved}
         />
@@ -129,7 +131,7 @@ function CloudFinderWorkspace({ scope, scopeLabel, apiOverride, apiFactory }: Cl
               view={browser.view} viewMode={viewMode} inspectorOpen={inspectorOpen} locationLabel={locationTitle}
               breadcrumbs={browser.breadcrumbs} canGoBack={browser.canGoBack} canGoForward={browser.canGoForward}
               search={browser.searchInput} sortBy={browser.sortBy} sortDir={browser.sortDir} permissions={permissions}
-              hasNodes={browser.nodes.length > 0} onGoBack={browser.goBack} onGoForward={browser.goForward}
+              folderLocked={folderLocked} hasNodes={browser.nodes.length > 0} onGoBack={browser.goBack} onGoForward={browser.goForward}
               onViewModeChange={setViewMode} onToggleInspector={() => setInspectorOpen((prev) => !prev)}
               onSearchChange={browser.setSearchInput} onSortByChange={browser.setSortBy} onToggleSortDir={browser.toggleSortDir}
               onUploadFiles={(files) => uploads.enqueueFiles(files, activeParentId)}
@@ -155,7 +157,7 @@ function CloudFinderWorkspace({ scope, scopeLabel, apiOverride, apiFactory }: Cl
               loading={browser.loading} hasMore={browser.hasMore} loadingMore={browser.loadingMore} permissions={permissions}
               onSelect={(node, ordered, e) => selection.selectNode(node.id, ordered, { multi: e.ctrlKey || e.metaKey, range: e.shiftKey })}
               onContextMenu={actions.openContextMenu} onOpenFolder={browser.openFolder} onOpenEditor={editor.openNode}
-              onToggleStar={actions.toggleStar} onDownload={actions.downloadNode} onRename={actions.setRenamingNode}
+              onToggleStar={actions.toggleStar} onToggleLock={actions.toggleLock} onDownload={actions.downloadNode} onRename={actions.setRenamingNode}
               onMove={(n) => actions.setMovingNodes([n])} onDropToFolder={(ids, folderId) => actions.dropMoveNodes(ids, activeScope, folderId)}
               onSoftDelete={(n) => actions.softDeleteNodes([n])} onRestore={(n) => actions.restoreNodes([n])}
               onPermanentDelete={(n) => actions.permanentDeleteNodes([n])} onLoadMore={() => void browser.loadMore()}
@@ -170,14 +172,13 @@ function CloudFinderWorkspace({ scope, scopeLabel, apiOverride, apiFactory }: Cl
             <CloudPreviewPane
               node={selectedNode} view={browser.view} permissions={permissions} onClose={() => setInspectorOpen(false)}
               onQuickLook={setQuickLookNode} onOpenEditor={editor.openNode} onDownload={actions.downloadNode}
-              onToggleStar={actions.toggleStar} onRename={actions.setRenamingNode} onMove={(n) => actions.setMovingNodes([n])}
+              onToggleStar={actions.toggleStar} onToggleLock={actions.toggleLock} onRename={actions.setRenamingNode} onMove={(n) => actions.setMovingNodes([n])}
               onSoftDelete={(n) => actions.softDeleteNodes([n])} onRestore={(n) => actions.restoreNodes([n])}
               onPermanentDelete={(n) => actions.permanentDeleteNodes([n])}
             />
           )}
         </>
       )}
-
       <CloudDropOverlay active={drop.dragActive} />
       <CloudActionModals
         api={api} apiForScope={apiForScope} sourceScope={activeScope} locations={locations} view={browser.view}
@@ -188,7 +189,7 @@ function CloudFinderWorkspace({ scope, scopeLabel, apiOverride, apiFactory }: Cl
         onCloseContextMenu={() => actions.setContextMenu(null)} onCloseQuickLook={() => setQuickLookNode(null)}
         onQuickLook={setQuickLookNode} onRefresh={() => void browser.refresh()} onCreatedDoc={editor.handleDocumentCreated}
         onOpenFolder={browser.openFolder} onOpenEditor={editor.openNode} onRenameRequest={actions.setRenamingNode}
-        onMoveRequest={actions.setMovingNodes} onToggleStar={actions.toggleStar} onDownload={actions.downloadNode}
+        onMoveRequest={actions.setMovingNodes} onToggleStar={actions.toggleStar} onToggleLock={actions.toggleLock} onDownload={actions.downloadNode}
         onSoftDeleteNodes={actions.softDeleteNodes} onRestoreNodes={actions.restoreNodes} onPermanentDeleteNodes={actions.permanentDeleteNodes}
       />
     </div>

@@ -3,6 +3,7 @@ import { OrbitOfficeHeader, type OrbitOfficeHeaderProps } from './OrbitOfficeHea
 import { UniverSheetCanvas, type UniverSheetCanvasHandle } from './UniverSheetCanvas';
 import type { OfficeSheetContentDto } from './officeTypes';
 import { columnLabel, toSheetCsv } from './sheetFormulas';
+import type { SheetCursorPayload, SheetMutationPayload } from './useOfficeCollab';
 
 export const colIndexToLabel = (c: number): string => columnLabel(c);
 
@@ -18,17 +19,23 @@ export function exportSheetCsv(sheetName: string, rawRows: string[][]): void {
 
 export interface OrbitSheetEditorProps {
   value: OfficeSheetContentDto;
+  resetTick?: number;
   readOnly?: boolean;
   headerProps?: Omit<OrbitOfficeHeaderProps, 'menuBar' | 'onExportCsv'>;
   onChange: (next: OfficeSheetContentDto) => void;
+  onLocalMutation?: (mutation: SheetMutationPayload) => void;
+  onSelectionCursorChange?: (cursor: SheetCursorPayload) => void;
   onReady?: (handle: UniverSheetCanvasHandle) => void;
 }
 
 export function OrbitSheetEditor({
   value,
+  resetTick = 0,
   readOnly = false,
   headerProps,
   onChange,
+  onLocalMutation,
+  onSelectionCursorChange,
   onReady,
 }: OrbitSheetEditorProps) {
   const canvasRef = useRef<UniverSheetCanvasHandle | null>(null);
@@ -59,10 +66,13 @@ export function OrbitSheetEditor({
       )}
       <div className="min-h-0 flex-1 overflow-hidden">
         <UniverSheetCanvas
+          key={resetTick}
           ref={canvasRef}
           initialValue={value}
           readOnly={readOnly}
           onChange={onChange}
+          onLocalMutation={onLocalMutation}
+          onSelectionCursorChange={onSelectionCursorChange}
           onReady={onReady}
         />
       </div>

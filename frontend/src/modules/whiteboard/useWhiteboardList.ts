@@ -26,6 +26,7 @@ export interface WhiteboardListState {
   createBoard: (request: CreateWhiteboardRequest) => Promise<WhiteboardDetail>;
   renameBoard: (boardId: string, request: UpdateWhiteboardRequest) => Promise<WhiteboardSummary>;
   deleteBoard: (boardId: string) => Promise<void>;
+  toggleBoardLock: (boardId: string, locked: boolean) => Promise<WhiteboardSummary | null>;
 }
 
 export function useWhiteboardList(
@@ -150,6 +151,27 @@ export function useWhiteboardList(
     [load, service]
   );
 
+  const toggleBoardLock = useCallback(
+    async (boardId: string, locked: boolean): Promise<WhiteboardSummary | null> => {
+      if (!service.setLocked) return null;
+      setMutating(true);
+      setError(null);
+      try {
+        const updated = await service.setLocked(scopeRef.current, boardId, locked);
+        setBoards((prev) =>
+          prev.map((item) => (item.id === boardId ? { ...item, ...updated, locked } : item))
+        );
+        return updated;
+      } catch (err) {
+        setError(errorMessage(err, 'Failed to update whiteboard lock.'));
+        return null;
+      } finally {
+        setMutating(false);
+      }
+    },
+    [service]
+  );
+
   return {
     boards,
     page,
@@ -166,5 +188,6 @@ export function useWhiteboardList(
     createBoard,
     renameBoard,
     deleteBoard,
+    toggleBoardLock,
   };
 }

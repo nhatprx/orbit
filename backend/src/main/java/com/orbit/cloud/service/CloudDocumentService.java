@@ -51,6 +51,7 @@ public class CloudDocumentService {
 
     @Transactional
     public CloudNodeResponse createDocument(CloudScope scope, UUID userId, CreateDocumentRequest req) {
+        if (req.parentId() != null) nodeService.requireWritable(scope, req.parentId());
         String trimmed = CloudNameValidator.validateAndTrim(req.name());
         String finalName = CloudNameValidator.validateAndTrim(
             templateGenerator.ensureExtension(trimmed, req.templateType())
@@ -75,7 +76,9 @@ public class CloudDocumentService {
             );
             node.setEtag(etag);
             node.setUploadStatus(CloudUploadStatus.READY);
-            return mapper.toResponse(nodeRepo.saveAndFlush(node));
+            CloudNodeEntity saved = nodeRepo.saveAndFlush(node);
+            nodeService.publishCatalog(scope, "CREATE", saved.getId(), null);
+            return mapper.toResponse(saved);
         } catch (DataIntegrityViolationException ex) {
             rollbackCreate(scope, storageKey, size, uploaded, committed);
             throw ApiException.conflict("DUPLICATE_NAME", "An item with that name already exists in this folder.");
@@ -108,6 +111,7 @@ public class CloudDocumentService {
     public CloudNodeResponse saveTextContent(
         CloudScope scope, UUID userId, UUID nodeId, SaveTextContentRequest req
     ) {
+        nodeService.requireWritable(scope, nodeId);
         CloudNodeEntity node = requireActiveFile(scope, nodeId);
         byte[] bytes = req.content().getBytes(StandardCharsets.UTF_8);
         if (bytes.length > MAX_TEXT_BYTES) {
@@ -128,6 +132,7 @@ public class CloudDocumentService {
 
     @Transactional
     public CloudNodeEntity replaceNodeBytes(CloudScope scope, UUID nodeId, UUID userId, byte[] bytes) {
+        nodeService.requireWritable(scope, nodeId);
         CloudNodeEntity node = requireActiveFile(scope, nodeId);
         return replaceNodeBytes(scope, node, userId, bytes);
     }
@@ -155,6 +160,7 @@ public class CloudDocumentService {
         if (oldKey != null && !oldKey.equals(newKey)) {
             storageClient.deleteObject(oldKey);
         }
+        nodeService.broadcastCheckpoint(scope, saved.getId(), userId, saved.getUpdatedAt());
         return saved;
     }
 

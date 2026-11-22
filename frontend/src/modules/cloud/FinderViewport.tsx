@@ -25,6 +25,7 @@ interface FinderViewportProps {
   onOpenFolder: (folderId: string) => void;
   onOpenEditor: (node: CloudNodeDto) => void;
   onToggleStar: (node: CloudNodeDto) => void;
+  onToggleLock?: (node: CloudNodeDto) => void;
   onDownload: (node: CloudNodeDto) => void;
   onRename: (node: CloudNodeDto) => void;
   onMove: (node: CloudNodeDto) => void;
@@ -97,6 +98,7 @@ export function FinderViewport(props: FinderViewportProps) {
       onOpenFolder={props.onOpenFolder}
       onOpenEditor={props.onOpenEditor}
       onToggleStar={props.onToggleStar}
+      onToggleLock={props.onToggleLock}
       onDownload={props.onDownload}
       onRename={props.onRename}
       onMove={props.onMove}

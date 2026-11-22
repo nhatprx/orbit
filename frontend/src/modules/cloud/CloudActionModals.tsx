@@ -43,6 +43,7 @@ interface CloudActionModalsProps {
   onRenameRequest: (node: CloudNodeDto) => void;
   onMoveRequest: (nodes: CloudNodeDto[]) => void;
   onToggleStar: (node: CloudNodeDto) => void;
+  onToggleLock?: (node: CloudNodeDto) => void;
   onDownload: (node: CloudNodeDto) => void;
   onSoftDeleteNodes: (nodes: CloudNodeDto[]) => void;
   onRestoreNodes: (nodes: CloudNodeDto[]) => void;
@@ -54,7 +55,7 @@ export function CloudActionModals({
   defaultTemplate = 'MD', newFolderOpen = false, newDocOpen, renamingNode, movingNodes,
   contextMenu, quickLookNode, onCloseNewFolder, onCloseNewDoc, onCloseRename, onCloseMove,
   onCloseContextMenu, onCloseQuickLook, onQuickLook, onRefresh, onCreatedDoc, onOpenFolder,
-  onOpenEditor, onRenameRequest, onMoveRequest, onToggleStar, onDownload,
+  onOpenEditor, onRenameRequest, onMoveRequest, onToggleStar, onToggleLock, onDownload,
   onSoftDeleteNodes, onRestoreNodes, onPermanentDeleteNodes,
 }: CloudActionModalsProps) {
   return (
@@ -70,6 +71,7 @@ export function CloudActionModals({
         onRename={onRenameRequest}
         onMoveNodes={onMoveRequest}
         onToggleStar={onToggleStar}
+        onToggleLock={onToggleLock}
         onDownload={onDownload}
         onSoftDeleteNodes={onSoftDeleteNodes}
         onRestoreNodes={onRestoreNodes}

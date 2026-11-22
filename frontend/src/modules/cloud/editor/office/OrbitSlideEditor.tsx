@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { ChevronDown, ChevronUp, MessageSquare, Plus, Trash2 } from 'lucide-react';
+import { pickCollaboratorColor } from '../../../../services/collab/collabClient';
+import type { CollabParticipant } from '../../../../types/collab.types';
 import { OrbitOfficeHeader, type OrbitOfficeHeaderProps } from './OrbitOfficeHeader';
 import { OrbitSlidePresenter } from './OrbitSlidePresenter';
 import { OrbitSlideToolbar, SLIDE_THEMES, formatSlideNotes, parseSlideNotes, type SlideMeta } from './OrbitSlideToolbar';
@@ -9,8 +11,10 @@ import type { OfficeSlideContentDto, SlideItemDto } from './officeTypes';
 export interface OrbitSlideEditorProps {
   value: OfficeSlideContentDto;
   readOnly?: boolean;
+  participants?: readonly CollabParticipant[];
   headerProps?: Omit<OrbitOfficeHeaderProps, 'menuBar' | 'onExportCsv'>;
   onChange: (next: OfficeSlideContentDto) => void;
+  onActiveSlideBroadcast?: (slideIndex: number) => void;
   onReady?: (handle: UniverSlideCanvasHandle) => void;
 }
 
@@ -18,7 +22,9 @@ const DEFAULT_SLIDE: SlideItemDto = {
   title: 'Slide Title', subtitle: 'Subtitle or key takeaway', bullets: ['Key point one'], notes: '',
 };
 
-export function OrbitSlideEditor({ value, readOnly = false, headerProps, onChange, onReady }: OrbitSlideEditorProps) {
+export function OrbitSlideEditor({
+  value, readOnly = false, participants = [], headerProps, onChange, onActiveSlideBroadcast, onReady,
+}: OrbitSlideEditorProps) {
   const [localSlides, setLocalSlides] = useState<SlideItemDto[]>(() => (value.slides.length > 0 ? value.slides : [DEFAULT_SLIDE]));
   const [activeIdx, setActiveIdx] = useState(0);
   const [presenting, setPresenting] = useState(false);
@@ -53,7 +59,11 @@ export function OrbitSlideEditor({ value, readOnly = false, headerProps, onChang
   const updateMeta = (patch: Partial<Pick<SlideMeta, 'layout' | 'align' | 'theme'>>, nextClean = meta.cleanNotes) =>
     updateSlide({ notes: formatSlideNotes(nextClean, { layout: patch.layout ?? meta.layout, align: patch.align ?? meta.align, theme: patch.theme ?? meta.theme }) });
 
-  const selectSlide = (idx: number) => { setActiveIdx(idx); canvasRef.current?.activateSlide(idx); };
+  const selectSlide = (idx: number) => {
+    setActiveIdx(idx);
+    canvasRef.current?.activateSlide(idx);
+    onActiveSlideBroadcast?.(idx);
+  };
   const addSlide = () => {
     const notes = formatSlideNotes('', { layout: 'title-bullets', align: 'left', theme: meta.theme });
     const next = [...slides, { title: `Slide ${slides.length + 1}`, subtitle: '', bullets: ['New point'], notes }];
@@ -122,12 +132,29 @@ export function OrbitSlideEditor({ value, readOnly = false, headerProps, onChang
       />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <aside aria-label="Slide filmstrip" className="flex w-44 shrink-0 flex-col border-r border-[#30363D] bg-[#161B22] p-2.5 overflow-y-auto space-y-2">
-          {slides.map((s, idx) => (
-            <button key={idx} type="button" onClick={() => selectSlide(idx)} className={`flex w-full items-start gap-1.5 rounded-none border p-2 text-left ${idx === safeIdx ? 'border-[#22C55E] bg-[#052E16]/40 text-[#22C55E]' : 'border-[#30363D] bg-[#0D1117] text-[#8B949E] hover:border-[#8B949E]'}`}>
-              <span className="font-mono text-[10px]">{idx + 1}</span>
-              <span className="truncate text-xs font-semibold text-[#E6EDF3]">{s.title || 'Untitled Slide'}</span>
-            </button>
-          ))}
+          {slides.map((s, idx) => {
+            const slidePeers = participants.filter((p) => p.cursor?.slideIndex === idx);
+            return (
+              <button key={idx} type="button" onClick={() => selectSlide(idx)} className={`flex w-full flex-col gap-1 rounded-none border p-2 text-left ${idx === safeIdx ? 'border-[#22C55E] bg-[#052E16]/40 text-[#22C55E]' : 'border-[#30363D] bg-[#0D1117] text-[#8B949E] hover:border-[#8B949E]'}`}>
+                <div className="flex w-full items-start gap-1.5">
+                  <span className="font-mono text-[10px]">{idx + 1}</span>
+                  <span className="truncate text-xs font-semibold text-[#E6EDF3]">{s.title || 'Untitled Slide'}</span>
+                </div>
+                {slidePeers.length > 0 && (
+                  <div className="flex flex-wrap gap-1 pt-0.5">
+                    {slidePeers.slice(0, 4).map((peer) => {
+                      const color = pickCollaboratorColor(peer.userId || peer.sessionId, peer.color);
+                      return (
+                        <span key={peer.sessionId || peer.userId} title={peer.displayName} style={{ borderColor: color }} className="inline-flex h-4 w-4 items-center justify-center rounded-none border bg-[#0D1117] font-mono text-[9px] text-[#E6EDF3]">
+                          {(peer.displayName || 'U').slice(0, 1).toUpperCase()}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+              </button>
+            );
+          })}
         </aside>
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-2 overflow-hidden">

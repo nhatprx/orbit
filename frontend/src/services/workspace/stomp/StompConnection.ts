@@ -99,11 +99,11 @@ export class StompConnection {
     if (!frame) return;
     if (frame.command === 'CONNECTED') {
       this.attempt = 0;
-      this.setState('connected');
       this.startHeartbeat();
       this.subscriptions.forEach((sub, id) =>
         this.transmit('SUBSCRIBE', { id, destination: sub.destination })
       );
+      this.setState('connected');
     } else if (frame.command === 'MESSAGE') {
       this.subscriptions.get(frame.headers.subscription ?? '')?.handler(frame);
     } else if (frame.command === 'ERROR') {
@@ -113,12 +113,11 @@ export class StompConnection {
 
   /** An ERROR before CONNECTED means the server rejected our credentials: do not retry blindly. */
   private failPermanently(beforeConnected: boolean): void {
+    if (!beforeConnected) return;
     const socket = this.socket;
-    if (beforeConnected) {
-      this.socket = null;
-      clearInterval(this.heartbeatTimer);
-      this.setState('idle');
-    }
+    this.socket = null;
+    clearInterval(this.heartbeatTimer);
+    this.setState('idle');
     socket?.close();
   }
 

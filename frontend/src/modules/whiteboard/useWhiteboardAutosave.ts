@@ -1,18 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage } from '../../services/workspace/httpClient';
 import { whiteboardService, type WhiteboardService } from '../../services/whiteboard/whiteboard.service';
-import type {
-  WhiteboardAsset,
-  WhiteboardDetail,
-  WhiteboardSaveState,
-  WhiteboardScope,
-} from '../../types/whiteboard.types';
+import type { WhiteboardAsset, WhiteboardDetail, WhiteboardSaveState, WhiteboardScope } from '../../types/whiteboard.types';
 import { WHITEBOARD_AUTOSAVE_DEBOUNCE_MS, whiteboardScopeKey } from './whiteboardPermissions';
 import {
-  buildFileSignature,
-  classifySaveError,
-  loadBoardWithAssets,
-  persistSceneWithAssets,
+  buildFileSignature, classifySaveError, loadBoardWithAssets, persistSceneWithAssets,
   type WhiteboardSceneSnapshot,
 } from './whiteboardSceneSync';
 
@@ -22,14 +14,13 @@ export interface UseWhiteboardAutosaveOptions {
   canWrite: boolean;
   service?: WhiteboardService;
   debounceMs?: number;
+  autoReconcileConflict?: boolean;
+  onAssetUploaded?: (fileId: string) => void;
 }
 
 export function useWhiteboardAutosave({
-  scope,
-  boardId,
-  canWrite,
-  service = whiteboardService,
-  debounceMs = WHITEBOARD_AUTOSAVE_DEBOUNCE_MS,
+  scope, boardId, canWrite, service = whiteboardService,
+  debounceMs = WHITEBOARD_AUTOSAVE_DEBOUNCE_MS, autoReconcileConflict = false, onAssetUploaded,
 }: UseWhiteboardAutosaveOptions) {
   const scopeKey = whiteboardScopeKey(scope);
   const [board, setBoard] = useState<WhiteboardDetail | null>(null);
@@ -42,6 +33,8 @@ export function useWhiteboardAutosave({
 
   const scopeRef = useRef(scope);
   scopeRef.current = scope;
+  const onAssetUploadedRef = useRef(onAssetUploaded);
+  onAssetUploadedRef.current = onAssetUploaded;
   const saveStateRef = useRef<WhiteboardSaveState>('saved');
   const versionRef = useRef(1);
   const lastVersionRef = useRef<number | null>(null);
@@ -52,18 +45,10 @@ export function useWhiteboardAutosave({
   const savingRef = useRef(false);
   const queuedRef = useRef(false);
   const loadSeqRef = useRef(0);
+  const effectiveCanWrite = canWrite && !board?.locked;
 
-  const setSaveStateSync = useCallback((next: WhiteboardSaveState) => {
-    saveStateRef.current = next;
-    setSaveState(next);
-  }, []);
-
-  const clearTimer = useCallback(() => {
-    if (timerRef.current !== null) {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  }, []);
+  const setSaveStateSync = useCallback((next: WhiteboardSaveState) => { saveStateRef.current = next; setSaveState(next); }, []);
+  const clearTimer = useCallback(() => { if (timerRef.current !== null) { window.clearTimeout(timerRef.current); timerRef.current = null; } }, []);
 
   const hydrateBoard = useCallback(async (incrementReset: boolean) => {
     const seq = ++loadSeqRef.current;
@@ -91,11 +76,7 @@ export function useWhiteboardAutosave({
     }
   }, [boardId, clearTimer, scopeKey, service, setSaveStateSync]);
 
-  useEffect(() => {
-    void hydrateBoard(false);
-    return () => clearTimer();
-  }, [hydrateBoard, clearTimer]);
-
+  useEffect(() => { void hydrateBoard(false); return () => clearTimer(); }, [hydrateBoard, clearTimer]);
   useEffect(() => {
     if (saveState === 'saved') return;
     const onBeforeUnload = (event: BeforeUnloadEvent) => event.preventDefault();
@@ -104,27 +85,22 @@ export function useWhiteboardAutosave({
   }, [saveState]);
 
   const persistSnapshot = useCallback(async (snapshot: WhiteboardSceneSnapshot, expected?: number) => {
-    if (!canWrite) return true;
-    if (savingRef.current) {
-      queuedRef.current = true;
-      return false;
-    }
+    if (!effectiveCanWrite) return true;
+    if (savingRef.current) { queuedRef.current = true; return false; }
     let failed = false;
     savingRef.current = true;
     setSaveStateSync('saving');
     setSaveError(null);
     try {
       const result = await persistSceneWithAssets(
-        service, scopeRef.current, boardId, expected ?? versionRef.current, snapshot, uploadedIdsRef.current
+        service, scopeRef.current, boardId, expected ?? versionRef.current, snapshot,
+        uploadedIdsRef.current, onAssetUploadedRef.current, autoReconcileConflict && expected === undefined
       );
       versionRef.current = result.version;
       lastVersionRef.current = snapshot.sceneVersion;
       lastFilesRef.current = snapshot.fileSignature;
       setBoard((prev) => (prev ? { ...prev, ...result } : prev));
-      if (pendingRef.current === snapshot) {
-        pendingRef.current = null;
-        setSaveStateSync('saved');
-      }
+      if (pendingRef.current === snapshot) { pendingRef.current = null; setSaveStateSync('saved'); }
       return true;
     } catch (err) {
       failed = true;
@@ -140,7 +116,7 @@ export function useWhiteboardAutosave({
         void persistSnapshot(pendingRef.current);
       }
     }
-  }, [boardId, canWrite, service, setSaveStateSync]);
+  }, [autoReconcileConflict, boardId, effectiveCanWrite, service, setSaveStateSync]);
 
   const handleSceneChange = useCallback((snapshot: WhiteboardSceneSnapshot) => {
     if (lastVersionRef.current === null) {
@@ -148,7 +124,7 @@ export function useWhiteboardAutosave({
       lastFilesRef.current = snapshot.fileSignature;
       return;
     }
-    if (!canWrite || saveStateRef.current === 'conflict') return;
+    if (!effectiveCanWrite || saveStateRef.current === 'conflict') return;
     if (snapshot.sceneVersion === lastVersionRef.current && snapshot.fileSignature === lastFilesRef.current) return;
     pendingRef.current = snapshot;
     setSaveStateSync('unsaved');
@@ -158,7 +134,7 @@ export function useWhiteboardAutosave({
       timerRef.current = null;
       if (pendingRef.current) void persistSnapshot(pendingRef.current);
     }, debounceMs);
-  }, [canWrite, clearTimer, debounceMs, persistSnapshot, setSaveStateSync]);
+  }, [clearTimer, debounceMs, effectiveCanWrite, persistSnapshot, setSaveStateSync]);
 
   const saveNow = useCallback(async () => {
     clearTimer();
@@ -182,14 +158,35 @@ export function useWhiteboardAutosave({
 
   const updateTitle = useCallback(async (title: string) => {
     const trimmed = title.trim();
-    if (!trimmed || !canWrite) return;
+    if (!trimmed || !effectiveCanWrite) return;
     const updated = await service.updateBoard(scopeRef.current, boardId, { title: trimmed });
     setBoard((prev) => (prev ? { ...prev, ...updated } : prev));
-  }, [boardId, canWrite, service]);
+  }, [boardId, effectiveCanWrite, service]);
+
+  const applyRemoteCheckpoint = useCallback((version: number, updatedAt?: string) => {
+    if (typeof version === 'number' && version > versionRef.current) {
+      versionRef.current = version;
+      setBoard((prev) => (prev ? { ...prev, version, updatedAt: updatedAt ?? prev.updatedAt } : prev));
+    }
+  }, []);
+
+  const applyRemoteLock = useCallback((locked: boolean, lockedBy?: string | null, lockedAt?: string | null) => {
+    if (locked) { clearTimer(); pendingRef.current = null; queuedRef.current = false; setSaveStateSync('saved'); }
+    setBoard((prev) => (prev ? { ...prev, locked, lockedBy: lockedBy ?? prev.lockedBy, lockedAt: lockedAt ?? prev.lockedAt } : prev));
+  }, [clearTimer, setSaveStateSync]);
+
+  const refreshAssets = useCallback(async () => {
+    try {
+      const loaded = await service.listAssets(scopeRef.current, boardId);
+      uploadedIdsRef.current = new Set(loaded.map((a) => a.fileId));
+      setAssets(loaded);
+    } catch { /* ignore */ }
+  }, [boardId, service]);
 
   return {
     board, assets, loading, loadError, saveState, saveError, canvasResetTick,
     clearSaveError: () => setSaveError(null),
     handleSceneChange, saveNow, reloadLatest: () => hydrateBoard(true), overwriteServer, updateTitle,
+    applyRemoteCheckpoint, applyRemoteLock, refreshAssets,
   };
 }

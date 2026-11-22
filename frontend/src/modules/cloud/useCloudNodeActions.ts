@@ -1,6 +1,6 @@
 import { useCallback, useState, type MouseEvent } from 'react';
-import type { CloudFilesApi } from '../../services/cloud/cloudApi';
-import type { CloudNodeDto, CloudScope } from '../../types/cloud.types';
+import { setCloudNodeLocked, type CloudFilesApi } from '../../services/cloud/cloudApi';
+import { isCloudNodeLocked, type CloudNodeDto, type CloudScope } from '../../types/cloud.types';
 import { buildMoveRequest, triggerInlineDownload } from './cloudFormat';
 import type { ContextMenuState } from './FinderContextMenu';
 
@@ -63,10 +63,24 @@ export function useCloudNodeActions({
     [api, runMutation]
   );
 
+  const toggleLock = useCallback(
+    (node: CloudNodeDto) => {
+      const nextLocked = !Boolean(node.locked ?? node.effectiveLocked);
+      void runMutation(() =>
+        api.setNodeLocked
+          ? api.setNodeLocked(node.id, nextLocked)
+          : setCloudNodeLocked(scope, node.id, nextLocked)
+      );
+    },
+    [api, runMutation, scope]
+  );
+
   const softDeleteNodes = useCallback(
     (targets: CloudNodeDto[]) => {
+      const unlocked = targets.filter((n) => !isCloudNodeLocked(n));
+      if (unlocked.length === 0) return;
       void runMutation(async () => {
-        await Promise.all(targets.map((n) => api.softDeleteNode(n.id)));
+        await Promise.all(unlocked.map((n) => api.softDeleteNode(n.id)));
         clearSelection();
       });
     },
@@ -115,6 +129,7 @@ export function useCloudNodeActions({
     downloadNode,
     downloadSelected,
     toggleStar,
+    toggleLock,
     softDeleteNodes,
     restoreNodes,
     permanentDeleteNodes,

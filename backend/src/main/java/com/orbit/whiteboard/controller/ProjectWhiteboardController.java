@@ -1,6 +1,7 @@
 package com.orbit.whiteboard.controller;
 
 import com.orbit.auth.security.AuthenticatedUserPrincipal;
+import com.orbit.collab.dto.LockResourceRequest;
 import com.orbit.common.PageResponse;
 import com.orbit.whiteboard.dto.CreateWhiteboardRequest;
 import com.orbit.whiteboard.dto.SaveWhiteboardSceneRequest;
@@ -14,6 +15,7 @@ import com.orbit.whiteboard.service.WhiteboardAccessGuard;
 import com.orbit.workspace.permission.Permissions;
 import java.util.List;
 import java.util.UUID;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -118,6 +120,19 @@ public class ProjectWhiteboardController {
     ) {
         support.delete(
             guard.requireProjectScope(p.userId(), workspaceId, projectId, Permissions.PWHITEBOARD_DELETE), boardId
+        );
+    }
+
+    @PutMapping("/{boardId}/lock")
+    public WhiteboardSummaryResponse setLocked(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal p,
+        @PathVariable UUID workspaceId,
+        @PathVariable UUID projectId,
+        @PathVariable UUID boardId,
+        @Valid @RequestBody LockResourceRequest request
+    ) {
+        return support.setLocked(
+            guard.requireOwnerScope(p.userId(), workspaceId, projectId), boardId, p.userId(), request.locked()
         );
     }
 

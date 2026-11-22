@@ -17,7 +17,7 @@ public interface WhiteboardRepository extends JpaRepository<WhiteboardEntity, UU
     String SUMMARY_SELECT = """
         SELECT new com.orbit.whiteboard.dto.WhiteboardSummaryResponse(
             w.id, w.workspaceId, w.projectId, w.title, w.description,
-            w.elementCount, w.version, w.createdBy, w.updatedBy, w.createdAt, w.updatedAt
+            w.elementCount, w.version, w.createdBy, w.updatedBy, w.locked, w.lockedBy, w.lockedAt, w.createdAt, w.updatedAt
         )
         FROM WhiteboardEntity w
         """;

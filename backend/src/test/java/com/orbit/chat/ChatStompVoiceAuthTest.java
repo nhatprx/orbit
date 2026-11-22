@@ -14,6 +14,7 @@ import com.orbit.chat.dto.SendChatMessageRequest;
 import com.orbit.chat.dto.VoiceEventDto;
 import com.orbit.chat.dto.VoiceSignalRequest;
 import com.orbit.chat.service.ChatAccessGuard;
+import com.orbit.collab.service.CollabStompAuthorizer;
 import com.orbit.chat.service.ChatMessageService;
 import com.orbit.chat.service.ChatRelay;
 import com.orbit.chat.service.ChatVoiceService;
@@ -41,7 +42,7 @@ class ChatStompVoiceAuthTest {
     void subscribeAllowsAndEnforcesReadAccessOnChatAndVoiceTopics() {
         ChatAccessGuard guard = mock(ChatAccessGuard.class);
         StompAuthChannelInterceptor interceptor = new StompAuthChannelInterceptor(
-            mock(JwtService.class), mock(RedisSessionService.class), guard
+            mock(JwtService.class), mock(RedisSessionService.class), guard, mock(CollabStompAuthorizer.class)
         );
         UUID userId = UUID.randomUUID();
         UUID allowedChannel = UUID.randomUUID();

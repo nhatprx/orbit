@@ -1,5 +1,4 @@
 package com.orbit.cloud.service;
-
 import com.orbit.cloud.dto.CloudBreadcrumbItem;
 import com.orbit.cloud.dto.CloudBreadcrumbsResponse;
 import com.orbit.cloud.dto.CloudNodeResponse;
@@ -13,22 +12,21 @@ import com.orbit.cloud.repository.CloudNodeRepository;
 import com.orbit.common.ApiException;
 import com.orbit.common.CursorPageResponse;
 import com.orbit.common.PageParams;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 @Service
 public class CloudNodeService {
-
     public static final int MAX_DEPTH = 20;
-
     private final CloudNodeRepository nodeRepo;
     private final CloudNodeQueryRepository queryRepo;
     private final CloudNodeMapper mapper;
-
+    private CloudNodeCollabEvents collabEvents;
     public CloudNodeService(
         CloudNodeRepository nodeRepo,
         CloudNodeQueryRepository queryRepo,
@@ -39,6 +37,8 @@ public class CloudNodeService {
         this.mapper = mapper;
     }
 
+    @Autowired(required = false)
+    void setCollabEvents(CloudNodeCollabEvents events) { this.collabEvents = events; }
     @Transactional(readOnly = true)
     public CursorPageResponse<CloudNodeResponse> listNodes(
         CloudScope scope, UUID parentId, String view, String q, String sortBy, String sortDir, String cursor, int limit
@@ -53,7 +53,6 @@ public class CloudNodeService {
             ? !isRecents
             : !"desc".equalsIgnoreCase(sortDir);
         CloudCursor decoded = (cursor == null || cursor.isBlank()) ? null : CloudCursor.decode(cursor);
-
         List<CloudNodeEntity> rows = queryRepo.findPage(
             scope, parentId, normalizedView, q, effectiveSort, ascending, decoded, clamped + 1
         );
@@ -62,24 +61,27 @@ public class CloudNodeService {
         String nextCursor = hasMore ? CloudCursor.encode(page.getLast(), effectiveSort) : null;
         return new CursorPageResponse<>(mapper.toResponses(page), nextCursor, hasMore, clamped);
     }
-
     @Transactional(readOnly = true)
     public CloudBreadcrumbsResponse getBreadcrumbs(CloudScope scope, UUID nodeId) {
         List<Object[]> rows = nodeRepo.findBreadcrumbRows(nodeId, scope.type().name(), scope.scopeId());
         if (rows.isEmpty()) {
             throw ApiException.notFound("NODE_NOT_FOUND", "Node not found.");
         }
-        List<CloudBreadcrumbItem> items = rows.stream()
-            .map(row -> new CloudBreadcrumbItem((UUID) row[0], (String) row[1]))
-            .toList();
+        boolean inheritedLock = false;
+        List<CloudBreadcrumbItem> items = new java.util.ArrayList<>(rows.size());
+        for (Object[] row : rows) {
+            boolean locked = Boolean.TRUE.equals(row[2]);
+            inheritedLock |= locked;
+            items.add(new CloudBreadcrumbItem((UUID) row[0], (String) row[1], locked, inheritedLock));
+        }
         return new CloudBreadcrumbsResponse(items);
     }
-
     @Transactional
     public CloudNodeResponse createFolder(CloudScope scope, UUID actorId, CreateFolderRequest request) {
         String name = CloudNameValidator.validateAndTrim(request.name());
         int depth = 0;
         if (request.parentId() != null) {
+            requireWritable(scope, request.parentId());
             CloudNodeEntity parent = requireActiveFolder(scope, request.parentId());
             depth = parent.getDepth() + 1;
             if (depth > MAX_DEPTH) {
@@ -99,12 +101,14 @@ public class CloudNodeService {
         folder.setDepth(depth);
         folder.setCreatedBy(actorId);
         folder.setUpdatedBy(actorId);
-        return mapper.toResponse(saveCheckingDuplicate(folder));
+        CloudNodeEntity saved = saveCheckingDuplicate(folder);
+        publishCatalog(scope, "CREATE", saved.getId(), null);
+        return mapper.toResponse(saved);
     }
-
     @Transactional
     public CloudNodeResponse updateNode(CloudScope scope, UUID actorId, UUID nodeId, UpdateCloudNodeRequest req) {
         CloudNodeEntity node = requireActiveNode(scope, nodeId);
+        requireWritable(scope, nodeId);
         if (req.name() != null) {
             String valid = CloudNameValidator.validateRename(node.getName(), node.getNodeType(), req.name());
             node.setName(valid);
@@ -116,44 +120,12 @@ public class CloudNodeService {
         boolean wantsMove = Boolean.TRUE.equals(req.moveToRoot()) || req.parentId() != null;
         if (wantsMove) {
             UUID targetParentId = Boolean.TRUE.equals(req.moveToRoot()) ? null : req.parentId();
-            applyMove(scope, node, targetParentId);
+            CloudNodeMover.apply(scope, node, targetParentId, this, nodeRepo);
         }
         node.setUpdatedBy(actorId);
-        return mapper.toResponse(saveCheckingDuplicate(node));
-    }
-
-    private void applyMove(CloudScope scope, CloudNodeEntity node, UUID targetParentId) {
-        int newDepth = 0;
-        if (targetParentId != null) {
-            if (targetParentId.equals(node.getId())) {
-                throw ApiException.badRequest("FOLDER_CYCLE", "Cannot move a folder into itself.");
-            }
-            CloudNodeEntity targetParent = requireActiveFolder(scope, targetParentId);
-            newDepth = targetParent.getDepth() + 1;
-        }
-        if (node.getNodeType() == CloudNodeType.FOLDER) {
-            List<UUID> subtreeIds = nodeRepo.findSubtreeIds(node.getId(), scope.type().name(), scope.scopeId());
-            if (targetParentId != null && subtreeIds.contains(targetParentId)) {
-                throw ApiException.badRequest("FOLDER_CYCLE", "Cannot move a folder into its own descendant.");
-            }
-            int delta = newDepth - node.getDepth();
-            List<CloudNodeEntity> subtree = nodeRepo.findAllById(subtreeIds);
-            for (CloudNodeEntity item : subtree) {
-                if (item.getDepth() + delta > MAX_DEPTH) {
-                    throw ApiException.badRequest("MAX_DEPTH_EXCEEDED", "Maximum folder depth of 20 exceeded.");
-                }
-            }
-            for (CloudNodeEntity item : subtree) {
-                if (!item.getId().equals(node.getId())) {
-                    item.setDepth(item.getDepth() + delta);
-                }
-            }
-            nodeRepo.saveAll(subtree);
-        } else if (newDepth > MAX_DEPTH) {
-            throw ApiException.badRequest("MAX_DEPTH_EXCEEDED", "Maximum folder depth of 20 exceeded.");
-        }
-        node.setParentId(targetParentId);
-        node.setDepth(newDepth);
+        CloudNodeEntity saved = saveCheckingDuplicate(node);
+        publishCatalog(scope, "UPDATE", saved.getId(), null);
+        return mapper.toResponse(saved);
     }
 
     public CloudNodeEntity requireActiveFolder(CloudScope scope, UUID folderId) {
@@ -171,6 +143,32 @@ public class CloudNodeService {
             throw ApiException.notFound("NODE_NOT_FOUND", "Node not found.");
         }
         return node;
+    }
+
+    public void requireWritable(CloudScope scope, UUID nodeId) {
+        if (nodeRepo.hasLockedAncestor(nodeId, scope.type().name(), scope.scopeId())
+            || nodeRepo.hasLockedSubtree(nodeId, scope.type().name(), scope.scopeId())) {
+            throw ApiException.locked("RESOURCE_LOCKED", "This file or folder is locked.");
+        }
+    }
+
+    @Transactional
+    public CloudNodeResponse setLocked(CloudScope scope, UUID nodeId, UUID actorId, boolean locked) {
+        CloudNodeEntity node = requireActiveNode(scope, nodeId);
+        node.setLocked(locked);
+        node.setLockedBy(locked ? actorId : null);
+        node.setLockedAt(locked ? java.time.Instant.now() : null);
+        CloudNodeEntity saved = nodeRepo.save(node);
+        if (collabEvents != null) collabEvents.lockChanged(scope, saved, actorId, locked);
+        return mapper.toResponse(saved);
+    }
+
+    public void publishCatalog(CloudScope scope, String action, UUID resourceId, Boolean locked) {
+        if (collabEvents != null) collabEvents.catalogChanged(scope, action, resourceId, locked);
+    }
+
+    public void broadcastCheckpoint(CloudScope scope, UUID nodeId, UUID actorId, java.time.Instant updatedAt) {
+        if (collabEvents != null) collabEvents.checkpoint(scope, nodeId, actorId, updatedAt);
     }
 
     private CloudNodeEntity saveCheckingDuplicate(CloudNodeEntity node) {

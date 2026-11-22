@@ -16,6 +16,9 @@ public record WhiteboardDetailResponse(
     long version,
     UUID createdBy,
     UUID updatedBy,
+    boolean locked,
+    UUID lockedBy,
+    Instant lockedAt,
     Instant createdAt,
     Instant updatedAt
 ) {
@@ -32,6 +35,9 @@ public record WhiteboardDetailResponse(
             entity.getVersion(),
             entity.getCreatedBy(),
             entity.getUpdatedBy(),
+            entity.isLocked(),
+            entity.getLockedBy(),
+            entity.getLockedAt(),
             entity.getCreatedAt(),
             entity.getUpdatedAt()
         );

@@ -3,6 +3,7 @@ import { AlertCircle, X } from 'lucide-react';
 import { EmptyView } from '../../components/ui/StateViews';
 import { createHttpCloudFilesApi, type CloudFilesApi } from '../../services/cloud/cloudApi';
 import { cloudScopeKey, resolveCloudPermissions, type CloudNodeDto, type CloudScope } from '../../types/cloud.types';
+import { useScopeCatalogSync } from '../collab/useScopeCatalogSync';
 import { CloudActionModals } from './CloudActionModals';
 import { CloudDropOverlay, CloudEditorSurface, useExternalFileDrop } from './CloudEditorSurface';
 import { CloudFileTable } from './CloudFileTable';
@@ -59,6 +60,18 @@ export function OfficeModulePage({
   });
   const drop = useExternalFileDrop(permissions.canWrite, (files) => uploads.enqueueFiles(files, null));
 
+  useScopeCatalogSync({
+    scope:
+      scope.type === 'PROJECT'
+        ? { type: 'PROJECT', workspaceId: scope.workspaceId, projectId: scope.projectId }
+        : scope.type === 'WORKSPACE'
+          ? { type: 'WORKSPACE', workspaceId: scope.workspaceId }
+          : null,
+    module: 'cloud',
+    enabled: permissions.canRead && !editor.textNode && !editor.officeNode,
+    onRefresh: () => void browser.refresh(),
+  });
+
   useEffect(() => {
     selection.pruneSelection(new Set(browser.nodes.map((n) => n.id)));
   }, [browser.nodes, selection.pruneSelection]);
@@ -90,7 +103,8 @@ export function OfficeModulePage({
     >
       {editorOpen ? (
         <CloudEditorSurface
-          api={api} canWrite={permissions.canWrite} textNode={editor.textNode} officeNode={editor.officeNode}
+          api={api} canWrite={permissions.canWrite} canManage={permissions.canManage}
+          textNode={editor.textNode} officeNode={editor.officeNode}
           onCloseText={editor.closeTextEditor} onCloseOffice={editor.closeOfficeEditor}
           onDownload={actions.downloadNode} onSaved={editor.handleTextSaved}
         />
@@ -142,7 +156,7 @@ export function OfficeModulePage({
               emptyTitle={config.emptyTitle} emptyHint={config.emptyHint}
               onSelect={(node, ordered, e) => selection.selectNode(node.id, ordered, { multi: e.ctrlKey || e.metaKey, range: e.shiftKey })}
               onContextMenu={actions.openContextMenu} onOpenFolder={() => {}} onOpenEditor={editor.openNode}
-              onToggleStar={actions.toggleStar} onDownload={actions.downloadNode} onRename={actions.setRenamingNode}
+              onToggleStar={actions.toggleStar} onToggleLock={actions.toggleLock} onDownload={actions.downloadNode} onRename={actions.setRenamingNode}
               onMove={(n) => actions.setMovingNodes([n])} onSoftDelete={(n) => actions.softDeleteNodes([n])}
               onRestore={(n) => actions.restoreNodes([n])} onPermanentDelete={(n) => actions.permanentDeleteNodes([n])}
               onLoadMore={() => void browser.loadMore()}
@@ -164,7 +178,7 @@ export function OfficeModulePage({
         onCloseQuickLook={() => setQuickLookNode(null)} onQuickLook={setQuickLookNode}
         onRefresh={() => void browser.refresh()} onCreatedDoc={editor.handleDocumentCreated}
         onOpenFolder={() => {}} onOpenEditor={editor.openNode} onRenameRequest={actions.setRenamingNode}
-        onMoveRequest={actions.setMovingNodes} onToggleStar={actions.toggleStar} onDownload={actions.downloadNode}
+        onMoveRequest={actions.setMovingNodes} onToggleStar={actions.toggleStar} onToggleLock={actions.toggleLock} onDownload={actions.downloadNode}
         onSoftDeleteNodes={actions.softDeleteNodes} onRestoreNodes={actions.restoreNodes}
         onPermanentDeleteNodes={actions.permanentDeleteNodes}
       />

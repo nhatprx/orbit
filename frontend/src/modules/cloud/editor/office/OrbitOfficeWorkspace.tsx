@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CloudFilesApi } from '../../../../services/cloud/cloudApi';
 import type { CloudNodeDto } from '../../../../types/cloud.types';
 import { OrbitDocEditor } from './OrbitDocEditor';
@@ -6,12 +6,17 @@ import { OrbitOfficeHeader, type OrbitOfficeHeaderProps } from './OrbitOfficeHea
 import { OrbitPdfViewer } from './OrbitPdfViewer';
 import { OrbitSheetEditor } from './OrbitSheetEditor';
 import { OrbitSlideEditor } from './OrbitSlideEditor';
+import type { UniverSheetCanvasHandle } from './UniverSheetCanvas';
 import type { OfficeDocContentDto, OfficeFormat, OfficeSheetContentDto, OfficeSlideContentDto } from './officeTypes';
+import { useOfficeCollab } from './useOfficeCollab';
+
+const AUTOSAVE_DEBOUNCE_MS = 1500;
 
 export interface OrbitOfficeWorkspaceProps {
   node: CloudNodeDto;
   api: CloudFilesApi;
   canWrite: boolean;
+  canManage?: boolean;
   isPdf?: boolean;
   onBack: () => void;
   onDownload: (node: CloudNodeDto) => void;
@@ -24,7 +29,7 @@ function inferInitialFormat(name: string): OfficeFormat {
 }
 
 export function OrbitOfficeWorkspace({
-  node, api, canWrite, isPdf, onBack, onDownload, onSaved,
+  node, api, canWrite, canManage, isPdf, onBack, onDownload, onSaved,
 }: OrbitOfficeWorkspaceProps) {
   const pdfMode = Boolean(isPdf || node.name.toLowerCase().endsWith('.pdf'));
   const [loading, setLoading] = useState(!pdfMode);
@@ -38,6 +43,22 @@ export function OrbitOfficeWorkspace({
   const [doc, setDoc] = useState<OfficeDocContentDto | null>(null);
   const [sheet, setSheet] = useState<OfficeSheetContentDto | null>(null);
   const [slide, setSlide] = useState<OfficeSlideContentDto | null>(null);
+  const [docResetTick, setDocResetTick] = useState(0);
+  const [sheetResetTick, setSheetResetTick] = useState(0);
+  const sheetHandleRef = useRef<UniverSheetCanvasHandle | null>(null);
+
+  const collab = useOfficeCollab({
+    node, api, format, pdfMode, canWrite, canManage,
+    onRemoteDoc: (nextDoc) => { setDoc(nextDoc); setDocResetTick((t) => t + 1); },
+    onRemoteSheet: (nextSheet) => { setSheet(nextSheet); setSheetResetTick((t) => t + 1); },
+    onRemoteSheetMutation: (mutation) => { sheetHandleRef.current?.applyRemoteMutation(mutation); },
+    onRemoteSlide: (nextSlide) => { setSlide(nextSlide); },
+    onRemoteCheckpoint: (nextUpdatedAt) => { setUpdatedAt(nextUpdatedAt); setDirty(false); },
+    onSaved,
+    onError: setError,
+  });
+
+  const { effectiveCanWrite, isLocked, canToggleLock, lockPending } = collab;
 
   useEffect(() => {
     setFormat(inferInitialFormat(node.name));
@@ -65,7 +86,7 @@ export function OrbitOfficeWorkspace({
   }, [node.id, node.name, api, pdfMode]);
 
   const handleSave = useCallback(async (closeAfter = false) => {
-    if (pdfMode || !canWrite || !dirty || saving || loading) return;
+    if (pdfMode || !effectiveCanWrite || !dirty || saving || loading) return;
     setSaving(true);
     setError(null);
     try {
@@ -86,12 +107,18 @@ export function OrbitOfficeWorkspace({
     } finally {
       setSaving(false);
     }
-  }, [pdfMode, canWrite, dirty, saving, loading, api, node.id, format, updatedAt, doc, sheet, slide, onSaved, onBack]);
+  }, [pdfMode, effectiveCanWrite, dirty, saving, loading, api, node.id, format, updatedAt, doc, sheet, slide, onSaved, onBack]);
+
+  useEffect(() => {
+    if (pdfMode || !effectiveCanWrite || !dirty || saving || loading) return;
+    const timer = window.setTimeout(() => { void handleSave(false); }, AUTOSAVE_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [pdfMode, effectiveCanWrite, dirty, saving, loading, handleSave]);
 
   const requestBack = useCallback(() => {
-    if (!pdfMode && dirty && canWrite) setConfirmDiscard(true);
+    if (!pdfMode && dirty && effectiveCanWrite) setConfirmDiscard(true);
     else onBack();
-  }, [pdfMode, dirty, canWrite, onBack]);
+  }, [pdfMode, dirty, effectiveCanWrite, onBack]);
 
   useEffect(() => {
     if (pdfMode) return;
@@ -99,17 +126,20 @@ export function OrbitOfficeWorkspace({
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
         event.preventDefault();
         void handleSave(false);
-      } else if (!event.defaultPrevented && event.key === 'Escape' && dirty && canWrite) {
+      } else if (!event.defaultPrevented && event.key === 'Escape' && dirty && effectiveCanWrite) {
         event.preventDefault();
         setConfirmDiscard(true);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [pdfMode, handleSave, dirty, canWrite]);
+  }, [pdfMode, handleSave, dirty, effectiveCanWrite]);
 
   const sharedHeaderProps: Omit<OrbitOfficeHeaderProps, 'menuBar'> = {
-    node, format, pdfMode, canWrite, dirty, saving, loading, savedNotice, error, confirmDiscard,
+    node, format, pdfMode, canWrite: effectiveCanWrite, locked: isLocked, canToggleLock, lockPending,
+    participants: collab.participants, activeHint: collab.activeHint,
+    dirty, saving, loading, savedNotice, error, confirmDiscard,
+    onToggleLock: () => void collab.handleToggleLock(),
     onRequestBack: requestBack,
     onDownload: () => onDownload(node),
     onSave: (closeAfter) => void handleSave(closeAfter),
@@ -133,25 +163,23 @@ export function OrbitOfficeWorkspace({
           <div className="flex h-full items-center justify-center font-mono text-xs text-[#8B949E]">Loading Orbit Office workspace...</div>
         ) : format === 'XLSX' && sheet ? (
           <OrbitSheetEditor
-            value={sheet}
-            readOnly={!canWrite}
-            headerProps={sharedHeaderProps}
-            onChange={(next) => { setSheet(next); setDirty(true); setSavedNotice(false); }}
+            value={sheet} resetTick={sheetResetTick} readOnly={!effectiveCanWrite} headerProps={sharedHeaderProps}
+            onReady={(h) => { sheetHandleRef.current = h; }}
+            onLocalMutation={collab.broadcastSheetMutation}
+            onSelectionCursorChange={collab.broadcastSheetCursor}
+            onChange={(next) => { setSheet(next); setDirty(true); setSavedNotice(false); collab.broadcastSheetSnapshot(next); }}
           />
         ) : format === 'PPTX' && slide ? (
           <OrbitSlideEditor
-            value={slide}
-            readOnly={!canWrite}
-            headerProps={sharedHeaderProps}
-            onChange={(next) => { setSlide(next); setDirty(true); setSavedNotice(false); }}
+            value={slide} readOnly={!effectiveCanWrite} participants={collab.participants} headerProps={sharedHeaderProps}
+            onActiveSlideBroadcast={collab.broadcastSlideCursor}
+            onChange={(next) => { setSlide(next); setDirty(true); setSavedNotice(false); collab.broadcastSlidesSnapshot(next); }}
           />
         ) : (
           doc && (
             <OrbitDocEditor
-              value={doc}
-              readOnly={!canWrite}
-              headerProps={sharedHeaderProps}
-              onChange={(next) => { setDoc(next); setDirty(true); setSavedNotice(false); }}
+              value={doc} resetTick={docResetTick} readOnly={!effectiveCanWrite} headerProps={sharedHeaderProps}
+              onChange={(next) => { setDoc(next); setDirty(true); setSavedNotice(false); collab.broadcastDocSnapshot(next); }}
             />
           )
         )}

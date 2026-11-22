@@ -58,7 +58,9 @@ public class CloudMoveService {
         boolean sameScope = sourceScope.equals(targetScope);
 
         int targetDepth = resolveTargetDepth(targetScope, req.targetParentId());
+        if (req.targetParentId() != null) nodeService.requireWritable(targetScope, req.targetParentId());
         List<CloudNodeEntity> requested = loadActiveNodesInOrder(sourceScope, uniqueIds);
+        for (CloudNodeEntity node : requested) nodeService.requireWritable(sourceScope, node.getId());
 
         Map<UUID, List<UUID>> subtreeIdsByFolder = new HashMap<>();
         Set<UUID> strictDescendants = new HashSet<>();
@@ -92,6 +94,7 @@ public class CloudMoveService {
         if (!toSave.isEmpty()) {
             nodeRepo.saveAll(toSave);
             nodeRepo.flush();
+            for (CloudNodeEntity node : topLevel) nodeService.publishCatalog(targetScope, "MOVE", node.getId(), null);
         }
         return new MoveCloudNodesResponse(mapper.toResponses(topLevel));
     }

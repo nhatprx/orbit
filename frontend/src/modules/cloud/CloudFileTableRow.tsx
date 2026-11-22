@@ -1,6 +1,6 @@
 import type { DragEvent, MouseEvent } from 'react';
-import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
-import type { CloudNodeDto, CloudPermissions, CloudView } from '../../types/cloud.types';
+import { ChevronDown, ChevronRight, Loader2, Lock } from 'lucide-react';
+import { isCloudNodeLocked, type CloudNodeDto, type CloudPermissions, type CloudView } from '../../types/cloud.types';
 import { daysUntil, formatRelative } from '../../utils/format';
 import { formatBytes, nodeTypeLabel } from './cloudFormat';
 import { CloudNodeIcon } from './cloudIcons';
@@ -25,6 +25,7 @@ interface CloudFileTableRowProps {
   onOpenFolder: (folderId: string) => void;
   onOpenEditor: (node: CloudNodeDto) => void;
   onToggleStar: (node: CloudNodeDto) => void;
+  onToggleLock?: (node: CloudNodeDto) => void;
   onDownload: (node: CloudNodeDto) => void;
   onRename: (node: CloudNodeDto) => void;
   onMove: (node: CloudNodeDto) => void;
@@ -40,10 +41,11 @@ interface CloudFileTableRowProps {
 export function CloudFileTableRow({
   node, indent, striped, view, permissions, canExpand, isExpanded, isLoadingChildren,
   isSelected, isDropTarget, showFolder, onToggleExpand, onSelect, onContextMenu,
-  onOpenFolder, onOpenEditor, onToggleStar, onDownload, onRename, onMove,
+  onOpenFolder, onOpenEditor, onToggleStar, onToggleLock, onDownload, onRename, onMove,
   onSoftDelete, onRestore, onPermanentDelete, onDragStart, onDragOver, onDragLeave, onDrop,
 }: CloudFileTableRowProps) {
   const isFolder = node.nodeType === 'FOLDER';
+  const locked = isCloudNodeLocked(node);
   const purgeDays = node.purgeAfter ? daysUntil(node.purgeAfter) : null;
   const rowBg = isDropTarget
     ? 'bg-[#052E16] outline outline-1 outline-[#22C55E]'
@@ -55,7 +57,7 @@ export function CloudFileTableRow({
 
   return (
     <tr
-      draggable={permissions.canWrite && view !== 'TRASH'}
+      draggable={permissions.canWrite && !locked && view !== 'TRASH'}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
@@ -95,6 +97,16 @@ export function CloudFileTableRow({
           ) : null}
           <CloudNodeIcon node={node} />
           <span className="truncate font-medium text-[#E6EDF3]">{node.name}</span>
+          {locked && (
+            <span
+              data-testid={`cloud-row-locked-${node.id}`}
+              title="Locked by owner"
+              className="inline-flex shrink-0 items-center gap-1 border border-[#EAB308]/60 bg-[#EAB308]/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#EAB308]"
+            >
+              <Lock className="h-2.5 w-2.5" strokeWidth={1.5} />
+              LOCKED
+            </span>
+          )}
         </div>
       </td>
       {showFolder && (
@@ -112,7 +124,7 @@ export function CloudFileTableRow({
       <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
         <CloudRowActions
           node={node} view={view} permissions={permissions}
-          onOpenEditor={onOpenEditor} onToggleStar={onToggleStar} onDownload={onDownload}
+          onOpenEditor={onOpenEditor} onToggleStar={onToggleStar} onToggleLock={onToggleLock} onDownload={onDownload}
           onRename={onRename} onMove={onMove} onSoftDelete={onSoftDelete}
           onRestore={onRestore} onPermanentDelete={onPermanentDelete}
         />

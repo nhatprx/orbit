@@ -14,10 +14,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.orbit.common.ApiException;
 import com.orbit.project.repository.ProjectModuleRepository;
 import com.orbit.whiteboard.dto.SaveWhiteboardSceneRequest;
+import com.orbit.whiteboard.dto.UpdateWhiteboardRequest;
 import com.orbit.whiteboard.dto.UpsertWhiteboardAssetRequest;
 import com.orbit.whiteboard.dto.WhiteboardAssetResponse;
 import com.orbit.whiteboard.dto.WhiteboardSceneSaveResponse;
 import com.orbit.whiteboard.entity.WhiteboardAssetEntity;
+import com.orbit.whiteboard.entity.WhiteboardEntity;
 import com.orbit.whiteboard.repository.WhiteboardAssetRepository;
 import com.orbit.whiteboard.repository.WhiteboardRepository;
 import com.orbit.whiteboard.service.WhiteboardAccessGuard;
@@ -48,7 +50,11 @@ class WhiteboardServiceUnitTest {
         WorkspacePermissionEvaluator evaluator = mock(WorkspacePermissionEvaluator.class);
         WorkspaceModuleService wsModules = mock(WorkspaceModuleService.class);
         ProjectModuleRepository projectModules = mock(ProjectModuleRepository.class);
-        WhiteboardAccessGuard guard = new WhiteboardAccessGuard(evaluator, wsModules, projectModules);
+        WhiteboardAccessGuard guard = new WhiteboardAccessGuard(
+            evaluator, wsModules, projectModules,
+            mock(com.orbit.project.repository.ProjectMemberRepository.class),
+            mock(com.orbit.project.repository.ProjectRoleRepository.class)
+        );
 
         UUID userId = UUID.randomUUID();
         UUID wsId = UUID.randomUUID();
@@ -107,6 +113,24 @@ class WhiteboardServiceUnitTest {
         ApiException deleted = assertThrows(ApiException.class, () -> service.saveScene(scope, boardId, userId, req));
         assertEquals(HttpStatus.NOT_FOUND, deleted.getStatus());
         assertEquals("WHITEBOARD_NOT_FOUND", deleted.getCode());
+    }
+
+    @Test
+    void lockedWhiteboardRejectsMetadataMutationWithLockedStatus() {
+        WhiteboardRepository boards = mock(WhiteboardRepository.class);
+        WhiteboardService service = new WhiteboardService(boards, mapper);
+        UUID workspaceId = UUID.randomUUID();
+        UUID boardId = UUID.randomUUID();
+        WhiteboardEntity board = new WhiteboardEntity();
+        board.setLocked(true);
+        when(boards.findByIdAndWorkspaceIdAndProjectIdIsNull(boardId, workspaceId)).thenReturn(Optional.of(board));
+
+        ApiException locked = assertThrows(ApiException.class, () -> service.updateMetadata(
+            WhiteboardScope.workspace(workspaceId), boardId, UUID.randomUUID(),
+            new UpdateWhiteboardRequest("Changed", null)
+        ));
+        assertEquals(HttpStatus.LOCKED, locked.getStatus());
+        assertEquals("RESOURCE_LOCKED", locked.getCode());
     }
 
     @Test

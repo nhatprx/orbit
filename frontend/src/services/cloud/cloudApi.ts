@@ -45,6 +45,7 @@ export interface CloudFilesApi {
   saveTextContent(nodeId: string, body: SaveTextContentRequest): Promise<CloudNodeDto>;
   getOfficeContent(nodeId: string, signal?: AbortSignal): Promise<OfficeDocumentResponse>;
   saveOfficeContent(nodeId: string, payload: SaveOfficeDocumentPayload): Promise<CloudNodeDto>;
+  setNodeLocked?(nodeId: string, locked: boolean): Promise<CloudNodeDto>;
 }
 
 export function cloudBasePath(scope: CloudScope): string {
@@ -57,6 +58,16 @@ export function cloudBasePath(scope: CloudScope): string {
 
 export function moveCloudNodes(body: MoveCloudNodesRequest): Promise<MoveCloudNodesResponse> {
   return apiRequest<MoveCloudNodesResponse>('POST', '/api/v1/cloud/nodes/move', { body });
+}
+
+export function setCloudNodeLocked(
+  scope: CloudScope,
+  nodeId: string,
+  locked: boolean
+): Promise<CloudNodeDto> {
+  return apiRequest<CloudNodeDto>('PUT', `${cloudBasePath(scope)}/nodes/${seg(nodeId)}/lock`, {
+    body: { locked },
+  });
 }
 
 export function createHttpCloudFilesApi(scope: CloudScope): CloudFilesApi {
@@ -155,6 +166,12 @@ export function createHttpCloudFilesApi(scope: CloudScope): CloudFilesApi {
 
     saveOfficeContent(nodeId, payload) {
       return apiRequest<CloudNodeDto>('PUT', `${base}/nodes/${seg(nodeId)}/office-content`, { body: payload });
+    },
+
+    setNodeLocked(nodeId, locked) {
+      return apiRequest<CloudNodeDto>('PUT', `${base}/nodes/${seg(nodeId)}/lock`, {
+        body: { locked },
+      });
     },
   };
 }

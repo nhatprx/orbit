@@ -6,6 +6,7 @@ import com.orbit.auth.service.JwtService.VerifiedToken;
 import com.orbit.auth.service.RedisSessionService;
 import com.orbit.chat.service.ChatRelay;
 import com.orbit.chat.service.ChatAccessGuard;
+import com.orbit.collab.service.CollabStompAuthorizer;
 import java.security.Principal;
 import java.util.List;
 import java.util.UUID;
@@ -35,11 +36,16 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
     private final JwtService jwtService;
     private final RedisSessionService sessions;
     private final ChatAccessGuard guard;
+    private final CollabStompAuthorizer collabAuthorizer;
 
-    public StompAuthChannelInterceptor(JwtService jwtService, RedisSessionService sessions, ChatAccessGuard guard) {
+    public StompAuthChannelInterceptor(
+        JwtService jwtService, RedisSessionService sessions, ChatAccessGuard guard,
+        CollabStompAuthorizer collabAuthorizer
+    ) {
         this.jwtService = jwtService;
         this.sessions = sessions;
         this.guard = guard;
+        this.collabAuthorizer = collabAuthorizer;
     }
 
     @Override
@@ -53,7 +59,11 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         } else if (command == StompCommand.SEND) {
             requireUser(accessor);
             String destination = accessor.getDestination();
-            if (destination == null || !destination.startsWith(SEND_PREFIX)) {
+            if (destination != null && destination.startsWith("/app/collab.")) {
+                UUID sender = requireUser(accessor);
+                if (destination.endsWith(".presence")) collabAuthorizer.authorizePresence(sender, destination);
+                else collabAuthorizer.authorizeEdit(sender, destination);
+            } else if (destination == null || !destination.startsWith(SEND_PREFIX)) {
                 throw new MessagingException("Destination is not allowed.");
             }
         }
@@ -86,6 +96,10 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         UUID userId = requireUser(accessor);
         String destination = accessor.getDestination();
         if (ERROR_QUEUE.equals(destination)) {
+            return;
+        }
+        if (destination != null && destination.startsWith("/topic/collab.")) {
+            collabAuthorizer.authorizeSubscribe(userId, destination);
             return;
         }
         if (destination == null || !destination.startsWith(ChatRelay.TOPIC_PREFIX)) {

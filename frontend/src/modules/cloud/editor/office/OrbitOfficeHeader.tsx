@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
-import { AlertCircle, ArrowLeft, Check, Download, FileSpreadsheet, FileText, Presentation, Save, X } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Check, Download, FileSpreadsheet, FileText, Lock, Presentation, Save, X } from 'lucide-react';
 import { Button } from '../../../../components/ui/Button';
 import type { CloudNodeDto } from '../../../../types/cloud.types';
+import type { CollabParticipant } from '../../../../types/collab.types';
+import { CollabPresenceBar } from '../../../collab/CollabPresenceBar';
 import { formatBytes } from '../../cloudFormat';
 import type { OfficeFormat } from './officeTypes';
 
@@ -10,6 +12,11 @@ export interface OrbitOfficeHeaderProps {
   format: OfficeFormat;
   pdfMode: boolean;
   canWrite: boolean;
+  locked?: boolean;
+  canToggleLock?: boolean;
+  lockPending?: boolean;
+  participants?: readonly CollabParticipant[];
+  activeHint?: string | null;
   dirty: boolean;
   saving: boolean;
   loading: boolean;
@@ -18,6 +25,7 @@ export interface OrbitOfficeHeaderProps {
   confirmDiscard: boolean;
   menuBar?: ReactNode;
   onExportCsv?: () => void;
+  onToggleLock?: () => void;
   onRequestBack: () => void;
   onDownload: () => void;
   onSave: (closeAfter: boolean) => void;
@@ -27,8 +35,9 @@ export interface OrbitOfficeHeaderProps {
 }
 
 export function OrbitOfficeHeader({
-  node, format, pdfMode, canWrite, dirty, saving, loading, savedNotice, error, confirmDiscard, menuBar,
-  onExportCsv, onRequestBack, onDownload, onSave, onDismissError, onKeepEditing, onDiscard,
+  node, format, pdfMode, canWrite, locked = false, canToggleLock = false, lockPending = false,
+  participants = [], activeHint, dirty, saving, loading, savedNotice, error, confirmDiscard, menuBar,
+  onExportCsv, onToggleLock, onRequestBack, onDownload, onSave, onDismissError, onKeepEditing, onDiscard,
 }: OrbitOfficeHeaderProps) {
   const statusLabel = pdfMode || !canWrite ? 'Read-Only' : dirty ? 'Unsaved' : 'Saved';
   const dotColor = pdfMode || !canWrite ? 'bg-[#8B949E]' : dirty ? 'bg-[#22C55E]' : 'bg-[#30363D]';
@@ -72,6 +81,16 @@ export function OrbitOfficeHeader({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {!pdfMode && (
+            <CollabPresenceBar
+              participants={participants}
+              locked={locked}
+              canToggleLock={canToggleLock}
+              lockPending={lockPending}
+              activeHint={activeHint}
+              onToggleLock={onToggleLock}
+            />
+          )}
           {onExportCsv && (
             <Button type="button" variant="secondary" onClick={onExportCsv}>
               <Download className="h-3.5 w-3.5" strokeWidth={1.5} /> Export CSV
@@ -89,6 +108,13 @@ export function OrbitOfficeHeader({
           )}
         </div>
       </header>
+
+      {locked && !pdfMode && (
+        <div data-testid="office-locked-banner" role="status" className="flex items-center gap-2 border-b border-[#EAB308]/40 bg-[#EAB308]/10 px-4 py-1.5 text-xs text-[#EAB308]">
+          <Lock className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
+          <span>This document is locked by the owner. Unlock to edit.</span>
+        </div>
+      )}
 
       {error && (
         <div role="alert" className="flex items-center justify-between gap-2 border-b border-[#EF4444]/40 bg-[#EF4444]/10 px-4 py-2 text-xs text-[#EF4444]">

@@ -1,7 +1,7 @@
 import { useEffect, useState, type DragEvent, type MouseEvent } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Lock } from 'lucide-react';
 import type { CloudFilesApi } from '../../services/cloud/cloudApi';
-import type { CloudNodeDto, CloudPermissions, CloudSortBy, CloudSortDir, CloudView } from '../../types/cloud.types';
+import { isCloudNodeLocked, type CloudNodeDto, type CloudPermissions, type CloudSortBy, type CloudSortDir, type CloudView } from '../../types/cloud.types';
 import { isInternalNodeDrag, readDraggedNodeIds, writeDraggedNodeIds } from './cloudFormat';
 import { CloudNodeIcon } from './cloudIcons';
 import { classifyFileEditor } from './editor/fileEditorRegistry';
@@ -108,21 +108,22 @@ export function FinderColumnsView({
           ) : (
             col.items.map((node) => {
               const isFolder = node.nodeType === 'FOLDER';
+              const locked = isCloudNodeLocked(node);
               const isActive = activePath[colIndex] === node.id || selectedSet.has(node.id);
               const isDropTarget = dropFolderId === node.id;
               return (
                 <div
                   key={node.id}
-                  draggable={permissions.canWrite && view !== 'TRASH'}
+                  draggable={permissions.canWrite && !locked && view !== 'TRASH'}
                   onDragStart={(e) => handleDragStart(e, node)}
                   onDragOver={(e) => {
-                    if (!isFolder || !permissions.canWrite || !isInternalNodeDrag(e.dataTransfer)) return;
+                    if (!isFolder || locked || !permissions.canWrite || !isInternalNodeDrag(e.dataTransfer)) return;
                     e.preventDefault();
                     e.stopPropagation();
                     if (dropFolderId !== node.id) setDropFolderId(node.id);
                   }}
                   onDragLeave={() => { if (dropFolderId === node.id) setDropFolderId(null); }}
-                  onDrop={(e) => { if (isFolder) handleDrop(e, node.id); }}
+                  onDrop={(e) => { if (isFolder && !locked) handleDrop(e, node.id); }}
                   onClick={(e) => handleItemClick(colIndex, node, col.items, e)}
                   onContextMenu={(e) => onContextMenu(node, e)}
                   onDoubleClick={() => {
@@ -141,6 +142,7 @@ export function FinderColumnsView({
                   <span className="flex min-w-0 items-center gap-2">
                     <CloudNodeIcon node={node} />
                     <span className="truncate font-medium">{node.name}</span>
+                    {locked && <Lock className="h-3 w-3 shrink-0 text-[#EAB308]" strokeWidth={1.5} />}
                   </span>
                   {isFolder && <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[#7D8590]" strokeWidth={1.5} />}
                 </div>

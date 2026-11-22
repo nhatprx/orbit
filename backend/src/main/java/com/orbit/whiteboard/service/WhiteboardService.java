@@ -1,5 +1,4 @@
 package com.orbit.whiteboard.service;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.orbit.common.ApiException;
 import com.orbit.common.PageParams;
@@ -16,22 +15,22 @@ import com.orbit.whiteboard.repository.WhiteboardRepository;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 /** Manages scoped Whiteboard CRUD and optimistic-locking scene persistence. */
 @Service
 public class WhiteboardService {
-
     private final WhiteboardRepository boards;
     private final ObjectMapper mapper;
-
+    private WhiteboardCollabEvents collabEvents;
     public WhiteboardService(WhiteboardRepository boards, ObjectMapper mapper) {
         this.boards = boards;
         this.mapper = mapper;
     }
-
+    @Autowired(required = false)
+    void setCollabEvents(WhiteboardCollabEvents events) { this.collabEvents = events; }
     @Transactional(readOnly = true)
     public PageResponse<WhiteboardSummaryResponse> list(WhiteboardScope scope, String query, int page, int size) {
         Pageable pageable = PageParams.of(page, size);
@@ -48,7 +47,6 @@ public class WhiteboardService {
         }
         return PageResponse.of(result);
     }
-
     @Transactional
     public WhiteboardDetailResponse create(WhiteboardScope scope, UUID userId, CreateWhiteboardRequest request) {
         if (request == null) {
@@ -57,7 +55,6 @@ public class WhiteboardService {
         String title = WhiteboardValidation.requireTitle(request.title());
         String description = WhiteboardValidation.normalizeDescription(request.description());
         Instant now = Timestamps.now();
-
         WhiteboardEntity entity = new WhiteboardEntity();
         entity.setId(UUID.randomUUID());
         entity.setWorkspaceId(scope.workspaceId());
@@ -71,15 +68,14 @@ public class WhiteboardService {
         entity.setUpdatedBy(userId);
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
-
-        return WhiteboardDetailResponse.from(boards.save(entity));
+        WhiteboardEntity saved = boards.save(entity);
+        publishCatalog(scope, "CREATE", saved.getId(), null);
+        return WhiteboardDetailResponse.from(saved);
     }
-
     @Transactional(readOnly = true)
     public WhiteboardDetailResponse getDetail(WhiteboardScope scope, UUID boardId) {
         return WhiteboardDetailResponse.from(requireScopedBoard(scope, boardId));
     }
-
     @Transactional
     public WhiteboardSummaryResponse updateMetadata(
         WhiteboardScope scope, UUID boardId, UUID userId, UpdateWhiteboardRequest request
@@ -88,6 +84,7 @@ public class WhiteboardService {
             throw ApiException.badRequest("VALIDATION_ERROR", "Request body is required.");
         }
         WhiteboardEntity entity = requireScopedBoard(scope, boardId);
+        requireUnlocked(entity);
         if (request.title() != null) {
             entity.setTitle(WhiteboardValidation.requireTitle(request.title()));
         }
@@ -96,15 +93,17 @@ public class WhiteboardService {
         }
         entity.setUpdatedBy(userId);
         entity.setUpdatedAt(Timestamps.now());
-        return WhiteboardSummaryResponse.from(boards.save(entity));
+        WhiteboardEntity saved = boards.save(entity);
+        publishCatalog(scope, "UPDATE", saved.getId(), null);
+        return WhiteboardSummaryResponse.from(saved);
     }
-
     @Transactional
     public WhiteboardSceneSaveResponse saveScene(
         WhiteboardScope scope, UUID boardId, UUID userId, SaveWhiteboardSceneRequest request
     ) {
         String serializedScene = WhiteboardValidation.validateAndSerializeScene(request, mapper);
         requireBoardExistsInScope(scope, boardId);
+        rejectIfLocked(scope, boardId);
 
         Instant now = Timestamps.now();
         int updated = scope.isProject()
@@ -126,15 +125,52 @@ public class WhiteboardService {
             }
             throw notFound();
         }
-        return new WhiteboardSceneSaveResponse(
+        WhiteboardSceneSaveResponse response = new WhiteboardSceneSaveResponse(
             boardId, request.expectedVersion() + 1, request.elementCount(), userId, now
         );
+        if (collabEvents != null) collabEvents.checkpoint(scope, boardId, userId, response.version(), now.toString());
+        return response;
     }
 
     @Transactional
     public void delete(WhiteboardScope scope, UUID boardId) {
         WhiteboardEntity entity = requireScopedBoard(scope, boardId);
+        requireUnlocked(entity);
         boards.delete(entity);
+        publishCatalog(scope, "DELETE", boardId, null);
+    }
+
+    @Transactional
+    public WhiteboardSummaryResponse setLocked(WhiteboardScope scope, UUID boardId, UUID actorId, boolean locked) {
+        WhiteboardEntity entity = requireScopedBoard(scope, boardId);
+        entity.setLocked(locked);
+        entity.setLockedBy(locked ? actorId : null);
+        entity.setLockedAt(locked ? Timestamps.now() : null);
+        WhiteboardEntity saved = boards.save(entity);
+        publishCatalog(scope, "LOCK", saved.getId(), locked);
+        if (collabEvents != null) collabEvents.lockChanged(scope, boardId, actorId, locked);
+        return WhiteboardSummaryResponse.from(saved);
+    }
+
+    private void publishCatalog(WhiteboardScope scope, String action, UUID id, Boolean locked) {
+        if (collabEvents != null) collabEvents.catalog(scope, action, id, locked);
+    }
+
+    public void requireUnlocked(WhiteboardScope scope, UUID boardId) {
+        requireUnlocked(requireScopedBoard(scope, boardId));
+    }
+
+    private void rejectIfLocked(WhiteboardScope scope, UUID boardId) {
+        var entity = scope.isProject()
+            ? boards.findByIdAndWorkspaceIdAndProjectId(boardId, scope.workspaceId(), scope.projectId())
+            : boards.findByIdAndWorkspaceIdAndProjectIdIsNull(boardId, scope.workspaceId());
+        entity.ifPresent(WhiteboardService::requireUnlocked);
+    }
+
+    private static void requireUnlocked(WhiteboardEntity entity) {
+        if (entity.isLocked()) {
+            throw ApiException.locked("RESOURCE_LOCKED", "This whiteboard is locked by its owner.");
+        }
     }
 
     public void requireBoardExistsInScope(WhiteboardScope scope, UUID boardId) {

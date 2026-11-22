@@ -28,11 +28,22 @@ export interface CloudNodeDto {
   purgeAfter: string | null;
   createdAt: string;
   updatedAt: string;
+  locked?: boolean;
+  effectiveLocked?: boolean;
+  lockedBy?: string | null;
+  lockedAt?: string | null;
+  canToggleLock?: boolean;
+}
+
+export function isCloudNodeLocked(node?: Pick<CloudNodeDto, 'locked' | 'effectiveLocked'> | null): boolean {
+  return Boolean(node?.effectiveLocked ?? node?.locked);
 }
 
 export interface CloudBreadcrumbItem {
   id: string;
   name: string;
+  locked?: boolean;
+  effectiveLocked?: boolean;
 }
 
 export interface CloudBreadcrumbsResponse {
@@ -163,30 +174,18 @@ export interface CloudPermissions {
 }
 
 export function resolveCloudPermissions(scope: CloudScope): CloudPermissions {
-  if (scope.type === 'USER') {
-    return { canRead: true, canWrite: true, canDelete: true, canManage: true };
-  }
+  if (scope.type === 'USER') return { canRead: true, canWrite: true, canDelete: true, canManage: true };
   const prefix = scope.type === 'WORKSPACE' ? 'files' : 'pfiles';
   const has = (action: string) => scope.permissions.includes(`${prefix}.${action}`);
-  return {
-    canRead: has('read'),
-    canWrite: has('write'),
-    canDelete: has('delete'),
-    canManage: has('manage'),
-  };
+  return { canRead: has('read'), canWrite: has('write'), canDelete: has('delete'), canManage: has('manage') };
 }
 
 export function cloudScopeKey(scope: CloudScope): string {
   if (scope.type === 'USER') return 'USER';
-  if (scope.type === 'WORKSPACE') return `WORKSPACE:${scope.workspaceId}`;
-  return `PROJECT:${scope.workspaceId}:${scope.projectId}`;
+  return scope.type === 'WORKSPACE' ? `WORKSPACE:${scope.workspaceId}` : `PROJECT:${scope.workspaceId}:${scope.projectId}`;
 }
 
 export type {
-  CreateDocumentRequest,
-  DocumentTemplateType,
-  OfficeDocumentResponse,
-  SaveOfficeDocumentPayload,
-  SaveTextContentRequest,
-  TextContentResponse,
+  CreateDocumentRequest, DocumentTemplateType, OfficeDocumentResponse,
+  SaveOfficeDocumentPayload, SaveTextContentRequest, TextContentResponse,
 } from './cloudEditor.types';

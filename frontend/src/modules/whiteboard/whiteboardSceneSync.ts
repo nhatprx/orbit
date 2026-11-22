@@ -49,7 +49,8 @@ export async function uploadPendingAssets(
   scope: WhiteboardScope,
   boardId: string,
   activeFiles: readonly WhiteboardPendingFile[],
-  uploadedIds: Set<string>
+  uploadedIds: Set<string>,
+  onAssetUploaded?: (fileId: string) => void
 ): Promise<void> {
   for (const file of activeFiles) {
     if (uploadedIds.has(file.fileId)) continue;
@@ -65,6 +66,7 @@ export async function uploadPendingAssets(
       dataUrl: file.dataUrl,
     });
     uploadedIds.add(file.fileId);
+    onAssetUploaded?.(file.fileId);
   }
 }
 
@@ -86,14 +88,64 @@ export async function persistSceneWithAssets(
   boardId: string,
   expectedVersion: number,
   snapshot: WhiteboardSceneSnapshot,
-  uploadedIds: Set<string>
+  uploadedIds: Set<string>,
+  onAssetUploaded?: (fileId: string) => void,
+  autoReconcile = false
 ): Promise<WhiteboardSceneSaveResult> {
-  await uploadPendingAssets(service, scope, boardId, snapshot.activeFiles, uploadedIds);
-  return service.saveScene(scope, boardId, {
-    expectedVersion,
-    sceneJson: snapshot.sceneJson,
-    elementCount: snapshot.elementCount,
-  });
+  await uploadPendingAssets(
+    service,
+    scope,
+    boardId,
+    snapshot.activeFiles,
+    uploadedIds,
+    onAssetUploaded
+  );
+  try {
+    return await service.saveScene(scope, boardId, {
+      expectedVersion,
+      sceneJson: snapshot.sceneJson,
+      elementCount: snapshot.elementCount,
+    });
+  } catch (err) {
+    if (!autoReconcile || !isWhiteboardConflictError(err)) throw err;
+    const latest = await service.getBoard(scope, boardId);
+    const merged = mergeSceneElements(
+      latest.sceneJson?.elements ?? [],
+      snapshot.sceneJson.elements ?? []
+    );
+    return service.saveScene(scope, boardId, {
+      expectedVersion: latest.version,
+      sceneJson: { ...snapshot.sceneJson, elements: merged },
+      elementCount: merged.filter((el) => !el.isDeleted).length,
+    });
+  }
+}
+
+export function mergeSceneElements(
+  localElements: readonly Record<string, unknown>[],
+  remoteElements: readonly Record<string, unknown>[]
+): Record<string, unknown>[] {
+  const byId = new Map<string, Record<string, unknown>>();
+  for (const el of localElements) {
+    if (typeof el.id === 'string') byId.set(el.id, el);
+  }
+  for (const rEl of remoteElements) {
+    const id = typeof rEl.id === 'string' ? rEl.id : null;
+    if (!id) continue;
+    const cur = byId.get(id);
+    if (!cur) {
+      byId.set(id, rEl);
+      continue;
+    }
+    const lv = typeof cur.version === 'number' ? cur.version : 0;
+    const rv = typeof rEl.version === 'number' ? rEl.version : 0;
+    const ln = typeof cur.versionNonce === 'number' ? cur.versionNonce : 0;
+    const rn = typeof rEl.versionNonce === 'number' ? rEl.versionNonce : 0;
+    if (rv > lv || (rv === lv && rn < ln)) {
+      byId.set(id, rEl);
+    }
+  }
+  return [...byId.values()];
 }
 
 export function classifySaveError(err: unknown): { state: WhiteboardSaveState; message: string } {

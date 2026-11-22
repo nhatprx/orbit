@@ -1,5 +1,5 @@
 import { Download, Eye, FolderInput, RotateCcw, Trash2, X } from 'lucide-react';
-import type { CloudNodeDto, CloudPermissions, CloudView } from '../../types/cloud.types';
+import { isCloudNodeLocked, type CloudNodeDto, type CloudPermissions, type CloudView } from '../../types/cloud.types';
 
 interface FinderSelectionBarProps {
   selectedNodes: CloudNodeDto[];
@@ -32,6 +32,7 @@ export function FinderSelectionBar({
   if (selectedNodes.length === 0) return null;
 
   const hasFiles = selectedNodes.some((n) => n.nodeType === 'FILE');
+  const anyLocked = selectedNodes.some((n) => isCloudNodeLocked(n));
   const firstSelected = selectedNodes[0];
   const singleFile = selectedNodes.length === 1 && firstSelected?.nodeType === 'FILE' ? firstSelected : null;
 
@@ -55,7 +56,7 @@ export function FinderSelectionBar({
               </button>
             )}
             {permissions.canWrite && (
-              <button type="button" onClick={onMoveSelected} className={BTN}>
+              <button type="button" disabled={anyLocked} onClick={onMoveSelected} className={`${BTN} disabled:cursor-not-allowed disabled:opacity-40`}>
                 <FolderInput className="h-3.5 w-3.5" strokeWidth={1.5} />
                 Move to Folder
               </button>
@@ -69,8 +70,9 @@ export function FinderSelectionBar({
             {permissions.canDelete && (
               <button
                 type="button"
+                disabled={anyLocked}
                 onClick={onDeleteSelected}
-                className="inline-flex items-center gap-1.5 rounded-none border border-[#EF4444]/50 bg-[#161B22] px-2.5 py-1 text-xs text-[#EF4444] hover:border-[#EF4444]"
+                className="inline-flex items-center gap-1.5 rounded-none border border-[#EF4444]/50 bg-[#161B22] px-2.5 py-1 text-xs text-[#EF4444] hover:border-[#EF4444] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
                 Move to Trash

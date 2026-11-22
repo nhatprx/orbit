@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CloudFilesApi } from '../../services/cloud/cloudApi';
 import { errorMessage } from '../../services/workspace/httpClient';
-import type {
-  CloudBreadcrumbItem,
-  CloudNodeDto,
-  CloudQuotaDto,
-  CloudSortBy,
-  CloudSortDir,
-  CloudView,
+import {
+  isCloudNodeLocked,
+  type CloudBreadcrumbItem,
+  type CloudNodeDto,
+  type CloudQuotaDto,
+  type CloudSortBy,
+  type CloudSortDir,
+  type CloudView,
 } from '../../types/cloud.types';
 
 const PAGE_LIMIT = 50;
@@ -44,6 +45,26 @@ export function useCloudBrowser(
   const [sortDir, setSortDir] = useState<CloudSortDir>('asc');
   const [tick, setTick] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
+  const folderLocksRef = useRef<Map<string, boolean>>(new Map());
+
+  for (const n of nodes) {
+    if (n.nodeType === 'FOLDER') {
+      folderLocksRef.current.set(n.id, isCloudNodeLocked(n));
+    }
+  }
+  for (const b of breadcrumbs) {
+    if (b.effectiveLocked !== undefined || b.locked !== undefined) {
+      folderLocksRef.current.set(b.id, Boolean(b.effectiveLocked ?? b.locked));
+    }
+  }
+  const activeFolderLocked =
+    view === 'ALL' && parentId !== null
+      ? Boolean(
+          breadcrumbs[breadcrumbs.length - 1]?.effectiveLocked ??
+            breadcrumbs[breadcrumbs.length - 1]?.locked ??
+            folderLocksRef.current.get(parentId)
+        )
+      : false;
 
   useEffect(() => {
     setHistory([{ view: initialView, parentId: null }]);
@@ -137,13 +158,8 @@ export function useCloudBrowser(
     setError(null);
     try {
       const page = await api.listNodes({
-        parentId: view === 'ALL' ? parentId : null,
-        view,
-        q: debouncedQuery || undefined,
-        sortBy,
-        sortDir,
-        cursor: nextCursor,
-        limit: PAGE_LIMIT,
+        parentId: view === 'ALL' ? parentId : null, view, q: debouncedQuery || undefined,
+        sortBy, sortDir, cursor: nextCursor, limit: PAGE_LIMIT,
       });
       setNodes((prev) => [...prev, ...page.items]);
       setNextCursor(page.nextCursor);
@@ -172,7 +188,7 @@ export function useCloudBrowser(
 
   return {
     view, parentId, breadcrumbs, nodes, hasMore, loading, loadingMore, error, quota,
-    searchInput, debouncedQuery, sortBy, sortDir, tick,
+    searchInput, debouncedQuery, sortBy, sortDir, tick, activeFolderLocked,
     canGoBack, canGoForward, goBack, goForward,
     setSearchInput, setSortBy, toggleSortDir, selectView, openFolder,
     loadMore, refresh, clearError, runMutation,

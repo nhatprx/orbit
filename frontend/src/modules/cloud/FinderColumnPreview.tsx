@@ -1,6 +1,6 @@
-import { Download, Eye, FilePenLine, FolderInput, Pencil, Trash2 } from 'lucide-react';
+import { Download, Eye, FilePenLine, FolderInput, Lock, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
-import type { CloudNodeDto, CloudPermissions, CloudView } from '../../types/cloud.types';
+import { isCloudNodeLocked, type CloudNodeDto, type CloudPermissions, type CloudView } from '../../types/cloud.types';
 import { formatDateTime } from '../../utils/format';
 import { formatBytes, nodeTypeLabel } from './cloudFormat';
 import { CloudNodeIcon } from './cloudIcons';
@@ -27,6 +27,8 @@ export function FinderColumnPreview({
   onMove,
   onSoftDelete,
 }: FinderColumnPreviewProps) {
+  const locked = isCloudNodeLocked(node);
+  const effectiveCanWrite = permissions.canWrite && !locked;
   const canOpen =
     node.nodeType === 'FILE' &&
     permissions.canRead &&
@@ -37,6 +39,12 @@ export function FinderColumnPreview({
       <div className="flex flex-col items-center border border-[#30363D] bg-[#0D1117] p-5 text-center">
         <CloudNodeIcon node={node} className="h-10 w-10" />
         <p className="mt-3 break-all text-sm font-semibold text-[#E6EDF3]">{node.name}</p>
+        {locked && (
+          <span className="mt-1 inline-flex items-center gap-1 border border-[#EAB308]/60 bg-[#EAB308]/10 px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-[#EAB308]">
+            <Lock className="h-2.5 w-2.5" strokeWidth={1.5} />
+            LOCKED
+          </span>
+        )}
         <p className="mt-1 font-mono text-[11px] text-[#7D8590]">
           {nodeTypeLabel(node)} - {formatBytes(node.sizeBytes)}
         </p>
@@ -62,12 +70,12 @@ export function FinderColumnPreview({
       <div className="mt-4 flex flex-col gap-2">
         {canOpen && (
           <Button type="button" variant="primary" onClick={() => onOpenEditor(node)} className="w-full">
-            {permissions.canWrite ? (
+            {effectiveCanWrite ? (
               <FilePenLine className="h-3.5 w-3.5" strokeWidth={1.5} />
             ) : (
               <Eye className="h-3.5 w-3.5" strokeWidth={1.5} />
             )}
-            {permissions.canWrite ? 'Edit Document' : 'Open Document'}
+            {effectiveCanWrite ? 'Edit Document' : 'Open Document'}
           </Button>
         )}
         {permissions.canRead && (
@@ -78,11 +86,11 @@ export function FinderColumnPreview({
         )}
         {permissions.canWrite && (
           <div className="grid grid-cols-2 gap-2">
-            <Button type="button" variant="secondary" onClick={() => onRename(node)}>
+            <Button type="button" variant="secondary" disabled={locked} onClick={() => onRename(node)}>
               <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
               Rename
             </Button>
-            <Button type="button" variant="secondary" onClick={() => onMove(node)}>
+            <Button type="button" variant="secondary" disabled={locked} onClick={() => onMove(node)}>
               <FolderInput className="h-3.5 w-3.5" strokeWidth={1.5} />
               Move
             </Button>
@@ -92,6 +100,7 @@ export function FinderColumnPreview({
           <Button
             type="button"
             variant="secondary"
+            disabled={locked}
             onClick={() => onSoftDelete(node)}
             className="w-full border-[#EF4444]/50 text-[#EF4444] hover:border-[#EF4444] hover:text-[#EF4444]"
           >

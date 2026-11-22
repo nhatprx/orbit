@@ -1,7 +1,7 @@
 import { useState, type DragEvent, type MouseEvent } from 'react';
-import { Star } from 'lucide-react';
+import { Lock, Star } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
-import type { CloudNodeDto, CloudPermissions, CloudView } from '../../types/cloud.types';
+import { isCloudNodeLocked, type CloudNodeDto, type CloudPermissions, type CloudView } from '../../types/cloud.types';
 import { formatBytes, humanFileKind, isInternalNodeDrag, readDraggedNodeIds, writeDraggedNodeIds } from './cloudFormat';
 import { CloudNodeIcon } from './cloudIcons';
 import { classifyFileEditor } from './editor/fileEditorRegistry';
@@ -63,13 +63,13 @@ export function FinderGridView({
   }
 
   const handleDragStart = (e: DragEvent<HTMLDivElement>, node: CloudNodeDto) => {
-    if (!permissions.canWrite || view === 'TRASH') return;
+    if (!permissions.canWrite || isCloudNodeLocked(node) || view === 'TRASH') return;
     const ids = selectedSet.has(node.id) ? selectedIds : [node.id];
     writeDraggedNodeIds(e.dataTransfer, ids);
   };
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>, node: CloudNodeDto) => {
-    if (!onDropToFolder || node.nodeType !== 'FOLDER' || !permissions.canWrite || !isInternalNodeDrag(e.dataTransfer)) return;
+    if (!onDropToFolder || node.nodeType !== 'FOLDER' || isCloudNodeLocked(node) || !permissions.canWrite || !isInternalNodeDrag(e.dataTransfer)) return;
     e.preventDefault();
     e.stopPropagation();
     e.dataTransfer.dropEffect = 'move';
@@ -77,7 +77,7 @@ export function FinderGridView({
   };
 
   const handleDrop = (e: DragEvent<HTMLDivElement>, node: CloudNodeDto) => {
-    if (!onDropToFolder || node.nodeType !== 'FOLDER' || !isInternalNodeDrag(e.dataTransfer)) return;
+    if (!onDropToFolder || node.nodeType !== 'FOLDER' || isCloudNodeLocked(node) || !isInternalNodeDrag(e.dataTransfer)) return;
     e.preventDefault();
     e.stopPropagation();
     setDropFolderId(null);
@@ -91,12 +91,13 @@ export function FinderGridView({
         {nodes.map((node) => {
           const isSelected = selectedSet.has(node.id);
           const isFolder = node.nodeType === 'FOLDER';
+          const locked = isCloudNodeLocked(node);
           const isDropTarget = dropFolderId === node.id;
           const caption = isFolder ? 'Folder' : `${humanFileKind(node)} - ${formatBytes(node.sizeBytes)}`;
           return (
             <div
               key={node.id}
-              draggable={permissions.canWrite && view !== 'TRASH'}
+              draggable={permissions.canWrite && !locked && view !== 'TRASH'}
               onDragStart={(e) => handleDragStart(e, node)}
               onDragOver={(e) => handleDragOver(e, node)}
               onDragLeave={() => { if (dropFolderId === node.id) setDropFolderId(null); }}
@@ -116,6 +117,15 @@ export function FinderGridView({
                     : 'border-[#21262D] bg-[#0D1117] hover:border-[#30363D] hover:bg-[#161B22]'
               }`}
             >
+              {locked && (
+                <span
+                  data-testid={`cloud-grid-locked-${node.id}`}
+                  title="Locked by owner"
+                  className="absolute left-2 top-2 inline-flex items-center border border-[#EAB308]/60 bg-[#EAB308]/10 p-0.5 text-[#EAB308]"
+                >
+                  <Lock className="h-2.5 w-2.5" strokeWidth={1.5} />
+                </span>
+              )}
               {node.starred && (
                 <Star className="absolute right-2 top-2 h-3 w-3 text-[#22C55E]" strokeWidth={1.5} fill="currentColor" />
               )}

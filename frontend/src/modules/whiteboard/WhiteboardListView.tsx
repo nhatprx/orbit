@@ -24,6 +24,7 @@ interface WhiteboardListViewProps {
   onOpenCreate: () => void;
   onOpenRename: (board: WhiteboardSummary) => void;
   onOpenDelete: (board: WhiteboardSummary) => void;
+  onToggleLock?: (board: WhiteboardSummary, locked: boolean) => void;
 }
 
 export function WhiteboardListView({
@@ -45,6 +46,7 @@ export function WhiteboardListView({
   onOpenCreate,
   onOpenRename,
   onOpenDelete,
+  onToggleLock,
 }: WhiteboardListViewProps) {
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-[#0D1117]">
@@ -131,6 +133,7 @@ export function WhiteboardListView({
                 onOpen={onOpenBoard}
                 onRename={onOpenRename}
                 onDelete={onOpenDelete}
+                onToggleLock={onToggleLock}
               />
             ))}
           </div>

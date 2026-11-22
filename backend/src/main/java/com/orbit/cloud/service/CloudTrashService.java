@@ -48,23 +48,28 @@ public class CloudTrashService {
 
     @Transactional
     public CloudNodeResponse softDelete(CloudScope scope, UUID actorId, UUID nodeId) {
+        nodeService.requireWritable(scope, nodeId);
         CloudNodeEntity node = nodeService.requireActiveNode(scope, nodeId);
         Instant now = Instant.now();
         node.setDeletedAt(now);
         node.setDeletedBy(actorId);
         node.setPurgeAfter(now.plus(properties.getTrashRetentionDays(), ChronoUnit.DAYS));
         node.setUpdatedBy(actorId);
-        return mapper.toResponse(nodeRepo.save(node));
+        CloudNodeEntity saved = nodeRepo.save(node);
+        nodeService.publishCatalog(scope, "DELETE", saved.getId(), null);
+        return mapper.toResponse(saved);
     }
 
     @Transactional
     public CloudNodeResponse restore(CloudScope scope, UUID actorId, UUID nodeId) {
+        nodeService.requireWritable(scope, nodeId);
         CloudNodeEntity node = nodeRepo.findByIdAndScopeTypeAndScopeId(nodeId, scope.type(), scope.scopeId())
             .orElseThrow(() -> ApiException.notFound("NODE_NOT_FOUND", "Node not found."));
         if (node.getDeletedAt() == null) {
             throw ApiException.badRequest("NOT_IN_TRASH", "Node is not in trash.");
         }
         if (node.getParentId() != null) {
+            nodeService.requireWritable(scope, node.getParentId());
             boolean parentActive = nodeRepo.findByIdAndScopeTypeAndScopeId(
                     node.getParentId(), scope.type(), scope.scopeId()
                 )
@@ -93,7 +98,9 @@ public class CloudTrashService {
         node.setPurgeAfter(null);
         node.setUpdatedBy(actorId);
         try {
-            return mapper.toResponse(nodeRepo.saveAndFlush(node));
+            CloudNodeEntity saved = nodeRepo.saveAndFlush(node);
+            nodeService.publishCatalog(scope, "RESTORE", saved.getId(), null);
+            return mapper.toResponse(saved);
         } catch (DataIntegrityViolationException ex) {
             throw ApiException.conflict(
                 "DUPLICATE_NAME",
@@ -104,9 +111,11 @@ public class CloudTrashService {
 
     @Transactional
     public void permanentDelete(CloudScope scope, UUID nodeId) {
+        nodeService.requireWritable(scope, nodeId);
         CloudNodeEntity root = nodeRepo.findByIdAndScopeTypeAndScopeId(nodeId, scope.type(), scope.scopeId())
             .orElseThrow(() -> ApiException.notFound("NODE_NOT_FOUND", "Node not found."));
         purgeSubtree(scope, root);
+        nodeService.publishCatalog(scope, "DELETE", nodeId, null);
     }
 
     @Transactional
@@ -114,6 +123,7 @@ public class CloudTrashService {
         List<CloudNodeEntity> trashed = nodeRepo.findByScopeTypeAndScopeIdAndDeletedAtIsNotNull(
             scope.type(), scope.scopeId()
         );
+        for (CloudNodeEntity node : trashed) nodeService.requireWritable(scope, node.getId());
         if (trashed.isEmpty()) {
             return new EmptyTrashResponse(0L, 0L);
         }
@@ -129,6 +139,7 @@ public class CloudTrashService {
         nodeRepo.flush();
         quotaService.releaseUsedBytes(scope, freedBytes);
         storageClient.deleteObjects(keys);
+        nodeService.publishCatalog(scope, "EMPTY_TRASH", null, null);
         return new EmptyTrashResponse(allNodes.size(), freedBytes);
     }
 
@@ -138,6 +149,8 @@ public class CloudTrashService {
             .findTop100ByDeletedAtIsNotNullAndPurgeAfterLessThanEqualOrderByPurgeAfterAsc(Instant.now());
         int count = 0;
         for (CloudNodeEntity node : expired) {
+            if (nodeRepo.hasLockedAncestor(node.getId(), node.getScopeType().name(), node.getScopeId())
+                || nodeRepo.hasLockedSubtree(node.getId(), node.getScopeType().name(), node.getScopeId())) continue;
             if (!nodeRepo.existsById(node.getId())) {
                 continue;
             }

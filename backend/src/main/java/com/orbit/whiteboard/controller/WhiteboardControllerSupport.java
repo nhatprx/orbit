@@ -56,6 +56,10 @@ public class WhiteboardControllerSupport {
         boards.delete(scope, boardId);
     }
 
+    public WhiteboardSummaryResponse setLocked(WhiteboardScope scope, UUID boardId, UUID actorId, boolean locked) {
+        return boards.setLocked(scope, boardId, actorId, locked);
+    }
+
     public List<WhiteboardAssetResponse> listAssets(WhiteboardScope scope, UUID boardId) {
         return assets.listAssets(scope, boardId);
     }

@@ -82,6 +82,7 @@ public class CloudOfficeService {
     public CloudNodeResponse saveOfficeContent(
         CloudScope scope, UUID userId, UUID nodeId, SaveOfficeDocumentRequest req
     ) {
+        nodeService.requireWritable(scope, nodeId);
         if (req == null) {
             throw ApiException.badRequest("INVALID_REQUEST", "Office save payload is required.");
         }

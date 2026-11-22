@@ -105,6 +105,10 @@ export function makeMockWhiteboardService(
       createdAt: '2026-11-22T00:00:00Z',
     } satisfies WhiteboardAsset),
     deleteAsset: vi.fn().mockResolvedValue(undefined),
+    setLocked: vi.fn().mockImplementation(async (_scope, _boardId, locked: boolean) => ({
+      ...summary,
+      locked,
+    })),
     ...overrides,
   };
 }

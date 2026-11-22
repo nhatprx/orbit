@@ -6,6 +6,7 @@ import { EmptyView, ErrorView, LoadingView } from '../../components/ui/StateView
 import { issuesService } from '../../services/issues/issues.service';
 import { errorMessage } from '../../services/workspace/httpClient';
 import type { WorkspaceIssuePortfolioDto } from '../../types/issues.types';
+import { useScopeCatalogSync } from '../collab/useScopeCatalogSync';
 import { PortfolioIssueFeed } from './PortfolioIssueFeed';
 
 export interface WorkspaceIssuesPortfolioProps {
@@ -38,6 +39,12 @@ export function WorkspaceIssuesPortfolio({
   useEffect(() => {
     void loadPortfolio();
   }, [loadPortfolio]);
+
+  useScopeCatalogSync({
+    scope: { type: 'WORKSPACE', workspaceId },
+    module: 'issues',
+    onRefresh: () => void loadPortfolio(),
+  });
 
   if (loading && !portfolio) return <LoadingView label="Loading workspace issues portfolio..." />;
   if (error && !portfolio) {

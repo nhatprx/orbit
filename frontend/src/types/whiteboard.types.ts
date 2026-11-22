@@ -30,6 +30,10 @@ export interface WhiteboardSummary {
   updatedBy: string | null;
   createdAt: string;
   updatedAt: string;
+  locked?: boolean;
+  lockedBy?: string | null;
+  lockedAt?: string | null;
+  canToggleLock?: boolean;
 }
 
 export interface WhiteboardDetail extends WhiteboardSummary {

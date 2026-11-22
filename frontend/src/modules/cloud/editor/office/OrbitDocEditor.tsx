@@ -6,6 +6,7 @@ import type { OfficeDocContentDto } from './officeTypes';
 
 export interface OrbitDocEditorProps {
   value: OfficeDocContentDto;
+  resetTick?: number;
   readOnly?: boolean;
   headerProps?: Omit<OrbitOfficeHeaderProps, 'menuBar' | 'onExportCsv'>;
   onChange: (next: OfficeDocContentDto) => void;
@@ -14,6 +15,7 @@ export interface OrbitDocEditorProps {
 
 export function OrbitDocEditor({
   value,
+  resetTick = 0,
   readOnly = false,
   headerProps,
   onChange,
@@ -47,6 +49,7 @@ export function OrbitDocEditor({
       </div>
       <div className="min-h-0 flex-1 overflow-hidden">
         <UniverDocCanvas
+          key={resetTick}
           ref={canvasRef}
           initialValue={value}
           readOnly={readOnly}

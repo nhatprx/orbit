@@ -1,18 +1,25 @@
 import { useEffect, useState, type ChangeEvent, type KeyboardEvent, type RefObject } from 'react';
 import { ArrowLeft, Lock, Moon, Save, Sun, Upload } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
+import type { CollabParticipant } from '../../types/collab.types';
 import type { WhiteboardCanvasTheme, WhiteboardSaveState } from '../../types/whiteboard.types';
+import { CollabPresenceBar } from '../collab/CollabPresenceBar';
 import { WhiteboardExportMenu } from './WhiteboardExportMenu';
 import { WHITEBOARD_MAX_TITLE_LENGTH } from './whiteboardPermissions';
 
 interface WhiteboardToolbarProps {
   title: string;
   canWrite: boolean;
+  locked?: boolean;
+  canToggleLock?: boolean;
+  lockPending?: boolean;
+  participants?: readonly CollabParticipant[];
   saveState: WhiteboardSaveState;
   canvasTheme: WhiteboardCanvasTheme;
   exportReady: boolean;
   onBack: () => void;
   onRenameTitle: (title: string) => Promise<void>;
+  onToggleLock?: () => void;
   onSaveNow: () => void;
   onToggleTheme: () => void;
   onExportPng: () => void;
@@ -31,42 +38,23 @@ const SAVE_META: Record<WhiteboardSaveState, { label: string; color: string }> =
 };
 
 export function WhiteboardToolbar({
-  title,
-  canWrite,
-  saveState,
-  canvasTheme,
-  exportReady,
-  onBack,
-  onRenameTitle,
-  onSaveNow,
-  onToggleTheme,
-  onExportPng,
-  onExportSvg,
-  onExportJson,
-  onImportFile,
-  fileInputRef,
+  title, canWrite, locked = false, canToggleLock = false, lockPending = false,
+  participants = [], saveState, canvasTheme, exportReady, onBack, onRenameTitle,
+  onToggleLock, onSaveNow, onToggleTheme, onExportPng, onExportSvg, onExportJson,
+  onImportFile, fileInputRef,
 }: WhiteboardToolbarProps) {
   const [draftTitle, setDraftTitle] = useState(title);
-
-  useEffect(() => {
-    setDraftTitle(title);
-  }, [title]);
+  useEffect(() => { setDraftTitle(title); }, [title]);
 
   function commitTitle() {
     const trimmed = draftTitle.trim();
-    if (!trimmed) {
-      setDraftTitle(title);
-      return;
-    }
+    if (!trimmed) { setDraftTitle(title); return; }
     if (trimmed !== title) void onRenameTitle(trimmed);
   }
 
   function handleTitleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'Enter') event.currentTarget.blur();
-    if (event.key === 'Escape') {
-      setDraftTitle(title);
-      event.currentTarget.blur();
-    }
+    if (event.key === 'Escape') { setDraftTitle(title); event.currentTarget.blur(); }
   }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -107,6 +95,14 @@ export function WhiteboardToolbar({
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
+        <CollabPresenceBar
+          participants={participants}
+          locked={locked}
+          canToggleLock={canToggleLock}
+          lockPending={lockPending}
+          onToggleLock={onToggleLock}
+        />
+
         {canWrite && (
           <span
             role="status"
@@ -124,11 +120,7 @@ export function WhiteboardToolbar({
           className="px-2 py-1 text-xs"
           aria-label="Toggle canvas theme"
         >
-          {canvasTheme === 'dark' ? (
-            <Sun className="h-3.5 w-3.5" strokeWidth={1.5} />
-          ) : (
-            <Moon className="h-3.5 w-3.5" strokeWidth={1.5} />
-          )}
+          {canvasTheme === 'dark' ? <Sun className="h-3.5 w-3.5" strokeWidth={1.5} /> : <Moon className="h-3.5 w-3.5" strokeWidth={1.5} />}
           <span className="hidden sm:inline">{canvasTheme === 'dark' ? 'Dark' : 'Light'}</span>
         </Button>
 

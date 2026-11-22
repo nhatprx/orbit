@@ -1,7 +1,7 @@
 import { useState, type DragEvent, type MouseEvent } from 'react';
 import { Button } from '../../components/ui/Button';
 import type { CloudFilesApi } from '../../services/cloud/cloudApi';
-import type { CloudNodeDto, CloudPermissions, CloudSortBy, CloudSortDir, CloudView } from '../../types/cloud.types';
+import { isCloudNodeLocked, type CloudNodeDto, type CloudPermissions, type CloudSortBy, type CloudSortDir, type CloudView } from '../../types/cloud.types';
 import { isFlatCloudView, isInternalNodeDrag, readDraggedNodeIds, writeDraggedNodeIds } from './cloudFormat';
 import { CloudFileTableRow } from './CloudFileTableRow';
 import { useInlineFolderTree } from './useInlineFolderTree';
@@ -28,6 +28,7 @@ interface CloudFileTableProps {
   onOpenFolder: (folderId: string) => void;
   onOpenEditor: (node: CloudNodeDto) => void;
   onToggleStar: (node: CloudNodeDto) => void;
+  onToggleLock?: (node: CloudNodeDto) => void;
   onDownload: (node: CloudNodeDto) => void;
   onRename: (node: CloudNodeDto) => void;
   onMove: (node: CloudNodeDto) => void;
@@ -41,7 +42,7 @@ interface CloudFileTableProps {
 export function CloudFileTable({
   api, nodes, view, searchQuery = '', sortBy, sortDir, treeResetKey, selectedIds,
   loading, hasMore, loadingMore, permissions, showFolderColumn, allowInlineExpand = true,
-  emptyTitle, emptyHint, onSelect, onContextMenu, onOpenFolder, onOpenEditor, onToggleStar,
+  emptyTitle, emptyHint, onSelect, onContextMenu, onOpenFolder, onOpenEditor, onToggleStar, onToggleLock,
   onDownload, onRename, onMove, onDropToFolder, onSoftDelete, onRestore, onPermanentDelete, onLoadMore,
 }: CloudFileTableProps) {
   const [dropFolderId, setDropFolderId] = useState<string | null>(null);
@@ -73,12 +74,12 @@ export function CloudFileTable({
   }
 
   const handleRowDragStart = (e: DragEvent<HTMLTableRowElement>, node: CloudNodeDto) => {
-    if (!permissions.canWrite || view === 'TRASH') return;
+    if (!permissions.canWrite || isCloudNodeLocked(node) || view === 'TRASH') return;
     writeDraggedNodeIds(e.dataTransfer, selectedSet.has(node.id) ? selectedIds : [node.id]);
   };
 
   const handleFolderDragOver = (e: DragEvent<HTMLTableRowElement>, node: CloudNodeDto) => {
-    if (!onDropToFolder || node.nodeType !== 'FOLDER' || !permissions.canWrite || !isInternalNodeDrag(e.dataTransfer)) return;
+    if (!onDropToFolder || node.nodeType !== 'FOLDER' || isCloudNodeLocked(node) || !permissions.canWrite || !isInternalNodeDrag(e.dataTransfer)) return;
     e.preventDefault();
     e.stopPropagation();
     e.dataTransfer.dropEffect = 'move';
@@ -86,7 +87,7 @@ export function CloudFileTable({
   };
 
   const handleFolderDrop = (e: DragEvent<HTMLTableRowElement>, node: CloudNodeDto) => {
-    if (!onDropToFolder || node.nodeType !== 'FOLDER' || !isInternalNodeDrag(e.dataTransfer)) return;
+    if (!onDropToFolder || node.nodeType !== 'FOLDER' || isCloudNodeLocked(node) || !isInternalNodeDrag(e.dataTransfer)) return;
     e.preventDefault();
     e.stopPropagation();
     setDropFolderId(null);
@@ -128,6 +129,7 @@ export function CloudFileTable({
               onOpenFolder={onOpenFolder}
               onOpenEditor={onOpenEditor}
               onToggleStar={onToggleStar}
+              onToggleLock={onToggleLock}
               onDownload={onDownload}
               onRename={onRename}
               onMove={onMove}

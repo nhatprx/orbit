@@ -4,12 +4,14 @@ import {
   ExternalLink,
   Eye,
   FolderInput,
+  Lock,
+  LockOpen,
   Pencil,
   RotateCcw,
   Star,
   Trash2,
 } from 'lucide-react';
-import type { CloudNodeDto, CloudPermissions, CloudView } from '../../types/cloud.types';
+import { isCloudNodeLocked, type CloudNodeDto, type CloudPermissions, type CloudView } from '../../types/cloud.types';
 import { classifyFileEditor } from './editor/fileEditorRegistry';
 
 export interface ContextMenuState {
@@ -30,6 +32,7 @@ interface FinderContextMenuProps {
   onRename: (node: CloudNodeDto) => void;
   onMoveNodes: (nodes: CloudNodeDto[]) => void;
   onToggleStar: (node: CloudNodeDto) => void;
+  onToggleLock?: (node: CloudNodeDto) => void;
   onDownload: (node: CloudNodeDto) => void;
   onSoftDeleteNodes: (nodes: CloudNodeDto[]) => void;
   onRestoreNodes: (nodes: CloudNodeDto[]) => void;
@@ -37,25 +40,14 @@ interface FinderContextMenuProps {
 }
 
 const ITEM_CLS =
-  'flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-xs text-[#E6EDF3] hover:bg-[#052E16] hover:text-[#22C55E]';
+  'flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-xs text-[#E6EDF3] hover:bg-[#052E16] hover:text-[#22C55E] disabled:cursor-not-allowed disabled:opacity-40';
 const DANGER_CLS =
-  'flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-xs text-[#EF4444] hover:bg-[#EF4444]/15';
+  'flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-xs text-[#EF4444] hover:bg-[#EF4444]/15 disabled:cursor-not-allowed disabled:opacity-40';
 
 export function FinderContextMenu({
-  menu,
-  view,
-  permissions,
-  onClose,
-  onQuickLook,
-  onOpenFolder,
-  onOpenEditor,
-  onRename,
-  onMoveNodes,
-  onToggleStar,
-  onDownload,
-  onSoftDeleteNodes,
-  onRestoreNodes,
-  onPermanentDeleteNodes,
+  menu, view, permissions, onClose, onQuickLook, onOpenFolder, onOpenEditor,
+  onRename, onMoveNodes, onToggleStar, onToggleLock, onDownload,
+  onSoftDeleteNodes, onRestoreNodes, onPermanentDeleteNodes,
 }: FinderContextMenuProps) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -81,6 +73,8 @@ export function FinderContextMenu({
   const batch = selectedNodes.length > 1 ? selectedNodes : [targetNode];
   const isBatch = batch.length > 1;
   const isFolder = targetNode.nodeType === 'FOLDER';
+  const targetLocked = isCloudNodeLocked(targetNode);
+  const anyLocked = batch.some((n) => isCloudNodeLocked(n));
   const canOpenFile = !isFolder && permissions.canRead && classifyFileEditor(targetNode.name, targetNode.mimeType) !== 'NONE';
   const left = Math.min(menu.x, Math.max(8, window.innerWidth - 220));
   const top = Math.min(menu.y, Math.max(8, window.innerHeight - 280));
@@ -132,14 +126,25 @@ export function FinderContextMenu({
               <span>Open</span>
             </button>
           )}
+          {!isBatch && (targetNode.canToggleLock ?? permissions.canManage) && onToggleLock && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => run(() => onToggleLock(targetNode))}
+              className={ITEM_CLS}
+            >
+              {targetLocked ? <LockOpen className="h-3.5 w-3.5" strokeWidth={1.5} /> : <Lock className="h-3.5 w-3.5" strokeWidth={1.5} />}
+              <span>{targetLocked ? 'Unlock' : 'Lock'}</span>
+            </button>
+          )}
           {!isBatch && permissions.canWrite && (
-            <button type="button" role="menuitem" onClick={() => run(() => onRename(targetNode))} className={ITEM_CLS}>
+            <button type="button" role="menuitem" disabled={targetLocked} onClick={() => run(() => onRename(targetNode))} className={ITEM_CLS}>
               <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />
               <span>Rename</span>
             </button>
           )}
           {permissions.canWrite && (
-            <button type="button" role="menuitem" onClick={() => run(() => onMoveNodes(batch))} className={ITEM_CLS}>
+            <button type="button" role="menuitem" disabled={anyLocked} onClick={() => run(() => onMoveNodes(batch))} className={ITEM_CLS}>
               <FolderInput className="h-3.5 w-3.5" strokeWidth={1.5} />
               <span>{isBatch ? `Move ${batch.length} items...` : 'Move to Folder...'}</span>
             </button>
@@ -159,7 +164,7 @@ export function FinderContextMenu({
           {permissions.canDelete && (
             <>
               <div className="my-1 border-t border-[#30363D]" />
-              <button type="button" role="menuitem" onClick={() => run(() => onSoftDeleteNodes(batch))} className={DANGER_CLS}>
+              <button type="button" role="menuitem" disabled={anyLocked} onClick={() => run(() => onSoftDeleteNodes(batch))} className={DANGER_CLS}>
                 <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
                 <span>{isBatch ? `Move ${batch.length} to Trash` : 'Move to Trash'}</span>
               </button>

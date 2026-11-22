@@ -90,6 +90,15 @@ public class CloudNodeEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Column(name = "is_locked", nullable = false)
+    private boolean locked;
+
+    @Column(name = "locked_by")
+    private UUID lockedBy;
+
+    @Column(name = "locked_at")
+    private Instant lockedAt;
+
     @PrePersist
     void onCreate() {
         if (id == null) id = UUID.randomUUID();
@@ -150,4 +159,10 @@ public class CloudNodeEntity {
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+    public boolean isLocked() { return locked; }
+    public void setLocked(boolean locked) { this.locked = locked; }
+    public UUID getLockedBy() { return lockedBy; }
+    public void setLockedBy(UUID lockedBy) { this.lockedBy = lockedBy; }
+    public Instant getLockedAt() { return lockedAt; }
+    public void setLockedAt(Instant lockedAt) { this.lockedAt = lockedAt; }
 }

@@ -36,7 +36,8 @@ public class CloudNodeMapper {
         String folderPath = node.getParentId() == null
             ? "/"
             : resolveFolderPaths(Set.of(node.getParentId())).getOrDefault(node.getParentId(), "/");
-        return toResponse(node, name, folderPath);
+        boolean effectiveLocked = effectiveLocks(List.of(node)).getOrDefault(node.getId(), node.isLocked());
+        return toResponse(node, name, folderPath, effectiveLocked);
     }
 
     public List<CloudNodeResponse> toResponses(Collection<CloudNodeEntity> nodes) {
@@ -55,14 +56,26 @@ public class CloudNodeMapper {
             .filter(Objects::nonNull)
             .collect(Collectors.toSet());
         Map<UUID, String> folderPaths = resolveFolderPaths(parentIds);
+        Map<UUID, Boolean> effectiveLocks = effectiveLocks(nodes);
 
         return nodes.stream()
             .map(n -> toResponse(
                 n,
                 names.getOrDefault(n.getCreatedBy(), "Unknown"),
-                n.getParentId() == null ? "/" : folderPaths.getOrDefault(n.getParentId(), "/")
+                n.getParentId() == null ? "/" : folderPaths.getOrDefault(n.getParentId(), "/"),
+                effectiveLocks.getOrDefault(n.getId(), n.isLocked())
             ))
             .toList();
+    }
+
+    private Map<UUID, Boolean> effectiveLocks(Collection<CloudNodeEntity> nodes) {
+        if (nodes.isEmpty()) return Map.of();
+        CloudNodeEntity first = nodes.iterator().next();
+        return nodeRepository.findEffectiveLockRows(
+            nodes.stream().map(CloudNodeEntity::getId).toList(), first.getScopeType().name(), first.getScopeId()
+        ).stream().collect(Collectors.toMap(
+            row -> (UUID) row[0], row -> Boolean.TRUE.equals(row[1])
+        ));
     }
 
     private Map<UUID, String> resolveFolderPaths(Set<UUID> parentIds) {
@@ -86,7 +99,9 @@ public class CloudNodeMapper {
         return paths;
     }
 
-    private static CloudNodeResponse toResponse(CloudNodeEntity n, String createdByName, String folderPath) {
+    private static CloudNodeResponse toResponse(
+        CloudNodeEntity n, String createdByName, String folderPath, boolean effectiveLocked
+    ) {
         return new CloudNodeResponse(
             n.getId(),
             n.getScopeType(),
@@ -104,7 +119,11 @@ public class CloudNodeMapper {
             n.getPurgeAfter(),
             n.getCreatedAt(),
             n.getUpdatedAt(),
-            folderPath
+            folderPath,
+            n.isLocked(),
+            n.getLockedBy(),
+            n.getLockedAt(),
+            effectiveLocked
         );
     }
 }

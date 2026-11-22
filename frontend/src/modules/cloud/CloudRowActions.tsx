@@ -3,12 +3,14 @@ import {
   Eye,
   FilePenLine,
   FolderInput,
+  Lock,
+  LockOpen,
   Pencil,
   RotateCcw,
   Star,
   Trash2,
 } from 'lucide-react';
-import type { CloudNodeDto, CloudPermissions, CloudView } from '../../types/cloud.types';
+import { isCloudNodeLocked, type CloudNodeDto, type CloudPermissions, type CloudView } from '../../types/cloud.types';
 import { classifyFileEditor } from './editor/fileEditorRegistry';
 
 interface CloudRowActionsProps {
@@ -17,6 +19,7 @@ interface CloudRowActionsProps {
   permissions: CloudPermissions;
   onOpenEditor: (node: CloudNodeDto) => void;
   onToggleStar: (node: CloudNodeDto) => void;
+  onToggleLock?: (node: CloudNodeDto) => void;
   onDownload: (node: CloudNodeDto) => void;
   onRename: (node: CloudNodeDto) => void;
   onMove: (node: CloudNodeDto) => void;
@@ -26,7 +29,7 @@ interface CloudRowActionsProps {
 }
 
 const ACTION_BTN =
-  'flex h-6 w-6 items-center justify-center border border-transparent text-[#8B949E] hover:border-[#30363D] hover:bg-[#21262D] hover:text-[#E6EDF3]';
+  'flex h-6 w-6 items-center justify-center border border-transparent text-[#8B949E] hover:border-[#30363D] hover:bg-[#21262D] hover:text-[#E6EDF3] disabled:cursor-not-allowed disabled:opacity-35';
 
 export function CloudRowActions({
   node,
@@ -34,6 +37,7 @@ export function CloudRowActions({
   permissions,
   onOpenEditor,
   onToggleStar,
+  onToggleLock,
   onDownload,
   onRename,
   onMove,
@@ -42,6 +46,8 @@ export function CloudRowActions({
   onPermanentDelete,
 }: CloudRowActionsProps) {
   const isFolder = node.nodeType === 'FOLDER';
+  const locked = isCloudNodeLocked(node);
+  const effectiveCanWrite = permissions.canWrite && !locked;
   const canOpenEditor = !isFolder && permissions.canRead && classifyFileEditor(node.name, node.mimeType) !== 'NONE';
 
   if (view === 'TRASH') {
@@ -78,15 +84,30 @@ export function CloudRowActions({
       {canOpenEditor && (
         <button
           type="button"
-          title={permissions.canWrite ? 'Edit' : 'Open'}
-          aria-label={`${permissions.canWrite ? 'Edit' : 'Open'} ${node.name}`}
+          title={effectiveCanWrite ? 'Edit' : 'Open'}
+          aria-label={`${effectiveCanWrite ? 'Edit' : 'Open'} ${node.name}`}
           onClick={() => onOpenEditor(node)}
           className={`${ACTION_BTN} hover:text-[#22C55E]`}
         >
-          {permissions.canWrite ? (
+          {effectiveCanWrite ? (
             <FilePenLine className="h-3.5 w-3.5" strokeWidth={1.5} />
           ) : (
             <Eye className="h-3.5 w-3.5" strokeWidth={1.5} />
+          )}
+        </button>
+      )}
+      {(node.canToggleLock ?? permissions.canManage) && onToggleLock && (
+        <button
+          type="button"
+          title={locked ? 'Unlock' : 'Lock'}
+          aria-label={locked ? `Unlock ${node.name}` : `Lock ${node.name}`}
+          onClick={() => onToggleLock(node)}
+          className={`${ACTION_BTN} ${locked ? 'text-[#EAB308] hover:text-[#22C55E]' : 'hover:text-[#22C55E]'}`}
+        >
+          {locked ? (
+            <LockOpen className="h-3.5 w-3.5" strokeWidth={1.5} />
+          ) : (
+            <Lock className="h-3.5 w-3.5" strokeWidth={1.5} />
           )}
         </button>
       )}
@@ -116,7 +137,8 @@ export function CloudRowActions({
         <>
           <button
             type="button"
-            title="Rename"
+            disabled={locked}
+            title={locked ? 'Locked by owner' : 'Rename'}
             aria-label={`Rename ${node.name}`}
             onClick={() => onRename(node)}
             className={ACTION_BTN}
@@ -125,7 +147,8 @@ export function CloudRowActions({
           </button>
           <button
             type="button"
-            title="Move"
+            disabled={locked}
+            title={locked ? 'Locked by owner' : 'Move'}
             aria-label={`Move ${node.name}`}
             onClick={() => onMove(node)}
             className={ACTION_BTN}
@@ -137,7 +160,8 @@ export function CloudRowActions({
       {permissions.canDelete && (
         <button
           type="button"
-          title="Move to Trash"
+          disabled={locked}
+          title={locked ? 'Locked by owner' : 'Move to Trash'}
           aria-label={`Delete ${node.name}`}
           onClick={() => onSoftDelete(node)}
           className={`${ACTION_BTN} hover:text-[#EF4444]`}

@@ -49,10 +49,13 @@ export interface ExcalidrawCanvasProps {
   assets: readonly WhiteboardAsset[];
   canWrite: boolean;
   canvasTheme: WhiteboardCanvasTheme;
+  isCollaborating?: boolean;
   onToggleTheme: () => void;
   onSceneChange: (snapshot: WhiteboardSceneSnapshot) => void;
+  onPointerUpdate?: (payload: { pointer: { x: number; y: number; tool: 'pointer' | 'laser' }; button: 'down' | 'up' }) => void;
   onRequestImport: () => void;
   onActionsReady: (actions: WhiteboardCanvasActions | null) => void;
+  onApiReady?: (api: ExcalidrawImperativeAPI | null) => void;
 }
 
 export default function ExcalidrawCanvas({
@@ -63,10 +66,13 @@ export default function ExcalidrawCanvas({
   assets,
   canWrite,
   canvasTheme,
+  isCollaborating = true,
   onToggleTheme,
   onSceneChange,
+  onPointerUpdate,
   onRequestImport,
   onActionsReady,
+  onApiReady,
 }: ExcalidrawCanvasProps) {
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const titleRef = useRef(title);
@@ -121,6 +127,7 @@ export default function ExcalidrawCanvas({
   const handleApi = (api: ExcalidrawImperativeAPI) => {
     apiRef.current = api;
     if (assets.length > 0) api.addFiles(toExcalidrawBinaryFiles(assets));
+    onApiReady?.(api);
   };
 
   return (
@@ -132,9 +139,11 @@ export default function ExcalidrawCanvas({
         theme={canvasTheme}
         name={title}
         viewModeEnabled={!canWrite}
+        isCollaborating={isCollaborating}
         aiEnabled={false}
         validateEmbeddable={false}
         handleKeyboardGlobally={false}
+        onPointerUpdate={onPointerUpdate}
         onChange={(elements, appState: AppState, files: BinaryFiles) => {
           onSceneChange(buildSceneSnapshot(elements, appState, files));
         }}

@@ -1,6 +1,7 @@
 package com.orbit.cloud.controller;
 
 import com.orbit.auth.security.AuthenticatedUserPrincipal;
+import com.orbit.collab.dto.LockResourceRequest;
 import com.orbit.cloud.dto.CloudBreadcrumbsResponse;
 import com.orbit.cloud.dto.CloudDownloadResponse;
 import com.orbit.cloud.dto.CloudNodeResponse;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -42,6 +44,17 @@ public class WorkspaceCloudController {
     public WorkspaceCloudController(CloudAccessGuard guard, CloudControllerSupport support) {
         this.guard = guard;
         this.support = support;
+    }
+
+    @PutMapping("/nodes/{nodeId}/lock")
+    public CloudNodeResponse setLocked(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal p, @PathVariable UUID workspaceId,
+        @PathVariable UUID nodeId, @Valid @RequestBody LockResourceRequest request
+    ) {
+        return support.setLocked(
+            guard.requireOwnerScope(p.userId(), com.orbit.cloud.entity.CloudScopeType.WORKSPACE, workspaceId, null),
+            p.userId(), nodeId, request.locked()
+        );
     }
 
     @GetMapping("/nodes")

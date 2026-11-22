@@ -41,6 +41,7 @@ export interface WhiteboardService {
     request: UpsertWhiteboardAssetRequest
   ): Promise<WhiteboardAsset>;
   deleteAsset(scope: WhiteboardScope, boardId: string, fileId: string): Promise<void>;
+  setLocked?(scope: WhiteboardScope, boardId: string, locked: boolean): Promise<WhiteboardSummary>;
 }
 
 function boardBase(scope: WhiteboardScope): string {
@@ -112,6 +113,14 @@ export function createHttpWhiteboardService(): WhiteboardService {
       return apiRequest<void>(
         'DELETE',
         `${boardBase(scope)}/${seg(boardId)}/assets/${seg(fileId)}`
+      );
+    },
+
+    setLocked(scope, boardId, locked) {
+      return apiRequest<WhiteboardSummary>(
+        'PUT',
+        `${boardBase(scope)}/${seg(boardId)}/lock`,
+        { body: { locked } }
       );
     },
   };

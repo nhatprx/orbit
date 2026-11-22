@@ -2,6 +2,8 @@ package com.orbit.issues.service;
 
 import com.orbit.common.ApiException;
 import com.orbit.common.InputRules;
+import com.orbit.collab.dto.CollabCatalogEvent;
+import com.orbit.collab.service.CollabRelay;
 import com.orbit.issues.dto.CreateIssueRequest;
 import com.orbit.issues.dto.IssueDetailDto;
 import com.orbit.issues.dto.IssueDto;
@@ -23,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.data.domain.Sort;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +43,7 @@ public class IssueService {
     private final IssueActivityRepository activities;
     private final IssueLookupHelper lookup;
     private final IssueUpdateApplier updateApplier;
+    private CollabRelay collabRelay;
 
     public IssueService(
         ProjectIssueRepository issues,
@@ -58,6 +62,9 @@ public class IssueService {
         this.lookup = lookup;
         this.updateApplier = updateApplier;
     }
+
+    @Autowired(required = false)
+    void setCollabRelay(CollabRelay relay) { this.collabRelay = relay; }
 
     @Transactional(readOnly = true)
     public List<IssueDto> listIssues(
@@ -122,6 +129,7 @@ public class IssueService {
                 saved.getParentId(), userId, "SUBTASK_ADDED", "subtask", null, saved.getIssueKey()
             ));
         }
+        publishCatalog(workspaceId, projectId, saved.getId(), "CREATE");
         return lookup.toIssueDto(saved, project.getName());
     }
 
@@ -149,6 +157,7 @@ public class IssueService {
         if (!newActivities.isEmpty()) {
             activities.saveAll(newActivities);
         }
+        publishCatalog(workspaceId, projectId, saved.getId(), "UPDATE");
         return lookup.toIssueDto(saved, project.getName());
     }
 
@@ -157,6 +166,13 @@ public class IssueService {
         lookup.requireProjectPermission(userId, workspaceId, projectId, Permissions.PISSUES_DELETE);
         ProjectIssueEntity issue = loadIssue(projectId, issueId);
         issues.delete(issue);
+        publishCatalog(workspaceId, projectId, issueId, "DELETE");
+    }
+
+    private void publishCatalog(UUID workspaceId, UUID projectId, UUID issueId, String action) {
+        if (collabRelay != null) collabRelay.broadcastCatalog(new CollabCatalogEvent(
+            "CATALOG_CHANGED", "issues", action, issueId, null, workspaceId, projectId
+        ));
     }
 
     private ProjectIssueEntity loadIssue(UUID projectId, UUID issueId) {
