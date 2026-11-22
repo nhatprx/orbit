@@ -33,7 +33,7 @@ export function DashboardShell({
   onLogout,
 }: DashboardShellProps) {
   const user = session.user;
-  const nav = useDashboardNavigation();
+  const nav = useDashboardNavigation(user.role === 'admin' ? 'admin' : 'overview');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [projectOpen, setProjectOpen] = useState(false);

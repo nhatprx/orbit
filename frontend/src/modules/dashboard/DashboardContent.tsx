@@ -8,6 +8,7 @@ import { MailPage } from '../mail/MailPage';
 import { ProfilePage } from '../profile/ProfilePage';
 import { ProjectSettingsPage } from '../settings/ProjectSettingsPage';
 import { WorkspaceSettingsPage } from '../settings/WorkspaceSettingsPage';
+import { AdminUsersPage } from '../admin/AdminUsersPage';
 import { isModuleKey } from '../workspace/moduleMeta';
 import { AdminOverview } from './AdminOverview';
 import { ModuleArea } from './ModuleArea';
@@ -23,7 +24,7 @@ interface DashboardContentProps {
 }
 
 /** Areas that fill the viewport instead of scrolling inside a padded column. */
-export const FULL_HEIGHT_AREAS = ['ai', 'mail', 'cloud', 'docs', 'sheets', 'slides', 'personal-cloud', 'chat', 'issues', 'whiteboard'] as const;
+export const FULL_HEIGHT_AREAS = ['ai', 'mail', 'cloud', 'docs', 'sheets', 'slides', 'personal-cloud', 'chat', 'issues', 'whiteboard', 'admin-users'] as const;
 
 export function DashboardContent({
   user,
@@ -70,7 +71,9 @@ export function DashboardContent({
         />
       );
     case 'admin':
-      return <AdminOverview user={user} />;
+      return <AdminOverview user={user} onOpenUsers={() => nav.go('admin-users')} />;
+    case 'admin-users':
+      return <AdminUsersPage currentUser={user} />;
     case 'workspace-settings':
       return workspace ? (
         <WorkspaceSettingsPage

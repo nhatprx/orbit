@@ -135,6 +135,7 @@ public class AuthService {
         UserEntity user = userRepository.findById(challenge.userId()).orElseThrow(() ->
             new ApiException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "User not found.")
         );
+        AccountStatusGuard.requireActive(user);
         if (!accountSecurityService.verifySecondFactor(user, request.code())) {
             boolean locked = ephemeralStore.recordMfaFailure(request.mfaToken());
             String msg = locked
@@ -175,6 +176,7 @@ public class AuthService {
     }
 
     private AuthSessionResponse issueSessionOrMfa(UserEntity user, boolean rememberMe) {
+        AccountStatusGuard.requireActive(user);
         if (user.isTotpEnabled() && ephemeralStore != null) {
             String mfaToken = ephemeralStore.createMfaChallenge(user.getId(), rememberMe);
             return AuthSessionResponse.mfaChallenge(mfaToken);

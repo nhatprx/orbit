@@ -1,4 +1,4 @@
-import { Bot, LayoutDashboard, Settings, Shield } from 'lucide-react';
+import { Bot, LayoutDashboard, Settings, Shield, Users } from 'lucide-react';
 import { useStore } from '../../store/createStore';
 import { useActiveWorkspace, workspaceStore } from '../../store/workspaceStore';
 import type { AuthUser } from '../../types/auth.types';
@@ -52,28 +52,31 @@ export function DashboardSidebar({ user, open, nav, onCreateWorkspace, onCreateP
 
   if (!open) return null;
 
+  const isAdminUser = user.role === 'admin';
   const scopedToWorkspace = activeProjectId === null;
   const modules = workspace ? orderModules(workspace.enabledModules) : [];
   const canCreateProject = workspace?.myPermissions.includes('project.create') ?? false;
 
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r border-[#30363D] bg-[#161B22]">
-      <div className="border-b border-[#30363D] p-2.5">
-        <p className={SECTION_LABEL}>Workspace</p>
-        <WorkspaceSwitcher
-          workspaces={workspaces}
-          activeId={workspace?.id ?? null}
-          onSelect={(id) => void nav.switchWorkspace(id)}
-          onCreate={onCreateWorkspace}
-        />
-        <div className="mt-1.5 space-y-0.5">
-          <NavItem area="overview" active={nav.active} label="Overview" icon={LayoutDashboard} onClick={() => nav.go('overview')} />
-          <NavItem area="ai" active={nav.active} label="AI Chat" icon={Bot} onClick={() => nav.go('ai')} />
+      {!isAdminUser && (
+        <div className="border-b border-[#30363D] p-2.5">
+          <p className={SECTION_LABEL}>Workspace</p>
+          <WorkspaceSwitcher
+            workspaces={workspaces}
+            activeId={workspace?.id ?? null}
+            onSelect={(id) => void nav.switchWorkspace(id)}
+            onCreate={onCreateWorkspace}
+          />
+          <div className="mt-1.5 space-y-0.5">
+            <NavItem area="overview" active={nav.active} label="Overview" icon={LayoutDashboard} onClick={() => nav.go('overview')} />
+            <NavItem area="ai" active={nav.active} label="AI Chat" icon={Bot} onClick={() => nav.go('ai')} />
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex-1 overflow-y-auto px-2.5 py-3">
-        {workspace && (
+        {!isAdminUser && workspace && (
           <>
             <p className={SECTION_LABEL}>Workspace modules</p>
             <nav className="space-y-0.5" aria-label="Workspace modules">
@@ -109,10 +112,12 @@ export function DashboardSidebar({ user, open, nav, onCreateWorkspace, onCreateP
           </>
         )}
 
-        {user.role === 'admin' && (
-          <div className="mt-4 border-t border-[#30363D] pt-3">
+        {isAdminUser && (
+          <div className="space-y-0.5">
             <p className={SECTION_LABEL}>Admin</p>
             <NavItem area="admin" active={nav.active} label="Admin Console" icon={Shield} onClick={() => nav.go('admin')} />
+            <NavItem area="admin-users" active={nav.active} label="User Management" icon={Users} onClick={() => nav.go('admin-users')} />
+            <NavItem area="ai" active={nav.active} label="AI Chat" icon={Bot} onClick={() => nav.go('ai')} />
           </div>
         )}
       </div>

@@ -19,8 +19,8 @@ export interface DashboardNavigation {
 }
 
 /** Owns which area is on screen and keeps the Workspace/Project scope in sync with it. */
-export function useDashboardNavigation(): DashboardNavigation {
-  const [active, setActive] = useState<WorkspaceAreaId>('overview');
+export function useDashboardNavigation(initialArea: WorkspaceAreaId = 'overview'): DashboardNavigation {
+  const [active, setActive] = useState<WorkspaceAreaId>(initialArea);
   const [profileSection, setProfileSection] = useState<ProfileSectionId>('overview');
 
   const go = useCallback((area: WorkspaceAreaId) => setActive(area), []);

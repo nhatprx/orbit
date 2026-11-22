@@ -10,6 +10,7 @@ interface ConfirmDialogProps {
   message: string;
   confirmLabel: string;
   danger?: boolean;
+  size?: 'md' | 'lg' | 'xl';
   /** When set, the user must type this exact text before confirming (BR-08). */
   requireText?: string;
   onConfirm: () => Promise<void>;
@@ -25,6 +26,7 @@ export function ConfirmDialog({
   message,
   confirmLabel,
   danger = false,
+  size,
   requireText,
   onConfirm,
   onClose,
@@ -44,9 +46,9 @@ export function ConfirmDialog({
   }
 
   return (
-    <Modal open={open} title={title} onClose={close}>
+    <Modal open={open} title={title} size={size ?? (requireText !== undefined ? 'lg' : 'md')} onClose={close}>
       <div className="space-y-4">
-        <p className="text-[13px] leading-relaxed text-[#BDBDBD]">{message}</p>
+        <p className="text-[15px] leading-relaxed text-[#BDBDBD]">{message}</p>
         {requireText !== undefined && (
           <TextField
             label={`Type "${requireText}" to confirm`}
@@ -56,7 +58,7 @@ export function ConfirmDialog({
           />
         )}
         {action.error && (
-          <p role="alert" className="text-xs text-[#EF4444]">
+          <p role="alert" className="text-sm text-[#EF4444]">
             {action.error}
           </p>
         )}

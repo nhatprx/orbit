@@ -52,7 +52,7 @@ class AdminSeedServiceTest {
         assertEquals("admin@orbit.dev", created.getEmail());
         assertEquals("admin", created.getUsername());
         assertEquals("Root Admin", created.getDisplayName());
-        assertEquals("ADMIN", created.getRole());
+        assertEquals("admin", created.getRole());
         assertNotEquals("Str0ng!Pass", created.getPasswordHash());
         assertTrue(passwordEncoder.matches("Str0ng!Pass", created.getPasswordHash()));
     }
@@ -73,7 +73,7 @@ class AdminSeedServiceTest {
         UserEntity updated = adminSeedService.seedAdmin("admin@orbit.dev", "NewAdmin!2026", "Orbit Root");
 
         assertEquals(existing.getId(), updated.getId());
-        assertEquals("ADMIN", updated.getRole());
+        assertEquals("admin", updated.getRole());
         assertEquals("Orbit Root", updated.getDisplayName());
         assertTrue(passwordEncoder.matches("NewAdmin!2026", updated.getPasswordHash()));
     }

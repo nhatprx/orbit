@@ -45,8 +45,8 @@ export function Modal({ open, title, subtitle, size = 'md', onClose, children }:
       >
         <div className="flex items-start justify-between border-b border-[#30363D] px-5 py-3.5">
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wider text-[#E6EDF3]">{title}</h2>
-            {subtitle && <p className="mt-0.5 font-mono text-xs text-[#8A8A8A]">{subtitle}</p>}
+            <h2 className="text-base font-semibold uppercase tracking-wider text-[#E6EDF3]">{title}</h2>
+            {subtitle && <p className="mt-0.5 font-mono text-sm text-[#8A8A8A]">{subtitle}</p>}
           </div>
           <button
             type="button"

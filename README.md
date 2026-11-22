@@ -77,4 +77,5 @@ All contributors (human developers and AI agents) must read and follow these spe
 - [docs/ROADMAP_AND_WORKSPACE.md](file:///d:/orbit/docs/ROADMAP_AND_WORKSPACE.md) — Workspace directory layout, setup blueprint, and Phase 1 UI mockup milestones
 - [docs/WORKSPACE_SPEC.md](docs/WORKSPACE_SPEC.md) — Workspace, Project, module, role, invitation and chat specification with implementation notes
 - [docs/API_WORKSPACE.md](docs/API_WORKSPACE.md) — Binding REST and STOMP contract for the workspace platform
+- [docs/API_ADMIN_USERS.md](docs/API_ADMIN_USERS.md) — Admin user management API: search, roles, disable and enable, session revocation
 

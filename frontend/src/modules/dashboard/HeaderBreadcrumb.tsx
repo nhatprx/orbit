@@ -17,10 +17,11 @@ const AREA_LABEL: Record<WorkspaceAreaId, string> = {
   whiteboard: 'Whiteboard',
   'personal-cloud': 'Personal Cloud',
   admin: 'Admin Console',
+  'admin-users': 'User Management',
 };
 
 /** Areas that live outside any Workspace or Project scope. */
-const GLOBAL_AREAS: WorkspaceAreaId[] = ['mail', 'ai', 'profile', 'admin', 'personal-cloud'];
+const GLOBAL_AREAS: WorkspaceAreaId[] = ['mail', 'ai', 'profile', 'admin', 'admin-users', 'personal-cloud'];
 
 /** Workspace-level pages never show a project, even while one is selected in the sidebar. */
 const WORKSPACE_LEVEL_AREAS: WorkspaceAreaId[] = ['overview', 'workspace-settings'];

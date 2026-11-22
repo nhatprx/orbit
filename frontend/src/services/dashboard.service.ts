@@ -1,5 +1,4 @@
 import {
-  MOCK_DIRECTORY_USERS,
   MOCK_PLATFORM_METRICS,
   MOCK_RECENT_ACTIVITY,
   MOCK_USER_WORKSPACES,
@@ -7,7 +6,6 @@ import {
 } from '../mocks/dashboard.mock';
 import type {
   ActivityRecord,
-  DirectoryUser,
   PlatformMetric,
   UserWorkspace,
   WorkspaceAreaTile,
@@ -18,7 +16,6 @@ export interface IDashboardService {
   getWorkspaceAreas(): Promise<WorkspaceAreaTile[]>;
   getRecentActivity(limit?: number): Promise<ActivityRecord[]>;
   getPlatformMetrics(): Promise<PlatformMetric[]>;
-  getDirectoryUsers(limit?: number): Promise<DirectoryUser[]>;
 }
 
 function delay(ms: number): Promise<void> {
@@ -43,11 +40,6 @@ class MockDashboardService implements IDashboardService {
   async getPlatformMetrics(): Promise<PlatformMetric[]> {
     await delay(140);
     return MOCK_PLATFORM_METRICS;
-  }
-
-  async getDirectoryUsers(limit = 25): Promise<DirectoryUser[]> {
-    await delay(160);
-    return MOCK_DIRECTORY_USERS.slice(0, limit);
   }
 }
 

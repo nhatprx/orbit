@@ -1,6 +1,7 @@
 package com.orbit.auth.entity;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
@@ -78,6 +79,9 @@ public class UserEntity {
 
     @Column(name = "totp_backup_codes", columnDefinition = "TEXT")
     private String totpBackupCodes;
+
+    @Embedded
+    private AccountStatus accountStatus = new AccountStatus();
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -163,6 +167,14 @@ public class UserEntity {
 
     public String getTotpBackupCodes() { return totpBackupCodes; }
     public void setTotpBackupCodes(String totpBackupCodes) { this.totpBackupCodes = totpBackupCodes; }
+
+    /** Hibernate loads an all-null embedded as null, so this always returns a usable instance. */
+    public AccountStatus accountStatus() {
+        if (accountStatus == null) accountStatus = new AccountStatus();
+        return accountStatus;
+    }
+
+    public boolean isDisabled() { return accountStatus().isDisabled(); }
 
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
