@@ -18,8 +18,10 @@ import type {
   UpsertGitFileRequest,
 } from '../../types/git.types';
 import { ApiError, apiRequest, seg } from '../workspace/httpClient';
+import { fetchGitHubOAuthToken } from './gitOAuthPopup';
 
 export interface GitApi {
+  fetchOAuthToken(): Promise<string>;
   inspectToken(accessToken: string): Promise<InspectGitTokenResponse>;
   getRepository(signal?: AbortSignal): Promise<GitRepositoryDto | null>;
   connectRepository(body: ConnectGitRepoRequest): Promise<GitRepositoryDto>;
