@@ -108,11 +108,14 @@ describe('useChatChannel realtime MESSAGE_DELETED handling', () => {
     });
     expect(result.current.messages.map((m) => m.id)).toEqual(['m-1', 'm-2', 'm-3']);
 
-    // Deletion for this channel removes the message immediately.
+    // Deletion for this channel soft-deletes the message in place for tombstone rendering.
     act(() => {
-      onDeleted?.({ eventType: 'MESSAGE_DELETED', channelId: 'ch-1', messageId: 'm-2' });
+      onDeleted?.({ eventType: 'MESSAGE_DELETED', channelId: 'ch-1', messageId: 'm-2', deletedAt: '2026-11-21T08:05:00Z' });
     });
-    expect(result.current.messages.map((m) => m.id)).toEqual(['m-1', 'm-3']);
+    expect(result.current.messages.map((m) => m.id)).toEqual(['m-1', 'm-2', 'm-3']);
+    const deleted = result.current.messages.find((m) => m.id === 'm-2');
+    expect(deleted?.deletedAt).toBe('2026-11-21T08:05:00Z');
+    expect(deleted?.content).toBe('');
   });
 
   it('httpChatService.subscribeChannel dispatches MESSAGE_DELETED and regular messages cleanly', () => {

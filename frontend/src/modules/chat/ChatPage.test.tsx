@@ -77,7 +77,7 @@ describe('ChatPage', () => {
 
     fireEvent.click(screen.getByLabelText('New channel'));
     const dialog = screen.getByRole('dialog', { name: 'Create Channel' });
-    fireEvent.click(within(dialog).getByRole('button', { name: /Voice Channel/i }));
+    fireEvent.click(within(dialog).getByRole('button', { name: /Voice/i }));
     fireEvent.change(within(dialog).getByLabelText('Channel Name'), { target: { value: 'standup' } });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Create Channel' }));
     await waitFor(() =>
@@ -113,7 +113,7 @@ describe('ChatPage', () => {
     expect(screen.getByLabelText('Voice room text chat')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'general' }));
-    expect(screen.getByPlaceholderText('Message #general')).toBeTruthy();
+    expect(await screen.findByPlaceholderText('Message #general')).toBeTruthy();
     await waitFor(() => expect(store.leaveVoiceSpy).toHaveBeenCalledTimes(1));
     expect(screen.queryByText('VOICE CONNECTED')).toBeNull();
 
@@ -145,11 +145,12 @@ describe('ChatPage', () => {
     );
     expect(screen.getByText('Shipping now')).toBeTruthy();
 
-    expect(screen.getByRole('status', { name: '3 people online' })).toBeTruthy();
+    expect(screen.getByLabelText('Channel info panel')).toBeTruthy();
     expect(screen.queryByLabelText('Search messages')).toBeNull();
     expect(screen.queryByLabelText('Members panel')).toBeNull();
 
-    fireEvent.click(screen.getByLabelText('Delete message from Alice Chen'));
+    fireEvent.click(screen.getByLabelText('More actions for Alice Chen'));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
     await waitFor(() => expect(store.deleteMessage).toHaveBeenCalledTimes(1));
     expect(screen.queryByText('Shipping now')).toBeNull();
 
@@ -162,10 +163,12 @@ describe('ChatPage', () => {
     ];
     render(<ChatPage workspace={makeTestWorkspace(['chat.read', 'chat.manage'])} project={null} />);
     expect(screen.queryByRole('link', { name: /evil/i })).toBeNull();
-    expect(screen.getByRole('link', { name: /spec\.pdf/i }).getAttribute('href')).toBe('HTTPS://orbit.dev/spec.pdf');
+    const specLinks = screen.getAllByRole('link', { name: /spec\.pdf/i });
+    expect(specLinks.length).toBeGreaterThan(0);
+    expect(specLinks[0]?.getAttribute('href')).toBe('HTTPS://orbit.dev/spec.pdf');
 
-    fireEvent.click(screen.getByLabelText('New channel'));
-    expect((screen.getByLabelText('Category') as HTMLInputElement).maxLength).toBe(64);
+    fireEvent.click(screen.getByLabelText('Edit category TEXT CHANNELS'));
+    expect((screen.getByLabelText('Category title') as HTMLInputElement).maxLength).toBe(64);
 
     const fakeStream = {} as MediaStream;
     const base = { userId: 'u-2', username: 'bob', displayName: 'Bob Smith', muted: false, deafened: false, cameraOn: false, screenSharing: false, speaking: false, joinedAt: '2026-11-21T08:00:00Z' };
