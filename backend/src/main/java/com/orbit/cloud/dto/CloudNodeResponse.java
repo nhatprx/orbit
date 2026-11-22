@@ -21,5 +21,6 @@ public record CloudNodeResponse(
     Instant deletedAt,
     Instant purgeAfter,
     Instant createdAt,
-    Instant updatedAt
+    Instant updatedAt,
+    String folderPath
 ) {}

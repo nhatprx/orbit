@@ -14,6 +14,7 @@ import com.orbit.common.ApiException;
 import com.orbit.common.CursorPageResponse;
 import com.orbit.common.PageParams;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -43,12 +44,18 @@ public class CloudNodeService {
         CloudScope scope, UUID parentId, String view, String q, String sortBy, String sortDir, String cursor, int limit
     ) {
         int clamped = PageParams.clampSize(limit);
-        String effectiveSort = normalizeSortBy(sortBy);
-        boolean ascending = !"desc".equalsIgnoreCase(sortDir);
+        String normalizedView = view == null ? "ALL" : view.trim().toUpperCase(Locale.ROOT);
+        boolean isRecents = "RECENTS".equals(normalizedView);
+        String effectiveSort = (sortBy == null || sortBy.isBlank())
+            ? (isRecents ? "updatedAt" : "name")
+            : normalizeSortBy(sortBy);
+        boolean ascending = (sortDir == null || sortDir.isBlank())
+            ? !isRecents
+            : !"desc".equalsIgnoreCase(sortDir);
         CloudCursor decoded = (cursor == null || cursor.isBlank()) ? null : CloudCursor.decode(cursor);
 
         List<CloudNodeEntity> rows = queryRepo.findPage(
-            scope, parentId, view, q, effectiveSort, ascending, decoded, clamped + 1
+            scope, parentId, normalizedView, q, effectiveSort, ascending, decoded, clamped + 1
         );
         boolean hasMore = rows.size() > clamped;
         List<CloudNodeEntity> page = hasMore ? rows.subList(0, clamped) : rows;
@@ -99,7 +106,7 @@ public class CloudNodeService {
     public CloudNodeResponse updateNode(CloudScope scope, UUID actorId, UUID nodeId, UpdateCloudNodeRequest req) {
         CloudNodeEntity node = requireActiveNode(scope, nodeId);
         if (req.name() != null) {
-            String valid = CloudNameValidator.validateAndTrim(req.name());
+            String valid = CloudNameValidator.validateRename(node.getName(), node.getNodeType(), req.name());
             node.setName(valid);
             node.setNameNormalized(CloudNameValidator.normalize(valid));
         }

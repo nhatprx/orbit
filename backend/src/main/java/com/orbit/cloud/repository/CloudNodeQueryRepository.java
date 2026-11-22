@@ -36,8 +36,12 @@ public class CloudNodeQueryRepository {
         StringBuilder jpql = new StringBuilder("SELECT n FROM CloudNodeEntity n WHERE ");
         jpql.append("n.scopeType = :scopeType AND n.scopeId = :scopeId ");
 
-        String normalizedView = view == null ? "ALL" : view.toUpperCase(Locale.ROOT);
+        String normalizedView = view == null ? "ALL" : view.trim().toUpperCase(Locale.ROOT);
         boolean hasSearch = searchQuery != null && !searchQuery.isBlank();
+        boolean isRecursiveFileView = "RECENTS".equals(normalizedView)
+            || "DOCS".equals(normalizedView)
+            || "SHEETS".equals(normalizedView)
+            || "SLIDES".equals(normalizedView);
 
         if ("TRASH".equals(normalizedView)) {
             jpql.append("AND n.deletedAt IS NOT NULL AND n.uploadStatus = :readyStatus ");
@@ -45,6 +49,9 @@ public class CloudNodeQueryRepository {
             jpql.append("AND n.deletedAt IS NULL AND n.uploadStatus = :readyStatus ");
             if ("STARRED".equals(normalizedView)) {
                 jpql.append("AND n.starred = true ");
+            } else if (isRecursiveFileView) {
+                jpql.append("AND n.nodeType = :fileType ");
+                appendOfficeExtensionFilter(jpql, normalizedView);
             } else if (!hasSearch) {
                 if (parentId == null) {
                     jpql.append("AND n.parentId IS NULL ");
@@ -83,8 +90,15 @@ public class CloudNodeQueryRepository {
         query.setParameter("scopeId", scope.scopeId());
         query.setParameter("readyStatus", CloudUploadStatus.READY);
         query.setParameter("folderType", CloudNodeType.FOLDER);
+        if (isRecursiveFileView) {
+            query.setParameter("fileType", CloudNodeType.FILE);
+        }
 
-        if (!"TRASH".equals(normalizedView) && !"STARRED".equals(normalizedView) && !hasSearch && parentId != null) {
+        if (!"TRASH".equals(normalizedView)
+            && !"STARRED".equals(normalizedView)
+            && !isRecursiveFileView
+            && !hasSearch
+            && parentId != null) {
             query.setParameter("parentId", parentId);
         }
         if (hasSearch) {
@@ -106,5 +120,21 @@ public class CloudNodeQueryRepository {
 
         query.setMaxResults(fetchLimit);
         return query.getResultList();
+    }
+
+    private static void appendOfficeExtensionFilter(StringBuilder jpql, String view) {
+        switch (view) {
+            case "DOCS" -> jpql.append(
+                "AND (n.nameNormalized LIKE '%.docx' OR n.nameNormalized LIKE '%.md' "
+                    + "OR n.nameNormalized LIKE '%.txt' OR n.nameNormalized LIKE '%.pdf') "
+            );
+            case "SHEETS" -> jpql.append(
+                "AND (n.nameNormalized LIKE '%.xlsx' OR n.nameNormalized LIKE '%.csv') "
+            );
+            case "SLIDES" -> jpql.append("AND n.nameNormalized LIKE '%.pptx' ");
+            default -> {
+                // RECENTS matches all active ready files across the scope.
+            }
+        }
     }
 }

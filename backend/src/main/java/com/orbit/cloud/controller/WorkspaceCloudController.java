@@ -48,8 +48,8 @@ public class WorkspaceCloudController {
     public CursorPageResponse<CloudNodeResponse> listNodes(
         @AuthenticationPrincipal AuthenticatedUserPrincipal p, @PathVariable UUID workspaceId,
         @RequestParam(required = false) UUID parentId, @RequestParam(defaultValue = "ALL") String view,
-        @RequestParam(required = false) String q, @RequestParam(defaultValue = "name") String sortBy,
-        @RequestParam(defaultValue = "asc") String sortDir, @RequestParam(required = false) String cursor,
+        @RequestParam(required = false) String q, @RequestParam(required = false) String sortBy,
+        @RequestParam(required = false) String sortDir, @RequestParam(required = false) String cursor,
         @RequestParam(defaultValue = "" + PageParams.DEFAULT_SIZE) int limit
     ) {
         var scope = guard.requireWorkspaceScope(p.userId(), workspaceId, Permissions.FILES_READ);

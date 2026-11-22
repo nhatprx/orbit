@@ -137,6 +137,19 @@ public class CloudQuotaService {
         }
     }
 
+    @Transactional
+    public void transferUsedBytes(CloudScope sourceScope, CloudScope targetScope, long bytes) {
+        if (bytes <= 0L || sourceScope.equals(targetScope)) return;
+        CloudStorageQuotaEntity target = ensureAndLoad(targetScope);
+        if (target.getUsedBytes() + readReservedBytes(targetScope) + bytes > target.getQuotaBytes()) {
+            throw quotaExceeded();
+        }
+        if (quotaRepo.tryAddUsedBytes(targetScope.type().name(), targetScope.scopeId(), bytes) == 0) {
+            throw quotaExceeded();
+        }
+        quotaRepo.subtractUsedBytes(sourceScope.type().name(), sourceScope.scopeId(), bytes);
+    }
+
     private CloudStorageQuotaEntity ensureAndLoad(CloudScope scope) {
         ensureRow(scope);
         return quotaRepo.findById(new CloudStorageQuotaId(scope.type(), scope.scopeId()))

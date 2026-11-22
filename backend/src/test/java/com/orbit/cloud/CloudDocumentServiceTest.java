@@ -61,7 +61,7 @@ class CloudDocumentServiceTest {
             return new CloudNodeResponse(
                 n.getId(), n.getScopeType(), n.getScopeId(), n.getParentId(), n.getNodeType(),
                 n.getName(), n.getMimeType(), n.getSizeBytes(), n.isStarred(), n.getDepth(),
-                n.getCreatedBy(), "Tester", n.getDeletedAt(), n.getPurgeAfter(), n.getCreatedAt(), n.getUpdatedAt()
+                n.getCreatedBy(), "Tester", n.getDeletedAt(), n.getPurgeAfter(), n.getCreatedAt(), n.getUpdatedAt(), "/"
             );
         });
     }

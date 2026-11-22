@@ -18,6 +18,24 @@ public interface CloudNodeRepository extends JpaRepository<CloudNodeEntity, UUID
         UUID id, CloudScopeType scopeType, UUID scopeId
     );
 
+    List<CloudNodeEntity> findByIdInAndScopeTypeAndScopeId(
+        Collection<UUID> ids, CloudScopeType scopeType, UUID scopeId
+    );
+
+    @Query("""
+        SELECT n FROM CloudNodeEntity n
+        WHERE n.scopeType = :scopeType
+          AND n.scopeId = :scopeId
+          AND ((:parentId IS NULL AND n.parentId IS NULL) OR n.parentId = :parentId)
+          AND n.deletedAt IS NULL
+          AND n.uploadStatus <> com.orbit.cloud.entity.CloudUploadStatus.FAILED
+        """)
+    List<CloudNodeEntity> findActiveSiblings(
+        @Param("scopeType") CloudScopeType scopeType,
+        @Param("scopeId") UUID scopeId,
+        @Param("parentId") UUID parentId
+    );
+
     @Query("""
         SELECT n FROM CloudNodeEntity n
         WHERE n.scopeType = :scopeType
@@ -79,6 +97,23 @@ public interface CloudNodeRepository extends JpaRepository<CloudNodeEntity, UUID
         @Param("scopeType") String scopeType,
         @Param("scopeId") UUID scopeId
     );
+
+    @Query(value = """
+        WITH RECURSIVE ancestors AS (
+            SELECT id AS leaf_id, id AS curr_id, parent_id, name, 0 AS lvl
+            FROM cloud_nodes
+            WHERE id IN (:parentIds)
+            UNION ALL
+            SELECT a.leaf_id, p.id AS curr_id, p.parent_id, p.name, a.lvl + 1
+            FROM cloud_nodes p
+            INNER JOIN ancestors a ON p.id = a.parent_id
+            WHERE a.lvl < 25
+        )
+        SELECT leaf_id, name, lvl
+        FROM ancestors
+        ORDER BY leaf_id, lvl DESC
+        """, nativeQuery = true)
+    List<Object[]> findAncestorPathRows(@Param("parentIds") Collection<UUID> parentIds);
 
     @Query(value = """
         SELECT storage_key FROM cloud_nodes
