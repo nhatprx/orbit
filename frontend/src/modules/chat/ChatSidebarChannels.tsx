@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Hash, Pencil, Trash2, Volume2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import type { ChatChannelDto, VoiceParticipantDto } from '../../types/workspace.types';
 import { VoiceChannelUsers } from './VoiceChannelUsers';
+import { ChatChannelIcon } from './ChatChannelIcon';
 
 interface ChatSidebarChannelsProps {
   channels: ChatChannelDto[];
@@ -15,12 +16,12 @@ interface ChatSidebarChannelsProps {
   onDeleteChannel: (channel: ChatChannelDto) => void;
 }
 
-const DEFAULT_ORDER = ['TEXT CHANNELS', 'VOICE CHANNELS'];
+const DEFAULT_ORDER = ['TEXT CHANNELS', 'VOICE CHANNELS', 'FORUMS'];
 
 function resolveCategory(channel: ChatChannelDto): string {
   const trimmed = channel.category?.trim();
   if (trimmed) return trimmed;
-  return channel.channelType === 'VOICE' ? 'VOICE CHANNELS' : 'TEXT CHANNELS';
+  return channel.channelType === 'VOICE' ? 'VOICE CHANNELS' : channel.channelType === 'FORUM' ? 'FORUMS' : 'TEXT CHANNELS';
 }
 
 function compareCategories(a: string, b: string): number {
@@ -92,9 +93,10 @@ export function ChatSidebarChannels({
                 {items.map((channel) => {
                   const isSelected = channel.id === selectedChannelId;
                   const isVoice = channel.channelType === 'VOICE';
+                  const isForum = channel.channelType === 'FORUM';
                   const isActiveVoice = channel.id === activeVoiceChannelId;
                   const participants = isVoice ? (participantsByChannel[channel.id] ?? []) : [];
-                  const isDefaultGeneral = !isVoice && channel.name.toLowerCase() === 'general';
+                  const isDefaultGeneral = channel.channelType === 'TEXT' && channel.name.toLowerCase() === 'general';
 
                   return (
                     <div key={channel.id}>
@@ -112,18 +114,9 @@ export function ChatSidebarChannels({
                           onClick={() => onSelectChannel(channel)}
                           className="flex min-w-0 flex-1 items-center gap-2 text-left"
                         >
-                          {isVoice ? (
-                            <Volume2
-                              className={`h-3.5 w-3.5 shrink-0 ${isSelected || isActiveVoice ? 'text-[#22C55E]' : 'text-[#8A8A8A]'}`}
-                              strokeWidth={1.5}
-                            />
-                          ) : (
-                            <Hash
-                              className={`h-3.5 w-3.5 shrink-0 ${isSelected ? 'text-[#22C55E]' : 'text-[#8A8A8A]'}`}
-                              strokeWidth={1.5}
-                            />
-                          )}
+                          <ChatChannelIcon type={channel.channelType} className={`h-3.5 w-3.5 shrink-0 ${isSelected || isActiveVoice ? 'text-[#22C55E]' : 'text-[#8A8A8A]'}`} />
                           <span className="truncate text-[13px] font-medium">{channel.name}</span>
+                          {isForum && <span className="shrink-0 font-mono text-[9px] text-[#7D8590]">FORUM</span>}
                         </button>
 
                         {isVoice && participants.length > 0 && (

@@ -61,7 +61,7 @@ public class ChatChannelEntity {
         this.description = description;
         this.channelType = channelType == null ? ChatChannelType.TEXT : channelType;
         this.category = category == null || category.isBlank()
-            ? (this.channelType == ChatChannelType.VOICE ? "VOICE CHANNELS" : "TEXT CHANNELS")
+            ? defaultCategory(this.channelType)
             : category;
         this.createdBy = createdBy;
     }
@@ -72,7 +72,7 @@ public class ChatChannelEntity {
         if (createdAt == null) createdAt = Timestamps.now();
         if (channelType == null) channelType = ChatChannelType.TEXT;
         if (category == null || category.isBlank()) {
-            category = channelType == ChatChannelType.VOICE ? "VOICE CHANNELS" : "TEXT CHANNELS";
+            category = defaultCategory(channelType);
         }
     }
 
@@ -89,4 +89,12 @@ public class ChatChannelEntity {
     public void setName(String name) { this.name = name; }
     public void setDescription(String description) { this.description = description; }
     public void setCategory(String category) { this.category = category; }
+
+    private static String defaultCategory(ChatChannelType type) {
+        return switch (type) {
+            case VOICE -> "VOICE CHANNELS";
+            case FORUM -> "FORUMS";
+            default -> "TEXT CHANNELS";
+        };
+    }
 }

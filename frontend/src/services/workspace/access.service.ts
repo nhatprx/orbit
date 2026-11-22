@@ -6,6 +6,7 @@ import type {
   CreateLinkInvitationRequest,
   CreateRoleRequest,
   InvitationDto,
+  InvitationInboxDto,
   InvitationPreviewDto,
   MemberDto,
   PageResponse,
@@ -70,6 +71,7 @@ export interface MemberService {
 }
 
 export interface InvitationService {
+  listInbox(page?: number, size?: number): Promise<PageResponse<InvitationInboxDto>>;
   listInvitations(
     workspaceId: string,
     page?: number,

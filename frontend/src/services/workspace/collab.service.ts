@@ -2,6 +2,7 @@ import type {
   ChatChannelDto,
   ChatMessageDeletedEvent,
   ChatMessageDto,
+  ChatTypingEvent,
   ConnectImapMailRequest,
   ConnectOAuthMailRequest,
   CreateChatChannelRequest,
@@ -45,8 +46,10 @@ export interface ChatService {
   subscribeChannel(
     channelId: string,
     onMessage: (message: ChatMessageDto) => void,
-    onDeleted?: (event: ChatMessageDeletedEvent) => void
+    onDeleted?: (event: ChatMessageDeletedEvent) => void,
+    onTyping?: (event: ChatTypingEvent) => void
   ): () => void;
+  sendTyping(channelId: string, active: boolean): void;
   getVoiceIceServers(): Promise<VoiceIceServerDto[]>;
   listVoiceParticipants(channelId: string): Promise<VoiceParticipantDto[]>;
   joinVoiceChannel(channelId: string, state: VoiceStateRequest): Promise<VoiceParticipantDto[]>;

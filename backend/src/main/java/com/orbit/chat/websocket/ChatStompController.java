@@ -4,6 +4,7 @@ import com.orbit.auth.security.AuthenticatedUserPrincipal;
 import com.orbit.chat.dto.SendChatMessageRequest;
 import com.orbit.chat.dto.VoiceSignalRequest;
 import com.orbit.chat.service.ChatMessageService;
+import com.orbit.chat.service.ChatTypingService;
 import com.orbit.chat.service.ChatVoiceService;
 import com.orbit.common.ApiErrorResponse;
 import com.orbit.common.ApiException;
@@ -25,10 +26,14 @@ public class ChatStompController {
 
     private final ChatMessageService messages;
     private final ChatVoiceService voiceService;
+    private final ChatTypingService typingService;
 
-    public ChatStompController(ChatMessageService messages, ChatVoiceService voiceService) {
+    public ChatStompController(
+        ChatMessageService messages, ChatVoiceService voiceService, ChatTypingService typingService
+    ) {
         this.messages = messages;
         this.voiceService = voiceService;
+        this.typingService = typingService;
     }
 
     @MessageMapping("chat.{channelId}.send")
@@ -44,6 +49,13 @@ public class ChatStompController {
     ) {
         voiceService.relaySignal(requireUserId(principal), channelId, payload);
     }
+
+    @MessageMapping("chat.{channelId}.typing")
+    public void typing(@DestinationVariable UUID channelId, @Payload TypingPayload payload, Principal principal) {
+        if (payload != null) typingService.update(requireUserId(principal), channelId, payload.active());
+    }
+
+    public record TypingPayload(boolean active) { }
 
     @MessageExceptionHandler(ApiException.class)
     @SendToUser(destinations = "/queue/errors", broadcast = false)

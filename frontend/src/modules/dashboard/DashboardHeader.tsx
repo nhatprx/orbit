@@ -5,6 +5,8 @@ import type { WorkspaceAreaId } from '../../types/dashboard.types';
 import { HeaderBreadcrumb } from './HeaderBreadcrumb';
 import { HeaderProfileMenu } from './HeaderProfileMenu';
 import { HeaderCreateMenu } from './HeaderUserMenu';
+import { DashboardNotificationsMenu } from './DashboardNotificationsMenu';
+import type { NotificationDto } from '../../services/notifications.service';
 import type { DashboardNavigation } from './useDashboardNavigation';
 
 interface DashboardHeaderProps {
@@ -18,6 +20,8 @@ interface DashboardHeaderProps {
   onCreateProject: () => void;
   onNavigateHome: () => void;
   onLogout: () => void;
+  onInviteAccepted: (workspaceId: string, projectId: string | null) => Promise<void>;
+  onOpenIssue: (notification: NotificationDto) => Promise<void>;
 }
 
 const ICON_BTN =
@@ -34,6 +38,8 @@ export function DashboardHeader({
   onCreateProject,
   onNavigateHome,
   onLogout,
+  onInviteAccepted,
+  onOpenIssue,
 }: DashboardHeaderProps) {
   const searchRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
@@ -112,6 +118,8 @@ export function DashboardHeader({
         >
           <Inbox className="h-3.5 w-3.5" strokeWidth={1.5} />
         </button>
+
+        <DashboardNotificationsMenu onInviteAccepted={onInviteAccepted} onOpenIssue={onOpenIssue} />
 
         <HeaderProfileMenu
           user={user}

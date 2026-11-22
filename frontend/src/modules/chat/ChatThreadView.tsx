@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Hash, Search, Users, X } from 'lucide-react';
+import { Search, Users, X } from 'lucide-react';
 import { ErrorView, LoadingView } from '../../components/ui/StateViews';
 import { errorMessage } from '../../services/workspace/httpClient';
 import type { ConnectionState } from '../../services/workspace/stomp/StompConnection';
@@ -7,6 +7,8 @@ import type { ChatChannelDto, ChatMessageDto } from '../../types/workspace.types
 import { ChatComposer } from './ChatComposer';
 import { ChatMessageList } from './ChatMessageList';
 import { useChatChannel } from './useChatChannel';
+import { ChatChannelIcon } from './ChatChannelIcon';
+import { ChatTypingIndicator } from './ChatTypingIndicator';
 
 interface ChatThreadViewProps {
   channel: ChatChannelDto;
@@ -36,7 +38,7 @@ export function ChatThreadView({
   showMembers,
   onToggleMembers,
 }: ChatThreadViewProps) {
-  const chat = useChatChannel(channel.id);
+  const chat = useChatChannel(channel.id, currentUserId);
   const [searchQuery, setSearchQuery] = useState('');
   const [replyTo, setReplyTo] = useState<ChatMessageDto | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -59,11 +61,11 @@ export function ChatThreadView({
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#30363D] bg-[#161B22] px-5 py-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 text-base font-semibold text-[#E6EDF3]">
-            <Hash className="h-4 w-4 shrink-0 text-[#22C55E]" strokeWidth={1.5} />
+            <ChatChannelIcon type={channel.channelType} className="h-4 w-4 shrink-0 text-[#22C55E]" />
             <span className="truncate">{channel.name}</span>
           </div>
           <p className="mt-0.5 truncate text-xs text-[#8A8A8A]">
-            {channel.description ? `${scopeLabel} - ${channel.description}` : scopeLabel}
+            {channel.channelType === 'FORUM' ? 'Forum topics' : scopeLabel}{channel.description ? ` - ${channel.description}` : ''}
           </p>
         </div>
 
@@ -142,8 +144,9 @@ export function ChatThreadView({
         />
       )}
 
+      <ChatTypingIndicator names={chat.typingUsers} />
       <ChatComposer
-        placeholder={canWriteChat ? `Message #${channel.name}` : 'Read-only access'}
+          placeholder={canWriteChat ? channel.channelType === 'FORUM' ? `Start a topic in ${channel.name}` : `Message #${channel.name}` : 'Read-only access'}
         disabled={!canWriteChat}
         readOnlyNotice={
           canWriteChat ? null : 'Read-only access: you do not have permission to send messages or reply.'
@@ -151,6 +154,7 @@ export function ChatThreadView({
         replyTo={activeReplyTo}
         onClearReply={() => setReplyTo(null)}
         onSend={chat.send}
+        onTyping={chat.sendTyping}
       />
     </div>
   );

@@ -4,6 +4,7 @@ import com.orbit.access.dto.AcceptInvitationResponse;
 import com.orbit.access.dto.CreateEmailInvitationRequest;
 import com.orbit.access.dto.CreateLinkInvitationRequest;
 import com.orbit.access.dto.InvitationDto;
+import com.orbit.access.dto.InvitationInboxDto;
 import com.orbit.access.dto.InvitationPreviewDto;
 import com.orbit.access.service.InvitationAcceptanceService;
 import com.orbit.access.service.InvitationService;
@@ -34,6 +35,15 @@ public class InvitationController {
     public InvitationController(InvitationService invitations, InvitationAcceptanceService acceptance) {
         this.invitations = invitations;
         this.acceptance = acceptance;
+    }
+
+    @GetMapping("/invitations/inbox")
+    public PageResponse<InvitationInboxDto> inbox(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "20") int size
+    ) {
+        return acceptance.listInbox(principal.userId(), page, size);
     }
 
     @GetMapping("/workspaces/{workspaceId}/invitations")

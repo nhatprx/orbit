@@ -60,7 +60,7 @@ export function useFakeChatChannels(store: ChatTestStore) {
       const created: ChatChannelDto = {
         id: `ch-${channels.length + 1}`, scopeType: 'WORKSPACE', scopeId: 'ws-1',
         name: req.name, description: req.description ?? '', channelType: req.channelType,
-        category: req.category ?? (req.channelType === 'VOICE' ? 'VOICE CHANNELS' : 'TEXT CHANNELS'),
+        category: req.category ?? (req.channelType === 'VOICE' ? 'VOICE CHANNELS' : req.channelType === 'FORUM' ? 'FORUMS' : 'TEXT CHANNELS'),
         participantCount: 0, createdAt: '2026-11-21T00:00:00Z',
       };
       setChannels((prev) => [...prev, created]);

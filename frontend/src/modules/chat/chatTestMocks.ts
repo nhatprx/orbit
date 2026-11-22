@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 import type {
   ChatChannelDto,
+  ChatChannelType,
   ChatMessageDto,
   VoiceEventDto,
   VoiceParticipantDto,
@@ -18,7 +19,7 @@ export interface FakeTrack {
 
 export function makeChannel(
   id: string,
-  channelType: 'TEXT' | 'VOICE' = 'TEXT',
+  channelType: ChatChannelType = 'TEXT',
   name = id
 ): ChatChannelDto {
   return {
@@ -28,7 +29,7 @@ export function makeChannel(
     name,
     description: `${name} desc`,
     channelType,
-    category: channelType === 'VOICE' ? 'VOICE CHANNELS' : 'TEXT CHANNELS',
+    category: channelType === 'VOICE' ? 'VOICE CHANNELS' : channelType === 'FORUM' ? 'FORUMS' : 'TEXT CHANNELS',
     participantCount: 0,
     createdAt: '2026-01-01T00:00:00Z',
   };

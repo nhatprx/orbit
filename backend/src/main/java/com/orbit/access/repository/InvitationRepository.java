@@ -1,6 +1,8 @@
 package com.orbit.access.repository;
 
 import com.orbit.access.entity.InvitationEntity;
+import com.orbit.access.entity.InvitationStatus;
+import com.orbit.access.entity.InvitationType;
 import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.Optional;
@@ -22,6 +24,14 @@ public interface InvitationRepository extends JpaRepository<InvitationEntity, UU
     Optional<InvitationEntity> findByIdAndWorkspaceId(UUID id, UUID workspaceId);
 
     Page<InvitationEntity> findByWorkspaceId(UUID workspaceId, Pageable pageable);
+
+    @Query("""
+        select i from InvitationEntity i
+        where lower(i.email) = :email and i.type = :type and i.status = :status and i.expiresAt > :now
+        """)
+    Page<InvitationEntity> findPendingInbox(
+        String email, InvitationType type, InvitationStatus status, Instant now, Pageable pageable
+    );
 
     @Query("""
         select count(i) > 0 from InvitationEntity i

@@ -3,6 +3,7 @@ package com.orbit.chat.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.orbit.chat.dto.ChatMessageDeletedDto;
 import com.orbit.chat.dto.ChatMessageDto;
+import com.orbit.chat.dto.ChatTypingDto;
 import com.orbit.chat.dto.VoiceEventDto;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -31,6 +32,8 @@ class ChatRedisSubscriber implements MessageListener {
         try {
             if (RedisChatBroadcaster.VOICE_TOPIC.equals(topic)) {
                 relay.deliverVoice(mapper.readValue(message.getBody(), VoiceEventDto.class));
+            } else if (RedisChatBroadcaster.TYPING_TOPIC.equals(topic)) {
+                relay.deliverTyping(mapper.readValue(message.getBody(), ChatTypingDto.class));
             } else if (RedisChatBroadcaster.DELETION_TOPIC.equals(topic)) {
                 relay.deliverDeletion(mapper.readValue(message.getBody(), ChatMessageDeletedDto.class));
             } else {

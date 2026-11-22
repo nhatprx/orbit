@@ -1,5 +1,4 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Hash, Volume2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { TextField } from '../../components/ui/Field';
 import { Modal } from '../../components/ui/Modal';
@@ -10,6 +9,7 @@ import type {
   CreateChatChannelRequest,
   UpdateChatChannelRequest,
 } from '../../types/workspace.types';
+import { ChatChannelTypeOptions } from './ChatChannelTypeOptions';
 
 interface ChatChannelModalProps {
   open: boolean;
@@ -23,6 +23,7 @@ interface ChatChannelModalProps {
 const DEFAULT_CATEGORY: Record<ChatChannelType, string> = {
   TEXT: 'TEXT CHANNELS',
   VOICE: 'VOICE CHANNELS',
+  FORUM: 'FORUMS',
 };
 
 export function ChatChannelModal({
@@ -59,7 +60,7 @@ export function ChatChannelModal({
   function handleTypeSelect(nextType: ChatChannelType) {
     setChannelType(nextType);
     const trimmedCat = category.trim().toUpperCase();
-    if (!trimmedCat || trimmedCat === DEFAULT_CATEGORY.TEXT || trimmedCat === DEFAULT_CATEGORY.VOICE) {
+    if (Object.values(DEFAULT_CATEGORY).includes(trimmedCat)) {
       setCategory(DEFAULT_CATEGORY[nextType]);
     }
   }
@@ -92,43 +93,14 @@ export function ChatChannelModal({
     <Modal
       open={open}
       title={mode === 'edit' ? 'Edit Channel' : 'Create Channel'}
-      subtitle={mode === 'edit' ? initialChannel?.name : 'Add a text or voice channel'}
+      subtitle={mode === 'edit' ? initialChannel?.name : 'Create a text, voice, or forum channel'}
       onClose={onClose}
     >
       <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
         {mode === 'create' && (
           <div>
             <p className="mb-1.5 text-xs text-[#BDBDBD]">Channel Type</p>
-            <div className="grid grid-cols-2 gap-2">
-              {(['TEXT', 'VOICE'] as const).map((type) => {
-                const active = channelType === type;
-                return (
-                  <button
-                    key={type}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => handleTypeSelect(type)}
-                    className={`flex items-center gap-2 border px-3 py-2.5 text-left text-xs transition-colors ${
-                      active
-                        ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]'
-                        : 'border-[#30363D] bg-[#0D1117] text-[#BDBDBD] hover:border-[#3B434B]'
-                    }`}
-                  >
-                    {type === 'TEXT' ? (
-                      <Hash className="h-4 w-4 shrink-0" strokeWidth={1.5} />
-                    ) : (
-                      <Volume2 className="h-4 w-4 shrink-0" strokeWidth={1.5} />
-                    )}
-                    <div>
-                      <p className="font-semibold">{type === 'TEXT' ? 'Text Channel' : 'Voice Channel'}</p>
-                      <p className="font-mono text-[10px] text-[#8A8A8A]">
-                        {type === 'TEXT' ? 'Messages, replies, links' : 'Audio, video, screen share'}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            <ChatChannelTypeOptions value={channelType} onChange={handleTypeSelect} />
           </div>
         )}
 
@@ -137,7 +109,7 @@ export function ChatChannelModal({
           value={name}
           maxLength={80}
           onChange={(e) => setName(e.target.value)}
-          placeholder={channelType === 'VOICE' ? 'e.g. standup-room' : 'e.g. announcements'}
+          placeholder={channelType === 'VOICE' ? 'e.g. standup-room' : channelType === 'FORUM' ? 'e.g. product-feedback' : 'e.g. announcements'}
           autoFocus
         />
         <TextField

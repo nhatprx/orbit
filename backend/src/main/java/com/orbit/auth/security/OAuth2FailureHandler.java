@@ -1,5 +1,6 @@
 package com.orbit.auth.security;
 
+import com.orbit.git.service.GitOAuthTokenStore;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
@@ -31,15 +32,17 @@ public class OAuth2FailureHandler implements AuthenticationFailureHandler {
             ? exception.getMessage()
             : "OAuth authentication failed.";
 
-        boolean wasLinkFlow = false;
+        String paramName = "oauth_error";
         HttpSession session = request.getSession(false);
-        if (session != null && session.getAttribute(OAuth2SuccessHandler.LINK_USER_ID_ATTR) != null) {
-            wasLinkFlow = true;
+        if (session != null && session.getAttribute(GitOAuthTokenStore.SESSION_USER_ID_ATTR) != null) {
+            paramName = "git_oauth_error";
+            session.removeAttribute(GitOAuthTokenStore.SESSION_USER_ID_ATTR);
+        } else if (session != null && session.getAttribute(OAuth2SuccessHandler.LINK_USER_ID_ATTR) != null) {
+            paramName = "oauth_link_error";
             session.removeAttribute(OAuth2SuccessHandler.LINK_USER_ID_ATTR);
             session.removeAttribute(OAuth2SuccessHandler.LINK_PROVIDER_ATTR);
         }
 
-        String paramName = wasLinkFlow ? "oauth_link_error" : "oauth_error";
         String targetUrl = UriComponentsBuilder.fromUriString(frontendUrl)
             .queryParam(paramName, message)
             .build()

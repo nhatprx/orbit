@@ -62,7 +62,10 @@ export function ChatPage({ workspace, project }: ChatPageProps) {
   const selectedChannel =
     chatChannels.channels.find((c) => c.id === selectedId) ?? chatChannels.channels[0] ?? null;
 
-  function handleSelectChannel(channel: ChatChannelDto) {
+  async function handleSelectChannel(channel: ChatChannelDto) {
+    if (voice.activeChannelId && (channel.channelType !== 'VOICE' || !canWriteChat)) {
+      await voice.leaveChannel();
+    }
     setSelectedId(channel.id);
     if (canWriteChat && channel.channelType === 'VOICE' && voice.activeChannelId !== channel.id) {
       void voice.joinChannel(channel.id);

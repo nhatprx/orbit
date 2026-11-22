@@ -3,6 +3,7 @@ import type {
   ChatChannelDto,
   ChatMessageDeletedEvent,
   ChatMessageDto,
+  ChatTypingEvent,
   CreateChatChannelRequest,
   CursorPageResponse,
   SendChatMessageRequest,
@@ -35,7 +36,7 @@ class HttpChatService implements ChatService {
     return apiRequest<ChatChannelDto[]>(
       'GET',
       `/api/v1/workspaces/${seg(workspaceId)}/chat/channels`,
-      { query: { seedVoice: true } }
+      { query: { seedVoice: false } }
     );
   }
 
@@ -43,7 +44,7 @@ class HttpChatService implements ChatService {
     return apiRequest<ChatChannelDto[]>(
       'GET',
       `/api/v1/workspaces/${seg(workspaceId)}/projects/${seg(projectId)}/chat/channels`,
-      { query: { seedVoice: true } }
+      { query: { seedVoice: false } }
     );
   }
 
@@ -101,11 +102,18 @@ class HttpChatService implements ChatService {
   subscribeChannel(
     channelId: string,
     onMessage: (message: ChatMessageDto) => void,
-    onDeleted?: (event: ChatMessageDeletedEvent) => void
+    onDeleted?: (event: ChatMessageDeletedEvent) => void,
+    onTyping?: (event: ChatTypingEvent) => void
   ): () => void {
     return chatConnection.subscribe(`${TOPIC_PREFIX}${channelId}`, (frame) => {
       try {
         const payload = JSON.parse(frame.body) as Record<string, unknown>;
+        if (payload.eventType === 'TYPING' && typeof payload.userId === 'string'
+          && typeof payload.active === 'boolean' && typeof payload.displayName === 'string'
+          && (payload.channelId === undefined || payload.channelId === channelId)) {
+          onTyping?.(payload as unknown as ChatTypingEvent);
+          return;
+        }
         if (payload.eventType === 'MESSAGE_DELETED' && typeof payload.messageId === 'string') {
           onDeleted?.({
             eventType: 'MESSAGE_DELETED',
@@ -122,6 +130,14 @@ class HttpChatService implements ChatService {
         // Ignore a malformed broadcast rather than tearing down the subscription.
       }
     });
+  }
+
+  sendTyping(channelId: string, active: boolean) {
+    try {
+      chatConnection.send(`/app/chat.${channelId}.typing`, { active });
+    } catch {
+      // Typing is best-effort and must not interrupt composing while reconnecting.
+    }
   }
 
   getVoiceIceServers() {

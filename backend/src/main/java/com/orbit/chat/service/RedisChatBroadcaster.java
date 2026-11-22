@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.orbit.chat.dto.ChatMessageDeletedDto;
 import com.orbit.chat.dto.ChatMessageDto;
+import com.orbit.chat.dto.ChatTypingDto;
 import com.orbit.chat.dto.VoiceEventDto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +19,7 @@ class RedisChatBroadcaster implements ChatBroadcaster {
     static final String TOPIC = "orbit:chat:messages";
     static final String DELETION_TOPIC = "orbit:chat:deletions";
     static final String VOICE_TOPIC = "orbit:chat:voice";
+    static final String TYPING_TOPIC = "orbit:chat:typing";
 
     private static final Logger LOG = LoggerFactory.getLogger(RedisChatBroadcaster.class);
 
@@ -44,6 +46,11 @@ class RedisChatBroadcaster implements ChatBroadcaster {
     @Override
     public void broadcastVoice(VoiceEventDto event) {
         publish(VOICE_TOPIC, event, () -> relay.deliverVoice(event));
+    }
+
+    @Override
+    public void broadcastTyping(ChatTypingDto event) {
+        publish(TYPING_TOPIC, event, () -> relay.deliverTyping(event));
     }
 
     private void publish(String topic, Object payload, Runnable localFallback) {

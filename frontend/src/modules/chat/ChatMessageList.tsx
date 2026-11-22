@@ -93,13 +93,13 @@ export function ChatMessageList({
         const attachmentUrl = message.attachmentUrl?.trim() || null;
 
         return (
-          <div key={message.id} className="group relative flex items-start gap-3 border border-transparent px-2 py-1.5 hover:border-[#30363D] hover:bg-[#161B22]">
-            <div className={`flex h-9 w-9 shrink-0 items-center justify-center border font-mono text-xs font-semibold ${mine ? 'border-[#22C55E] bg-[#052E16] text-[#22C55E]' : 'border-[#3B434B] bg-[#161B22] text-[#BDBDBD]'}`}>
+          <div key={message.id} className={`group relative flex items-start gap-3 border border-transparent px-2 py-1.5 hover:border-[#30363D] hover:bg-[#161B22] ${mine ? 'justify-end' : 'justify-start'}`}>
+            {!mine && <div className="flex h-9 w-9 shrink-0 items-center justify-center border border-[#3B434B] bg-[#161B22] font-mono text-xs font-semibold text-[#BDBDBD]">
               {initialsOf(message.senderName)}
-            </div>
+            </div>}
 
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-baseline gap-2 pr-20">
+            <div className={`min-w-0 ${mine ? 'max-w-[80%] text-right' : 'flex-1'}`}>
+              <div className={`flex flex-wrap items-baseline gap-2 ${mine ? 'justify-end pl-20' : 'pr-20'}`}>
                 <span className="text-sm font-semibold text-[#E6EDF3]">{message.senderName}</span>
                 <span className="font-mono text-xs text-[#8A8A8A]">@{message.senderUsername}</span>
                 <time dateTime={message.createdAt} className="font-mono text-xs text-[#7D8590]">
@@ -108,14 +108,14 @@ export function ChatMessageList({
               </div>
 
               {hasReply && (
-                <div className="mt-1 flex items-center gap-1.5 border-l-2 border-[#22C55E] bg-[#0D1117] px-2.5 py-1 text-xs text-[#8A8A8A]">
+                <div className={`mt-1 flex items-center gap-1.5 border-l-2 border-[#22C55E] bg-[#0D1117] px-2.5 py-1 text-xs text-[#8A8A8A] ${mine ? 'justify-end border-l-0 border-r-2' : ''}`}>
                   <CornerUpLeft className="h-3 w-3 shrink-0 text-[#22C55E]" strokeWidth={1.5} />
                   {message.replyToSenderName && <span className="shrink-0 font-semibold text-[#BDBDBD]">{message.replyToSenderName}:</span>}
                   <span className="truncate">{message.replyToSnippet ?? 'Replied message'}</span>
                 </div>
               )}
 
-              <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-[#E6EDF3]">{message.content}</p>
+              <p className={`mt-1 inline-block max-w-full border px-3 py-2 text-left whitespace-pre-wrap break-words text-sm leading-relaxed text-[#E6EDF3] ${mine ? 'border-[#14532D] bg-[#052E16]' : 'border-transparent bg-transparent px-0'}`}>{message.content}</p>
 
               {attachmentUrl && isSafeAttachmentUrl(attachmentUrl) && (
                 <a
@@ -131,7 +131,11 @@ export function ChatMessageList({
               )}
             </div>
 
-            <div className="absolute right-2 top-1.5 flex items-center gap-0.5 border border-[#30363D] bg-[#21262D] p-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+            {mine && <div className="flex h-9 w-9 shrink-0 items-center justify-center border border-[#22C55E] bg-[#052E16] font-mono text-xs font-semibold text-[#22C55E]">
+              {initialsOf(message.senderName)}
+            </div>}
+
+            <div className={`absolute top-1.5 flex items-center gap-0.5 border border-[#30363D] bg-[#21262D] p-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 ${mine ? 'left-2' : 'right-2'}`}>
               <button
                 type="button"
                 disabled={!canWriteChat}

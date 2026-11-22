@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Headphones, Mic, MicOff, Plus, Search, VolumeX, X } from 'lucide-react';
+import { Plus, Search, X } from 'lucide-react';
 import type { ConnectionState } from '../../services/workspace/stomp/StompConnection';
 import type { ChatChannelDto } from '../../types/workspace.types';
 import { initialsOf } from '../../utils/format';
@@ -49,7 +49,6 @@ export function ChatSidebar({
 }: ChatSidebarProps) {
   const [filterQuery, setFilterQuery] = useState('');
   const badge = CONNECTION_BADGE[connection];
-  const inVoice = voice.activeChannelId !== null;
 
   return (
     <aside
@@ -131,7 +130,7 @@ export function ChatSidebar({
 
       <ChatVoiceControlBar voice={voice} onOpenStage={onOpenVoiceStage} />
 
-      <div className="flex items-center justify-between gap-2 border-t border-[#30363D] bg-[#0D1117] px-3 py-2.5">
+      <div className="flex items-center gap-2 border-t border-[#30363D] bg-[#0D1117] px-3 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
           <div className="flex h-7 w-7 shrink-0 items-center justify-center border border-[#22C55E] bg-[#052E16] font-mono text-xs font-semibold text-[#22C55E]">
             {initialsOf(currentUser?.displayName ?? 'Orbit User')}
@@ -140,37 +139,6 @@ export function ChatSidebar({
             <p className="truncate text-xs font-semibold text-[#E6EDF3]">{currentUser?.displayName ?? 'Member'}</p>
             <p className="truncate font-mono text-[11px] text-[#8A8A8A]">@{currentUser?.username ?? 'member'}</p>
           </div>
-        </div>
-
-        <div className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            disabled={!inVoice}
-            aria-label={voice.muted ? 'User muted' : 'User microphone active'}
-            title={inVoice ? (voice.muted ? 'Unmute' : 'Mute') : 'Join voice to use microphone'}
-            onClick={() => void voice.toggleMute()}
-            className={`border p-1 disabled:cursor-not-allowed disabled:opacity-40 ${
-              inVoice && voice.muted
-                ? 'border-[#EF4444] bg-[#21262D] text-[#EF4444]'
-                : 'border-[#30363D] bg-[#161B22] text-[#BDBDBD] hover:border-[#22C55E] hover:text-[#E6EDF3]'
-            }`}
-          >
-            {voice.muted ? <MicOff className="h-3.5 w-3.5" strokeWidth={1.5} /> : <Mic className="h-3.5 w-3.5" strokeWidth={1.5} />}
-          </button>
-          <button
-            type="button"
-            disabled={!inVoice}
-            aria-label={voice.deafened ? 'User deafened' : 'User audio active'}
-            title={inVoice ? (voice.deafened ? 'Undeafen' : 'Deafen') : 'Join voice to deafen'}
-            onClick={() => void voice.toggleDeafen()}
-            className={`border p-1 disabled:cursor-not-allowed disabled:opacity-40 ${
-              inVoice && voice.deafened
-                ? 'border-[#EF4444] bg-[#21262D] text-[#EF4444]'
-                : 'border-[#30363D] bg-[#161B22] text-[#BDBDBD] hover:border-[#22C55E] hover:text-[#E6EDF3]'
-            }`}
-          >
-            {voice.deafened ? <VolumeX className="h-3.5 w-3.5" strokeWidth={1.5} /> : <Headphones className="h-3.5 w-3.5" strokeWidth={1.5} />}
-          </button>
         </div>
       </div>
     </aside>

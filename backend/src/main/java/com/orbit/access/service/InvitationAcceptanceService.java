@@ -10,6 +10,7 @@ import com.orbit.auth.entity.UserEntity;
 import com.orbit.auth.repository.UserRepository;
 import com.orbit.common.ApiException;
 import com.orbit.common.Timestamps;
+import com.orbit.common.PageParams;
 import com.orbit.project.entity.ProjectEntity;
 import com.orbit.project.entity.ProjectMemberEntity;
 import com.orbit.project.entity.ProjectMemberId;
@@ -21,6 +22,9 @@ import com.orbit.workspace.entity.WorkspaceMemberId;
 import com.orbit.workspace.repository.WorkspaceMemberRepository;
 import com.orbit.workspace.repository.WorkspaceRepository;
 import java.util.UUID;
+import java.util.Locale;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +40,7 @@ public class InvitationAcceptanceService {
     private final InvitationRoleResolver roles;
     private final UserRepository users;
     private final InvitationMapper mapper;
+    private final InvitationInboxMapper inboxMapper;
 
     InvitationAcceptanceService(
         InvitationRepository invitations,
@@ -45,7 +50,8 @@ public class InvitationAcceptanceService {
         ProjectMemberRepository projectMembers,
         InvitationRoleResolver roles,
         UserRepository users,
-        InvitationMapper mapper
+        InvitationMapper mapper,
+        InvitationInboxMapper inboxMapper
     ) {
         this.invitations = invitations;
         this.workspaces = workspaces;
@@ -55,6 +61,19 @@ public class InvitationAcceptanceService {
         this.roles = roles;
         this.users = users;
         this.mapper = mapper;
+        this.inboxMapper = inboxMapper;
+    }
+
+    @Transactional(readOnly = true)
+    public com.orbit.common.PageResponse<com.orbit.access.dto.InvitationInboxDto> listInbox(UUID userId, int page, int size) {
+        UserEntity user = users.findById(userId)
+            .orElseThrow(() -> ApiException.notFound("USER_NOT_FOUND", "User not found."));
+        Page<InvitationEntity> result = invitations.findPendingInbox(
+            user.getEmail().toLowerCase(Locale.ROOT), InvitationType.EMAIL,
+            InvitationStatus.PENDING, Timestamps.now(),
+            PageParams.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"))
+        );
+        return inboxMapper.toResponse(result);
     }
 
     @Transactional(readOnly = true)

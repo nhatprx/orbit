@@ -11,6 +11,7 @@ import { DashboardContent, FULL_HEIGHT_AREAS } from './DashboardContent';
 import { DashboardHeader } from './DashboardHeader';
 import { DashboardSidebar } from './DashboardSidebar';
 import { useDashboardNavigation } from './useDashboardNavigation';
+import type { NotificationDto } from '../../services/notifications.service';
 
 interface DashboardShellProps {
   session: AuthSession;
@@ -67,6 +68,15 @@ export function DashboardShell({
   const canCreateProject = workspace?.myPermissions.includes('project.create') ?? false;
   const fullHeight = (FULL_HEIGHT_AREAS as readonly string[]).includes(nav.active);
 
+  async function handleInviteAccepted(workspaceId: string, projectId: string | null) {
+    if (projectId) await nav.openProjectIn(workspaceId, projectId);
+    else await nav.switchWorkspace(workspaceId);
+  }
+
+  async function handleOpenIssue(notification: NotificationDto) {
+    await nav.openProjectIn(notification.workspaceId, notification.projectId, 'issues');
+  }
+
   return (
     <div className="flex h-screen w-screen flex-col bg-[#0D1117] text-[#E6EDF3]">
       <DashboardHeader
@@ -80,6 +90,8 @@ export function DashboardShell({
         onCreateProject={() => setProjectOpen(true)}
         onNavigateHome={onNavigateHome}
         onLogout={onLogout}
+        onInviteAccepted={handleInviteAccepted}
+        onOpenIssue={handleOpenIssue}
       />
 
       {notice && (

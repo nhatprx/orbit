@@ -2,6 +2,7 @@ package com.orbit.chat.service;
 
 import com.orbit.chat.dto.ChatMessageDeletedDto;
 import com.orbit.chat.dto.ChatMessageDto;
+import com.orbit.chat.dto.ChatTypingDto;
 import com.orbit.chat.dto.VoiceEventDto;
 
 /** Fans persisted chat messages, deletions, and voice events out to all STOMP subscribers across nodes. */
@@ -17,4 +18,6 @@ public interface ChatBroadcaster {
     default void broadcastVoice(VoiceEventDto event) {
         // Optional for test doubles that only assert message broadcasts.
     }
+
+    default void broadcastTyping(ChatTypingDto event) { }
 }

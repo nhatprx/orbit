@@ -1,5 +1,5 @@
 export type ChatScopeType = 'WORKSPACE' | 'PROJECT';
-export type ChatChannelType = 'TEXT' | 'VOICE';
+export type ChatChannelType = 'TEXT' | 'VOICE' | 'FORUM';
 
 export interface ChatChannelDto {
   id: string;
@@ -53,6 +53,14 @@ export interface ChatMessageDeletedEvent {
   channelId: string;
   messageId: string;
   deletedAt?: string;
+}
+
+export interface ChatTypingEvent {
+  eventType: 'TYPING';
+  channelId: string;
+  userId: string;
+  displayName: string;
+  active: boolean;
 }
 
 export interface VoiceIceServerDto {

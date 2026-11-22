@@ -7,6 +7,7 @@ import com.orbit.issues.entity.IssueCommentEntity;
 import com.orbit.issues.repository.IssueActivityRepository;
 import com.orbit.issues.repository.IssueCommentRepository;
 import com.orbit.issues.repository.ProjectIssueRepository;
+import com.orbit.notifications.service.NotificationService;
 import com.orbit.workspace.permission.Permissions;
 import com.orbit.workspace.permission.WorkspacePermissionEvaluator.ProjectAccess;
 import java.util.List;
@@ -14,6 +15,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Manages issue comments with RBAC authorization and activity recording. */
@@ -26,6 +28,7 @@ public class IssueCommentService {
     private final IssueCommentRepository comments;
     private final IssueActivityRepository activities;
     private final IssueLookupHelper lookup;
+    private NotificationService notificationService;
 
     public IssueCommentService(
         ProjectIssueRepository issues,
@@ -39,12 +42,15 @@ public class IssueCommentService {
         this.lookup = lookup;
     }
 
+    @Autowired(required = false)
+    void setNotificationService(NotificationService service) { this.notificationService = service; }
+
     @Transactional
     public IssueCommentDto addComment(
         UUID userId, UUID workspaceId, UUID projectId, UUID issueId, CreateIssueCommentRequest request
     ) {
         lookup.requireProjectPermission(userId, workspaceId, projectId, Permissions.PISSUES_WRITE);
-        issues.findByIdAndProjectId(issueId, projectId)
+        var issue = issues.findByIdAndProjectId(issueId, projectId)
             .orElseThrow(() -> ApiException.notFound("ISSUE_NOT_FOUND", "Issue not found."));
         String body = IssueValidationHelper.validateCommentBody(request.body());
 
@@ -58,6 +64,9 @@ public class IssueCommentService {
             issueId, userId, "COMMENT_ADDED", "comment", null,
             IssueValidationHelper.truncate(body, ACTIVITY_PREVIEW_LIMIT)
         ));
+        if (notificationService != null) notificationService.issueMentions(
+            userId, workspaceId, projectId, issueId, issue.getIssueKey(), issue.getTitle(), body
+        );
 
         Map<UUID, String> names = lookup.resolveUserNames(List.of(userId));
         return new IssueCommentDto(

@@ -59,6 +59,25 @@ class InvitationApiTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void inviteeInboxOnlyShowsTheirActiveEmailInvitations() {
+        UserEntity owner = newUser("owner");
+        UserEntity invited = newUser("invitee");
+        UserEntity other = newUser("other");
+        UUID ws = Fixtures.idOf(Fixtures.createWorkspace(api(owner), Fixtures.unique("Inbox"), "git"));
+        Result created = api(owner).post(Fixtures.workspaceUrl(ws) + "/invitations/email", emailBody(invited.getEmail()));
+
+        Result inbox = api(invited).get("/api/v1/invitations/inbox");
+        assertEquals(200, inbox.status());
+        assertEquals(1, inbox.<Integer>json("$.totalElements"));
+        assertEquals(ws.toString(), inbox.<String>json("$.items[0].workspaceId"));
+        assertNotNull(inbox.<String>json("$.items[0].workspaceName"));
+        assertEquals(created.<String>json("$.token"), inbox.<String>json("$.items[0].token"));
+        assertEquals(0, api(other).get("/api/v1/invitations/inbox").<Integer>json("$.totalElements"));
+        assertEquals(200, api(invited).post("/api/v1/invitations/" + created.<String>json("$.token") + "/accept").status());
+        assertEquals(0, api(invited).get("/api/v1/invitations/inbox").<Integer>json("$.totalElements"));
+    }
+
+    @Test
     void linksAreReusableTokensWithAnOptionalRole() {
         UserEntity owner = newUser("owner");
         UUID ws = Fixtures.idOf(Fixtures.createWorkspace(api(owner), Fixtures.unique("Link"), "git"));

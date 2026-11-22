@@ -102,6 +102,18 @@ export interface InvitationDto {
   createdAt: string;
 }
 
+export interface InvitationInboxDto {
+  id: string;
+  workspaceId: string;
+  workspaceName: string;
+  projectId: string | null;
+  projectName: string | null;
+  token: string;
+  roleName: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
 export interface CreateEmailInvitationRequest {
   email: string;
   roleId?: string;

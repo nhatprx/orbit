@@ -23,7 +23,7 @@ final class ChatChannelValidator {
         try {
             return ChatChannelType.valueOf(raw.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ex) {
-            throw ApiException.badRequest("VALIDATION_ERROR", "Channel type must be TEXT or VOICE.");
+            throw ApiException.badRequest("VALIDATION_ERROR", "Channel type must be TEXT, VOICE, or FORUM.");
         }
     }
 
@@ -32,7 +32,7 @@ final class ChatChannelValidator {
         if (trimmed.isEmpty()) {
             throw ApiException.badRequest("VALIDATION_ERROR", "Channel name is required.");
         }
-        String normalized = type == ChatChannelType.TEXT
+        String normalized = type != ChatChannelType.VOICE
             ? trimmed.toLowerCase(Locale.ROOT)
                 .replaceAll("[\\s_]+", "-")
                 .replaceAll("-{2,}", "-")
@@ -59,7 +59,8 @@ final class ChatChannelValidator {
     static String normalizeCategory(String raw, ChatChannelType type) {
         String trimmed = raw == null ? "" : raw.trim();
         if (trimmed.isEmpty()) {
-            return type == ChatChannelType.VOICE ? DEFAULT_VOICE_CATEGORY : DEFAULT_TEXT_CATEGORY;
+            return type == ChatChannelType.VOICE ? DEFAULT_VOICE_CATEGORY
+                : type == ChatChannelType.FORUM ? "FORUMS" : DEFAULT_TEXT_CATEGORY;
         }
         if (trimmed.length() > MAX_CATEGORY_LENGTH) {
             throw ApiException.badRequest(

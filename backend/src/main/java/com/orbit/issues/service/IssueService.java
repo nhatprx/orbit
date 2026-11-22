@@ -19,6 +19,7 @@ import com.orbit.issues.repository.IssueSprintRepository;
 import com.orbit.issues.repository.OffsetLimitPageRequest;
 import com.orbit.issues.repository.ProjectIssueCounterRepository;
 import com.orbit.issues.repository.ProjectIssueRepository;
+import com.orbit.notifications.service.NotificationService;
 import com.orbit.project.entity.ProjectEntity;
 import com.orbit.workspace.permission.Permissions;
 import java.util.List;
@@ -44,6 +45,7 @@ public class IssueService {
     private final IssueLookupHelper lookup;
     private final IssueUpdateApplier updateApplier;
     private CollabRelay collabRelay;
+    private NotificationService notificationService;
 
     public IssueService(
         ProjectIssueRepository issues,
@@ -65,6 +67,9 @@ public class IssueService {
 
     @Autowired(required = false)
     void setCollabRelay(CollabRelay relay) { this.collabRelay = relay; }
+
+    @Autowired(required = false)
+    void setNotificationService(NotificationService service) { this.notificationService = service; }
 
     @Transactional(readOnly = true)
     public List<IssueDto> listIssues(
@@ -129,6 +134,9 @@ public class IssueService {
                 saved.getParentId(), userId, "SUBTASK_ADDED", "subtask", null, saved.getIssueKey()
             ));
         }
+        if (notificationService != null) notificationService.issueAssigned(
+            saved.getAssigneeId(), userId, workspaceId, projectId, saved.getId(), saved.getIssueKey(), saved.getTitle()
+        );
         publishCatalog(workspaceId, projectId, saved.getId(), "CREATE");
         return lookup.toIssueDto(saved, project.getName());
     }
@@ -152,10 +160,15 @@ public class IssueService {
     public IssueDto updateIssue(UUID userId, UUID workspaceId, UUID projectId, UUID issueId, UpdateIssueRequest request) {
         ProjectEntity project = lookup.requireProjectPermission(userId, workspaceId, projectId, Permissions.PISSUES_WRITE);
         ProjectIssueEntity issue = loadIssue(projectId, issueId);
+        UUID previousAssignee = issue.getAssigneeId();
         List<IssueActivityEntity> newActivities = updateApplier.apply(userId, projectId, issue, request);
         ProjectIssueEntity saved = issues.save(issue);
         if (!newActivities.isEmpty()) {
             activities.saveAll(newActivities);
+        }
+        if (notificationService != null && !java.util.Objects.equals(previousAssignee, saved.getAssigneeId())) {
+            notificationService.issueAssigned(saved.getAssigneeId(), userId, workspaceId, projectId,
+                saved.getId(), saved.getIssueKey(), saved.getTitle());
         }
         publishCatalog(workspaceId, projectId, saved.getId(), "UPDATE");
         return lookup.toIssueDto(saved, project.getName());

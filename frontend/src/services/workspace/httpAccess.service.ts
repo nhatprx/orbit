@@ -6,6 +6,7 @@ import type {
   CreateLinkInvitationRequest,
   CreateRoleRequest,
   InvitationDto,
+  InvitationInboxDto,
   InvitationPreviewDto,
   MemberDto,
   PageResponse,
@@ -105,6 +106,10 @@ class HttpMemberService implements MemberService {
 }
 
 class HttpInvitationService implements InvitationService {
+  listInbox(page?: number, size?: number) {
+    return apiRequest<PageResponse<InvitationInboxDto>>('GET', '/api/v1/invitations/inbox', { query: { page, size } });
+  }
+
   listInvitations(workspaceId: string, page?: number, size?: number) {
     return apiRequest<PageResponse<InvitationDto>>('GET', `${WS}/${seg(workspaceId)}/invitations`, {
       query: { page, size },

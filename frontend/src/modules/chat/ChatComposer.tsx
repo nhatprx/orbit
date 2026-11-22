@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { errorMessage } from '../../services/workspace/httpClient';
 import type { ChatMessageDto, SendChatMessageRequest } from '../../types/workspace.types';
 import { MAX_MESSAGE_LENGTH, checkDraft } from './chatMessages';
+import { useTypingSignal } from './useTypingSignal';
 
 interface ChatComposerProps {
   placeholder: string;
@@ -12,6 +13,7 @@ interface ChatComposerProps {
   replyTo?: ChatMessageDto | null;
   onClearReply?: () => void;
   onSend: (request: SendChatMessageRequest) => Promise<void>;
+  onTyping?: (active: boolean) => void;
 }
 
 function isValidAttachmentUrl(url: string): boolean {
@@ -26,6 +28,7 @@ export function ChatComposer({
   replyTo = null,
   onClearReply,
   onSend,
+  onTyping,
 }: ChatComposerProps) {
   const [draft, setDraft] = useState('');
   const [showAttachment, setShowAttachment] = useState(false);
@@ -33,6 +36,7 @@ export function ChatComposer({
   const [attachmentUrl, setAttachmentUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const updateTyping = useTypingSignal(onTyping);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -56,6 +60,7 @@ export function ChatComposer({
         attachmentUrl: trimmedUrl || null,
       });
       setDraft('');
+      updateTyping('');
       setAttachmentName('');
       setAttachmentUrl('');
       setShowAttachment(false);
@@ -160,7 +165,7 @@ export function ChatComposer({
           value={draft}
           maxLength={MAX_MESSAGE_LENGTH + 100}
           disabled={disabled}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => { setDraft(e.target.value); updateTyping(e.target.value); }}
           placeholder={placeholder}
           className="h-10 min-w-0 flex-1 border border-[#3B434B] bg-[#0D1117] px-3 text-sm text-[#E6EDF3] placeholder-[#8A8A8A] focus:border-[#22C55E] focus:outline-none disabled:opacity-50"
         />
