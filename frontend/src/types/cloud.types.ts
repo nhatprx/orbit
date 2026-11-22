@@ -6,7 +6,7 @@ export type CloudScope =
   | { type: 'PROJECT'; workspaceId: string; projectId: string; permissions: string[] };
 
 export type CloudNodeType = 'FOLDER' | 'FILE';
-export type CloudView = 'ALL' | 'STARRED' | 'TRASH';
+export type CloudView = 'ALL' | 'RECENTS' | 'STARRED' | 'DOCS' | 'SHEETS' | 'SLIDES' | 'TRASH';
 export type CloudSortBy = 'name' | 'size' | 'updatedAt';
 export type CloudSortDir = 'asc' | 'desc';
 
@@ -15,6 +15,7 @@ export interface CloudNodeDto {
   scopeType: CloudScopeType;
   scopeId: string;
   parentId: string | null;
+  folderPath?: string | null;
   nodeType: CloudNodeType;
   name: string;
   mimeType: string | null;
@@ -68,6 +69,21 @@ export interface UpdateCloudNodeRequest {
   parentId?: string | null;
   moveToRoot?: boolean;
   starred?: boolean;
+}
+
+export interface MoveCloudNodesRequest {
+  nodeIds: string[];
+  sourceScopeType: CloudScopeType;
+  sourceWorkspaceId?: string | null;
+  sourceProjectId?: string | null;
+  targetScopeType: CloudScopeType;
+  targetWorkspaceId?: string | null;
+  targetProjectId?: string | null;
+  targetParentId?: string | null;
+}
+
+export interface MoveCloudNodesResponse {
+  moved: CloudNodeDto[];
 }
 
 export interface EmptyTrashResponse {

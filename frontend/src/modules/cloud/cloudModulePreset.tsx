@@ -1,75 +1,48 @@
-import { Filter } from 'lucide-react';
-import type { CloudNodeDto, DocumentTemplateType } from '../../types/cloud.types';
-import { getFileExtension } from './editor/fileEditorRegistry';
+import type { CloudView, DocumentTemplateType } from '../../types/cloud.types';
 
-export type CloudModulePreset = 'cloud' | 'docs' | 'sheets';
+export type OfficeModuleKey = 'docs' | 'sheets' | 'slides';
+export type CloudModulePreset = 'cloud' | OfficeModuleKey;
 
-export interface CloudPresetConfig {
-  id: CloudModulePreset;
-  label: string | null;
-  shortLabel: string;
-  extensions: ReadonlySet<string> | null;
+export interface OfficeModuleConfig {
+  id: OfficeModuleKey;
+  view: CloudView;
+  title: string;
+  newLabel: string;
   defaultTemplate: DocumentTemplateType;
+  emptyTitle: string;
+  emptyHint: string;
 }
 
-const PRESETS: Record<CloudModulePreset, CloudPresetConfig> = {
-  cloud: { id: 'cloud', label: null, shortLabel: 'All Files', extensions: null, defaultTemplate: 'MD' },
+const OFFICE_MODULES: Record<OfficeModuleKey, OfficeModuleConfig> = {
   docs: {
     id: 'docs',
-    label: 'Documents (.docx, .md, .txt, .pdf)',
-    shortLabel: 'Documents',
-    extensions: new Set(['docx', 'md', 'txt', 'pdf']),
+    view: 'DOCS',
+    title: 'Documents',
+    newLabel: 'New Doc',
     defaultTemplate: 'DOCX',
+    emptyTitle: 'No documents in this scope',
+    emptyHint: 'Create a new .docx, .md, or .txt document or upload files to get started.',
   },
   sheets: {
     id: 'sheets',
-    label: 'Spreadsheets (.xlsx, .csv)',
-    shortLabel: 'Spreadsheets',
-    extensions: new Set(['xlsx', 'csv']),
+    view: 'SHEETS',
+    title: 'Spreadsheets',
+    newLabel: 'New Sheet',
     defaultTemplate: 'XLSX',
+    emptyTitle: 'No spreadsheets in this scope',
+    emptyHint: 'Create a new .xlsx workbook or upload .xlsx / .csv files to get started.',
+  },
+  slides: {
+    id: 'slides',
+    view: 'SLIDES',
+    title: 'Presentations',
+    newLabel: 'New Slide',
+    defaultTemplate: 'PPTX',
+    emptyTitle: 'No presentations in this scope',
+    emptyHint: 'Create a new .pptx presentation deck or upload slide files to get started.',
   },
 };
 
-export function getCloudPresetConfig(preset: CloudModulePreset = 'cloud'): CloudPresetConfig {
-  return PRESETS[preset];
-}
-
-export function filterNodesByPreset(
-  nodes: CloudNodeDto[],
-  preset: CloudPresetConfig,
-  filterEnabled: boolean
-): CloudNodeDto[] {
-  if (!filterEnabled || !preset.extensions) return nodes;
-  return nodes.filter((node) => node.nodeType === 'FOLDER' || preset.extensions!.has(getFileExtension(node.name)));
-}
-
-interface CloudPresetFilterBarProps {
-  preset: CloudPresetConfig;
-  filterEnabled: boolean;
-  onToggle: () => void;
-}
-
-export function CloudPresetFilterBar({ preset, filterEnabled, onToggle }: CloudPresetFilterBarProps) {
-  if (!preset.label) return null;
-  return (
-    <div className="flex items-center justify-between gap-2 border-b border-[#30363D] bg-[#0D1117] px-4 py-1.5 font-mono text-[11px]">
-      <span className="flex items-center gap-2 text-[#8B949E]">
-        <Filter className="h-3 w-3 text-[#22C55E]" strokeWidth={1.5} />
-        {filterEnabled ? (
-          <span>
-            Filter: <strong className="font-semibold text-[#22C55E]">{preset.label}</strong>
-          </span>
-        ) : (
-          <span>Showing all files in scope</span>
-        )}
-      </span>
-      <button
-        type="button"
-        onClick={onToggle}
-        className="rounded-none border border-[#30363D] bg-[#161B22] px-2 py-0.5 text-[11px] text-[#E6EDF3] transition-colors hover:border-[#22C55E] hover:text-[#22C55E]"
-      >
-        {filterEnabled ? 'Show all files' : `Filter to ${preset.shortLabel}`}
-      </button>
-    </div>
-  );
+export function getOfficeModuleConfig(module: OfficeModuleKey): OfficeModuleConfig {
+  return OFFICE_MODULES[module];
 }

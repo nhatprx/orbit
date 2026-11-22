@@ -1,21 +1,25 @@
-import { useEffect, useMemo, useState, type DragEvent } from 'react';
-import { AlertCircle, Upload, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AlertCircle, X } from 'lucide-react';
 import { EmptyView } from '../../components/ui/StateViews';
 import { createHttpCloudFilesApi, type CloudFilesApi } from '../../services/cloud/cloudApi';
-import { cloudScopeKey, resolveCloudPermissions, type CloudNodeDto, type CloudScope } from '../../types/cloud.types';
-import { CloudFileTable } from './CloudFileTable';
-import { CloudPresetFilterBar, filterNodesByPreset, getCloudPresetConfig, type CloudModulePreset } from './cloudModulePreset';
-import { FolderNameModal, MoveNodeModal } from './CloudNodeModals';
+import { cloudScopeKey, resolveCloudPermissions, type CloudScope } from '../../types/cloud.types';
+import { CloudActionModals } from './CloudActionModals';
+import { CloudDropOverlay, CloudEditorSurface, useExternalFileDrop } from './CloudEditorSurface';
+import { scopeDisplay } from './cloudFormat';
+import { useCloudLocations } from './cloudLocations';
+import type { CloudModulePreset } from './cloudModulePreset';
 import { CloudPreviewPane } from './CloudPreviewPane';
 import { CloudSidebar } from './CloudSidebar';
-import { CloudToolbar } from './CloudToolbar';
+import { CloudToolbar, type FinderViewMode } from './CloudToolbar';
 import { CloudUploadQueue } from './CloudUploadQueue';
-import { CloudTextEditorModal } from './editor/CloudTextEditorModal';
-import { classifyFileEditor } from './editor/fileEditorRegistry';
-import { NewDocumentModal } from './editor/NewDocumentModal';
-import { OrbitOfficeWorkspace } from './editor/office/OrbitOfficeWorkspace';
 import { useCloudEditor } from './editor/useCloudEditor';
+import { FinderPathBar } from './FinderPathBar';
+import { FinderSelectionBar } from './FinderSelectionBar';
+import { FinderViewport } from './FinderViewport';
+import { OfficeModulePage } from './OfficeModulePage';
 import { useCloudBrowser } from './useCloudBrowser';
+import { useCloudNodeActions } from './useCloudNodeActions';
+import { useCloudSelection } from './useCloudSelection';
 import { useCloudUploads } from './useCloudUploads';
 
 interface CloudFilesPageProps {
@@ -23,38 +27,63 @@ interface CloudFilesPageProps {
   scopeLabel?: string;
   modulePreset?: CloudModulePreset;
   apiOverride?: CloudFilesApi;
+  apiFactory?: (scope: CloudScope) => CloudFilesApi;
 }
 
-function triggerInlineDownload(url: string, filename: string) {
-  const link = Object.assign(document.createElement('a'), { href: url, download: filename });
-  link.style.display = 'none';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+export function CloudFilesPage(props: CloudFilesPageProps) {
+  if (props.modulePreset && props.modulePreset !== 'cloud') {
+    return (
+      <OfficeModulePage
+        scope={props.scope} scopeLabel={props.scopeLabel} officeModule={props.modulePreset}
+        apiOverride={props.apiOverride} apiFactory={props.apiFactory}
+      />
+    );
+  }
+  return <CloudFinderWorkspace {...props} />;
 }
 
-export function CloudFilesPage({ scope, scopeLabel, modulePreset = 'cloud', apiOverride }: CloudFilesPageProps) {
-  const scopeKey = cloudScopeKey(scope);
-  const permissions = useMemo(() => resolveCloudPermissions(scope), [scope]);
-  const preset = useMemo(() => getCloudPresetConfig(modulePreset), [modulePreset]);
+function CloudFinderWorkspace({ scope, scopeLabel, apiOverride, apiFactory }: CloudFilesPageProps) {
+  const initialScopeKey = cloudScopeKey(scope);
+  const [activeScope, setActiveScope] = useState<CloudScope>(scope);
+  const [activeLabel, setActiveLabel] = useState<string | undefined>(scopeLabel);
+  const [viewMode, setViewMode] = useState<FinderViewMode>('list');
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
+
+  useEffect(() => {
+    setActiveScope(scope);
+    setActiveLabel(scopeLabel);
+  }, [initialScopeKey, scope, scopeLabel]);
+
+  const scopeKey = cloudScopeKey(activeScope);
+  const permissions = useMemo(() => resolveCloudPermissions(activeScope), [activeScope]);
+  const locations = useCloudLocations(scope, scopeLabel);
+  const locationTitle = activeLabel ?? scopeDisplay(activeScope).badge;
+
+  const apiForScope = useCallback(
+    (target: CloudScope) => (apiFactory ? apiFactory(target) : (apiOverride ?? createHttpCloudFilesApi(target))),
+    [apiFactory, apiOverride]
+  );
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const api = useMemo(() => apiOverride ?? createHttpCloudFilesApi(scope), [apiOverride, scopeKey]);
+  const api = useMemo(() => apiForScope(activeScope), [apiForScope, scopeKey]);
 
-  const browser = useCloudBrowser(api, scopeKey, permissions.canRead);
+  const browser = useCloudBrowser(api, scopeKey, permissions.canRead, 'ALL');
+  const selection = useCloudSelection();
   const uploads = useCloudUploads(api, scopeKey, browser.quota, () => void browser.refresh());
   const editor = useCloudEditor(() => void browser.refresh());
-  const [filterEnabled, setFilterEnabled] = useState(true);
-  const [newFolderOpen, setNewFolderOpen] = useState(false);
-  const [renamingNode, setRenamingNode] = useState<CloudNodeDto | null>(null);
-  const [movingNode, setMovingNode] = useState<CloudNodeDto | null>(null);
-  const [dragActive, setDragActive] = useState(false);
+  const actions = useCloudNodeActions({
+    api, scope: activeScope, nodes: browser.nodes, selectedIds: selection.selectedIds,
+    selectOnly: selection.selectOnly, clearSelection: selection.clearSelection, runMutation: browser.runMutation,
+  });
 
-  useEffect(() => { setFilterEnabled(true); }, [modulePreset]);
-
-  const visibleNodes = useMemo(
-    () => filterNodesByPreset(browser.nodes, preset, filterEnabled),
-    [browser.nodes, preset, filterEnabled]
+  const activeParentId = browser.view === 'ALL' ? browser.parentId : null;
+  const drop = useExternalFileDrop(
+    permissions.canWrite && browser.view !== 'TRASH',
+    (files) => uploads.enqueueFiles(files, activeParentId)
   );
+
+  useEffect(() => {
+    selection.clearSelection();
+  }, [scopeKey, browser.view, browser.parentId, selection.clearSelection]);
 
   if (!permissions.canRead) {
     return (
@@ -64,107 +93,101 @@ export function CloudFilesPage({ scope, scopeLabel, modulePreset = 'cloud', apiO
     );
   }
 
-  const selectedNode = visibleNodes.find((n) => n.id === browser.selectedId) ?? null;
-  const activeParentId = browser.view === 'ALL' ? browser.parentId : null;
-  const canDropUpload = permissions.canWrite && browser.view !== 'TRASH';
-
-  const nodeHandlers = {
-    onOpenEditor: editor.openNode,
-    onDownload: (node: CloudNodeDto) => {
-      void browser.runMutation(() => api.getDownloadUrl(node.id), false).then((res) => {
-        if (res?.url) triggerInlineDownload(res.url, node.name);
-      });
-    },
-    onToggleStar: (node: CloudNodeDto) => void browser.runMutation(() => api.updateNode(node.id, { starred: !node.starred })),
-    onRename: (node: CloudNodeDto) => setRenamingNode(node),
-    onMove: (node: CloudNodeDto) => setMovingNode(node),
-    onSoftDelete: (node: CloudNodeDto) => void browser.runMutation(() => api.softDeleteNode(node.id)),
-    onRestore: (node: CloudNodeDto) => void browser.runMutation(() => api.restoreNode(node.id)),
-    onPermanentDelete: (node: CloudNodeDto) => void browser.runMutation(() => api.permanentDeleteNode(node.id)),
-  };
-
-  const onDragOver = (e: DragEvent<HTMLDivElement>) => {
-    if (canDropUpload) { e.preventDefault(); if (!dragActive) setDragActive(true); }
-  };
-  const onDragLeave = (e: DragEvent<HTMLDivElement>) => {
-    if (canDropUpload && !e.currentTarget.contains(e.relatedTarget as Node | null)) setDragActive(false);
-  };
-  const onDrop = (e: DragEvent<HTMLDivElement>) => {
-    if (!canDropUpload) return;
-    e.preventDefault();
-    setDragActive(false);
-    const dropped = Array.from(e.dataTransfer.files);
-    if (dropped.length > 0) uploads.enqueueFiles(dropped, activeParentId);
-  };
+  const selectedNode = browser.nodes.find((n) => n.id === selection.selectedId) ?? null;
+  const treeResetKey = `${scopeKey}:${browser.view}:${browser.parentId ?? 'root'}:${browser.tick}`;
+  const editorOpen = Boolean(editor.textNode || editor.officeNode);
 
   return (
     <div
       className="relative flex h-[calc(100vh-3rem)] w-full overflow-hidden border border-[#30363D] bg-[#0D1117]"
-      onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}
+      {...drop.dragHandlers}
     >
       <CloudSidebar
-        scope={scope} scopeLabel={scopeLabel} activeView={browser.view} quota={browser.quota}
+        scope={activeScope} scopeLabel={activeLabel} activeView={browser.view} quota={browser.quota} locations={locations}
         onSelectView={(v) => { editor.closeTextEditor(); editor.closeOfficeEditor(); browser.selectView(v); }}
+        onSelectScope={(nextScope, nextLabel) => {
+          editor.closeTextEditor(); editor.closeOfficeEditor(); setActiveScope(nextScope); setActiveLabel(nextLabel);
+        }}
+        onDropNodesToScope={(ids, targetScope) => actions.dropMoveNodes(ids, targetScope, null)}
       />
 
-      {editor.textNode ? (
-        <div className="flex min-w-0 flex-1 flex-col">
-          <CloudTextEditorModal node={editor.textNode} api={api} canWrite={permissions.canWrite} onClose={editor.closeTextEditor} onSaved={editor.handleTextSaved} />
-        </div>
-      ) : editor.officeNode ? (
-        <div className="flex min-w-0 flex-1 flex-col">
-          <OrbitOfficeWorkspace
-            node={editor.officeNode} api={api} canWrite={permissions.canWrite}
-            isPdf={classifyFileEditor(editor.officeNode.name, editor.officeNode.mimeType) === 'PDF'}
-            onBack={editor.closeOfficeEditor} onDownload={nodeHandlers.onDownload} onSaved={editor.handleTextSaved}
-          />
-        </div>
+      {editorOpen ? (
+        <CloudEditorSurface
+          api={api} canWrite={permissions.canWrite} textNode={editor.textNode} officeNode={editor.officeNode}
+          onCloseText={editor.closeTextEditor} onCloseOffice={editor.closeOfficeEditor}
+          onDownload={actions.downloadNode} onSaved={editor.handleTextSaved}
+        />
       ) : (
         <>
           <div className="flex min-w-0 flex-1 flex-col">
             <CloudToolbar
-              view={browser.view} breadcrumbs={browser.breadcrumbs} search={browser.searchInput}
-              sortBy={browser.sortBy} sortDir={browser.sortDir} permissions={permissions}
-              hasNodes={visibleNodes.length > 0} onSearchChange={browser.setSearchInput}
-              onSortByChange={browser.setSortBy} onToggleSortDir={browser.toggleSortDir}
-              onNavigateFolder={browser.openFolder} onUploadFiles={(files) => uploads.enqueueFiles(files, activeParentId)}
+              view={browser.view} viewMode={viewMode} locationLabel={locationTitle} breadcrumbs={browser.breadcrumbs}
+              canGoBack={browser.canGoBack} canGoForward={browser.canGoForward} search={browser.searchInput}
+              sortBy={browser.sortBy} sortDir={browser.sortDir} permissions={permissions} hasNodes={browser.nodes.length > 0}
+              onGoBack={browser.goBack} onGoForward={browser.goForward} onViewModeChange={setViewMode}
+              onSearchChange={browser.setSearchInput} onSortByChange={browser.setSortBy} onToggleSortDir={browser.toggleSortDir}
+              onUploadFiles={(files) => uploads.enqueueFiles(files, activeParentId)}
               onOpenNewDocument={() => editor.setNewDocOpen(true)} onOpenNewFolder={() => setNewFolderOpen(true)}
               onEmptyTrash={() => void browser.runMutation(() => api.emptyTrash())}
             />
-            <CloudPresetFilterBar preset={preset} filterEnabled={filterEnabled} onToggle={() => setFilterEnabled((v) => !v)} />
+            <FinderSelectionBar
+              selectedNodes={actions.selectedNodes} view={browser.view} permissions={permissions}
+              onMoveSelected={() => actions.setMovingNodes(actions.selectedNodes)} onDownloadSelected={actions.downloadSelected}
+              onDeleteSelected={() => actions.softDeleteNodes(actions.selectedNodes)} onRestoreSelected={() => actions.restoreNodes(actions.selectedNodes)}
+              onPermanentDeleteSelected={() => actions.permanentDeleteNodes(actions.selectedNodes)} onClear={selection.clearSelection}
+            />
             {browser.error && (
               <div role="alert" className="flex items-center justify-between gap-2 border-b border-[#EF4444]/40 bg-[#EF4444]/10 px-4 py-2 text-xs text-[#EF4444]">
                 <span className="flex items-center gap-2"><AlertCircle className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />{browser.error}</span>
                 <button type="button" aria-label="Dismiss error" onClick={browser.clearError}><X className="h-3.5 w-3.5" strokeWidth={1.5} /></button>
               </div>
             )}
-            <CloudFileTable
-              nodes={visibleNodes} view={browser.view} selectedId={browser.selectedId}
-              loading={browser.loading} hasMore={browser.hasMore} loadingMore={browser.loadingMore}
-              permissions={permissions} onSelect={(node) => browser.setSelectedId(node.id)}
-              onOpenFolder={(id) => browser.openFolder(id)} onLoadMore={() => void browser.loadMore()}
-              {...nodeHandlers}
+            <FinderViewport
+              api={api} viewMode={viewMode} nodes={browser.nodes} view={browser.view} searchQuery={browser.debouncedQuery}
+              sortBy={browser.sortBy} sortDir={browser.sortDir} treeResetKey={treeResetKey}
+              selectedIds={selection.selectedIds} loading={browser.loading} hasMore={browser.hasMore}
+              loadingMore={browser.loadingMore} permissions={permissions}
+              onSelect={(node, ordered, e) => selection.selectNode(node.id, ordered, { multi: e.ctrlKey || e.metaKey, range: e.shiftKey })}
+              onContextMenu={actions.openContextMenu} onOpenFolder={browser.openFolder} onOpenEditor={editor.openNode}
+              onToggleStar={actions.toggleStar} onDownload={actions.downloadNode} onRename={actions.setRenamingNode}
+              onMove={(n) => actions.setMovingNodes([n])} onDropToFolder={(ids, folderId) => actions.dropMoveNodes(ids, activeScope, folderId)}
+              onSoftDelete={(n) => actions.softDeleteNodes([n])} onRestore={(n) => actions.restoreNodes([n])}
+              onPermanentDelete={(n) => actions.permanentDeleteNodes([n])} onLoadMore={() => void browser.loadMore()}
             />
             <CloudUploadQueue tasks={uploads.tasks} onCancel={uploads.cancelTask} onDismiss={uploads.dismissTask} onClearFinished={uploads.clearFinished} />
+            <FinderPathBar
+              locationLabel={locationTitle} view={browser.view} breadcrumbs={browser.breadcrumbs}
+              totalCount={browser.nodes.length} selectedCount={selection.selectedIds.length} onNavigateFolder={browser.openFolder}
+            />
           </div>
-          <CloudPreviewPane node={selectedNode} view={browser.view} permissions={permissions} onClose={() => browser.setSelectedId(null)} {...nodeHandlers} />
+          {viewMode !== 'columns' && (
+            <CloudPreviewPane
+              node={selectedNode} view={browser.view} permissions={permissions} onClose={selection.clearSelection}
+              onOpenEditor={editor.openNode} onDownload={actions.downloadNode} onToggleStar={actions.toggleStar}
+              onRename={actions.setRenamingNode} onMove={(n) => actions.setMovingNodes([n])}
+              onSoftDelete={(n) => actions.softDeleteNodes([n])} onRestore={(n) => actions.restoreNodes([n])}
+              onPermanentDelete={(n) => actions.permanentDeleteNodes([n])}
+            />
+          )}
         </>
       )}
 
-      {dragActive && (
-        <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center border-2 border-dashed border-[#22C55E] bg-[#052E16]/80">
-          <div className="flex flex-col items-center gap-2 border border-[#22C55E] bg-[#0D1117] px-8 py-6">
-            <Upload className="h-7 w-7 text-[#22C55E]" strokeWidth={1.5} />
-            <p className="text-sm font-semibold text-[#E6EDF3]">Drop files to upload</p>
-            <p className="font-mono text-xs text-[#8B949E]">Direct upload to Orbit Cloud Storage</p>
-          </div>
-        </div>
-      )}
+      <CloudDropOverlay active={drop.dragActive} />
 
-      <FolderNameModal open={newFolderOpen} title="Create Folder" submitLabel="Create" onClose={() => setNewFolderOpen(false)} onSubmit={async (name) => { await browser.runMutation(() => api.createFolder({ parentId: activeParentId, name })); }} />
-      <FolderNameModal open={Boolean(renamingNode)} title="Rename Item" submitLabel="Rename" initialValue={renamingNode?.name ?? ''} onClose={() => setRenamingNode(null)} onSubmit={async (name) => { if (renamingNode) await browser.runMutation(() => api.updateNode(renamingNode.id, { name })); }} />
-      <MoveNodeModal node={movingNode} api={api} onClose={() => setMovingNode(null)} onMove={async (nodeId, targetParentId) => { await browser.runMutation(() => api.updateNode(nodeId, targetParentId ? { parentId: targetParentId } : { moveToRoot: true })); }} />
-      <NewDocumentModal open={editor.newDocOpen} parentId={activeParentId} api={api} defaultTemplate={preset.defaultTemplate} onClose={() => editor.setNewDocOpen(false)} onCreated={editor.handleDocumentCreated} />
+      <CloudActionModals
+        api={api} apiForScope={apiForScope} sourceScope={activeScope} locations={locations}
+        view={browser.view} permissions={permissions} activeParentId={activeParentId}
+        newFolderOpen={newFolderOpen} newDocOpen={editor.newDocOpen} renamingNode={actions.renamingNode}
+        movingNodes={actions.movingNodes} contextMenu={actions.contextMenu}
+        onCloseNewFolder={() => setNewFolderOpen(false)} onCloseNewDoc={() => editor.setNewDocOpen(false)}
+        onCloseRename={() => actions.setRenamingNode(null)} onCloseMove={() => actions.setMovingNodes([])}
+        onCloseContextMenu={() => actions.setContextMenu(null)} onRefresh={() => void browser.refresh()}
+        onCreatedDoc={editor.handleDocumentCreated} onOpenFolder={browser.openFolder} onOpenEditor={editor.openNode}
+        onRenameRequest={actions.setRenamingNode} onMoveRequest={actions.setMovingNodes}
+        onToggleStar={actions.toggleStar} onDownload={actions.downloadNode}
+        onSoftDeleteNodes={actions.softDeleteNodes} onRestoreNodes={actions.restoreNodes}
+        onPermanentDeleteNodes={actions.permanentDeleteNodes}
+      />
     </div>
   );
 }

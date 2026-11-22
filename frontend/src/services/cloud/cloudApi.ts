@@ -11,6 +11,8 @@ import type {
   InitUploadRequest,
   InitUploadResponse,
   ListCloudNodesParams,
+  MoveCloudNodesRequest,
+  MoveCloudNodesResponse,
   OfficeDocumentResponse,
   SaveOfficeDocumentPayload,
   SaveTextContentRequest,
@@ -28,6 +30,7 @@ export interface CloudFilesApi {
   getQuota(signal?: AbortSignal): Promise<CloudQuotaDto>;
   createFolder(body: CreateFolderRequest): Promise<CloudNodeDto>;
   updateNode(nodeId: string, body: UpdateCloudNodeRequest): Promise<CloudNodeDto>;
+  moveCloudNodes(body: MoveCloudNodesRequest): Promise<MoveCloudNodesResponse>;
   softDeleteNode(nodeId: string): Promise<CloudNodeDto>;
   restoreNode(nodeId: string): Promise<CloudNodeDto>;
   permanentDeleteNode(nodeId: string): Promise<void>;
@@ -50,6 +53,10 @@ export function cloudBasePath(scope: CloudScope): string {
     return `/api/v1/workspaces/${seg(scope.workspaceId)}/cloud`;
   }
   return `/api/v1/workspaces/${seg(scope.workspaceId)}/projects/${seg(scope.projectId)}/cloud`;
+}
+
+export function moveCloudNodes(body: MoveCloudNodesRequest): Promise<MoveCloudNodesResponse> {
+  return apiRequest<MoveCloudNodesResponse>('POST', '/api/v1/cloud/nodes/move', { body });
 }
 
 export function createHttpCloudFilesApi(scope: CloudScope): CloudFilesApi {
@@ -85,6 +92,10 @@ export function createHttpCloudFilesApi(scope: CloudScope): CloudFilesApi {
 
     updateNode(nodeId, body) {
       return apiRequest<CloudNodeDto>('PATCH', `${base}/nodes/${seg(nodeId)}`, { body });
+    },
+
+    moveCloudNodes(body) {
+      return moveCloudNodes(body);
     },
 
     softDeleteNode(nodeId) {

@@ -1,9 +1,7 @@
 import {
   Download,
   Eye,
-  File,
   FilePenLine,
-  Folder,
   FolderInput,
   Pencil,
   RotateCcw,
@@ -15,6 +13,7 @@ import { Button } from '../../components/ui/Button';
 import type { CloudNodeDto, CloudPermissions, CloudView } from '../../types/cloud.types';
 import { daysUntil, formatDateTime } from '../../utils/format';
 import { formatBytes, nodeTypeLabel, scopeTypeLabel } from './cloudFormat';
+import { CloudNodeIcon } from './cloudIcons';
 import { classifyFileEditor } from './editor/fileEditorRegistry';
 
 interface CloudPreviewPaneProps {
@@ -77,11 +76,7 @@ export function CloudPreviewPane({
 
       <div className="flex-1 overflow-y-auto p-4">
         <div className="flex items-start gap-2.5 border border-[#30363D] bg-[#0D1117] p-3">
-          {isFolder ? (
-            <Folder className="mt-0.5 h-5 w-5 shrink-0 text-[#22C55E]" strokeWidth={1.5} />
-          ) : (
-            <File className="mt-0.5 h-5 w-5 shrink-0 text-[#8B949E]" strokeWidth={1.5} />
-          )}
+          <CloudNodeIcon node={node} className="mt-0.5 h-5 w-5 shrink-0" />
           <div className="min-w-0">
             <p className="break-all text-sm font-semibold text-[#E6EDF3]">{node.name}</p>
             <p className="mt-0.5 font-mono text-[11px] text-[#7D8590]">{nodeTypeLabel(node)}</p>
@@ -90,6 +85,7 @@ export function CloudPreviewPane({
 
         <div className="mt-4">
           <MetaRow label="Storage Layer" value={scopeTypeLabel(node.scopeType)} />
+          {node.folderPath && <MetaRow label="Folder" value={node.folderPath} mono />}
           <MetaRow label="Type" value={isFolder ? 'Folder' : (node.mimeType ?? 'application/octet-stream')} mono />
           <MetaRow label="Size" value={isFolder ? '--' : formatBytes(node.sizeBytes)} mono />
           <MetaRow label="Owner" value={node.createdByName || node.createdBy} />

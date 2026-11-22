@@ -10,12 +10,26 @@ import type {
   CloudView,
 } from '../../types/cloud.types';
 
-const PAGE_LIMIT = 25;
+const PAGE_LIMIT = 50;
 const SEARCH_DEBOUNCE_MS = 250;
 
-export function useCloudBrowser(api: CloudFilesApi, scopeKey: string, canRead: boolean) {
-  const [view, setView] = useState<CloudView>('ALL');
-  const [parentId, setParentId] = useState<string | null>(null);
+interface HistoryEntry {
+  view: CloudView;
+  parentId: string | null;
+}
+
+export function useCloudBrowser(
+  api: CloudFilesApi,
+  scopeKey: string,
+  canRead: boolean,
+  initialView: CloudView = 'ALL'
+) {
+  const [history, setHistory] = useState<HistoryEntry[]>([{ view: initialView, parentId: null }]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+  const current = history[historyIndex] ?? { view: initialView, parentId: null };
+  const view = current.view;
+  const parentId = current.parentId;
+
   const [breadcrumbs, setBreadcrumbs] = useState<CloudBreadcrumbItem[]>([]);
   const [nodes, setNodes] = useState<CloudNodeDto[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -24,7 +38,6 @@ export function useCloudBrowser(api: CloudFilesApi, scopeKey: string, canRead: b
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [quota, setQuota] = useState<CloudQuotaDto | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [sortBy, setSortBy] = useState<CloudSortBy>('name');
@@ -33,18 +46,17 @@ export function useCloudBrowser(api: CloudFilesApi, scopeKey: string, canRead: b
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    setView('ALL');
-    setParentId(null);
+    setHistory([{ view: initialView, parentId: null }]);
+    setHistoryIndex(0);
     setBreadcrumbs([]);
     setNodes([]);
     setNextCursor(null);
     setHasMore(false);
     setQuota(null);
-    setSelectedId(null);
     setSearchInput('');
     setDebouncedQuery('');
     setError(null);
-  }, [scopeKey]);
+  }, [scopeKey, initialView]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedQuery(searchInput.trim()), SEARCH_DEBOUNCE_MS);
@@ -79,7 +91,6 @@ export function useCloudBrowser(api: CloudFilesApi, scopeKey: string, canRead: b
         setHasMore(page.hasMore);
         setQuota(quotaData);
         setBreadcrumbs(crumbs);
-        setSelectedId((prev) => (prev && page.items.some((n) => n.id === prev) ? prev : null));
       })
       .catch((err) => {
         if (!controller.signal.aborted) setError(errorMessage(err, 'Failed to load cloud files.'));
@@ -90,6 +101,33 @@ export function useCloudBrowser(api: CloudFilesApi, scopeKey: string, canRead: b
 
     return () => controller.abort();
   }, [api, scopeKey, canRead, view, parentId, debouncedQuery, sortBy, sortDir, tick]);
+
+  const pushEntry = useCallback((entry: HistoryEntry) => {
+    setHistory((prev) => {
+      const cur = prev[historyIndex];
+      if (cur && cur.view === entry.view && cur.parentId === entry.parentId) return prev;
+      const truncated = prev.slice(0, historyIndex + 1);
+      return [...truncated, entry];
+    });
+    setHistoryIndex((idx) => {
+      const cur = history[idx];
+      if (cur && cur.view === entry.view && cur.parentId === entry.parentId) return idx;
+      return idx + 1;
+    });
+  }, [history, historyIndex]);
+
+  const selectView = useCallback((next: CloudView) => {
+    pushEntry({ view: next, parentId: null });
+  }, [pushEntry]);
+
+  const openFolder = useCallback((folderId: string | null) => {
+    pushEntry({ view: 'ALL', parentId: folderId });
+  }, [pushEntry]);
+
+  const canGoBack = historyIndex > 0;
+  const canGoForward = historyIndex < history.length - 1;
+  const goBack = useCallback(() => setHistoryIndex((i) => Math.max(0, i - 1)), []);
+  const goForward = useCallback(() => setHistoryIndex((i) => Math.min(history.length - 1, i + 1)), [history.length]);
 
   const refresh = useCallback(async () => setTick((t) => t + 1), []);
 
@@ -117,18 +155,6 @@ export function useCloudBrowser(api: CloudFilesApi, scopeKey: string, canRead: b
     }
   }, [api, hasMore, nextCursor, loadingMore, view, parentId, debouncedQuery, sortBy, sortDir]);
 
-  const selectView = useCallback((next: CloudView) => {
-    setView(next);
-    if (next !== 'ALL') setParentId(null);
-    setSelectedId(null);
-  }, []);
-
-  const openFolder = useCallback((folderId: string | null) => {
-    setView('ALL');
-    setParentId(folderId);
-    setSelectedId(null);
-  }, []);
-
   const toggleSortDir = useCallback(() => setSortDir((p) => (p === 'asc' ? 'desc' : 'asc')), []);
   const clearError = useCallback(() => setError(null), []);
 
@@ -146,8 +172,9 @@ export function useCloudBrowser(api: CloudFilesApi, scopeKey: string, canRead: b
 
   return {
     view, parentId, breadcrumbs, nodes, hasMore, loading, loadingMore, error, quota,
-    selectedId, searchInput, sortBy, sortDir,
-    setSearchInput, setSortBy, toggleSortDir, setSelectedId, selectView, openFolder,
+    searchInput, debouncedQuery, sortBy, sortDir, tick,
+    canGoBack, canGoForward, goBack, goForward,
+    setSearchInput, setSortBy, toggleSortDir, selectView, openFolder,
     loadMore, refresh, clearError, runMutation,
   };
 }

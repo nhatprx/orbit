@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Folder } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
-import type { CloudFilesApi } from '../../services/cloud/cloudApi';
+import { errorMessage } from '../../services/workspace/httpClient';
 import type { CloudNodeDto } from '../../types/cloud.types';
+import { splitFileName } from './cloudFormat';
 
 interface FolderNameModalProps {
   open: boolean;
@@ -24,19 +25,26 @@ export function FolderNameModal({
 }: FolderNameModalProps) {
   const [name, setName] = useState(initialValue);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) setName(initialValue);
+    if (open) {
+      setName(initialValue);
+      setError(null);
+    }
   }, [open, initialValue]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed || submitting) return;
     setSubmitting(true);
+    setError(null);
     try {
       await onSubmit(trimmed);
       onClose();
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to save name.'));
     } finally {
       setSubmitting(false);
     }
@@ -58,13 +66,17 @@ export function FolderNameModal({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Enter name..."
-            className="mt-1.5 h-9 w-full border border-[#3B434B] bg-[#0D1117] px-3 text-sm text-[#E6EDF3] placeholder-[#7D8590] focus:border-[#22C55E] focus:outline-none"
+            className="mt-1.5 h-9 w-full rounded-none border border-[#3B434B] bg-[#0D1117] px-3 text-sm text-[#E6EDF3] placeholder-[#7D8590] focus:border-[#22C55E] focus:outline-none"
           />
         </div>
+        {error && (
+          <div role="alert" className="flex items-center gap-2 border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#EF4444]">
+            <AlertCircle className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
+            <span>{error}</span>
+          </div>
+        )}
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
+          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
           <Button type="submit" variant="primary" disabled={submitting || !name.trim()}>
             {submitting ? 'Saving...' : submitLabel}
           </Button>
@@ -74,102 +86,100 @@ export function FolderNameModal({
   );
 }
 
-interface MoveNodeModalProps {
+interface RenameNodeModalProps {
   node: CloudNodeDto | null;
-  api: CloudFilesApi;
   onClose: () => void;
-  onMove: (nodeId: string, targetParentId: string | null) => Promise<void>;
+  onSubmit: (newName: string) => Promise<void>;
 }
 
-export function MoveNodeModal({ node, api, onClose, onMove }: MoveNodeModalProps) {
-  const [browseParentId, setBrowseParentId] = useState<string | null>(null);
-  const [folders, setFolders] = useState<CloudNodeDto[]>([]);
-  const [loading, setLoading] = useState(false);
+/** Renames a file or folder while locking file extensions so users cannot corrupt formats. */
+export function RenameNodeModal({ node, onClose, onSubmit }: RenameNodeModalProps) {
+  const split = node ? splitFileName(node.name, node.nodeType) : { base: '', ext: '' };
+  const [baseName, setBaseName] = useState(split.base);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!node) return;
-    setBrowseParentId(null);
+    const next = splitFileName(node.name, node.nodeType);
+    setBaseName(next.base);
+    setError(null);
   }, [node]);
-
-  useEffect(() => {
-    if (!node) return;
-    let active = true;
-    setLoading(true);
-    api
-      .listNodes({ parentId: browseParentId, view: 'ALL', sortBy: 'name', sortDir: 'asc', limit: 100 })
-      .then((res) => {
-        if (!active) return;
-        setFolders(res.items.filter((item) => item.nodeType === 'FOLDER' && item.id !== node.id));
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [node, browseParentId, api]);
 
   if (!node) return null;
 
-  async function handleConfirm() {
-    if (!node) return;
+  const hasLockedExt = node.nodeType === 'FILE' && split.ext.length > 0;
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    const trimmed = baseName.trim();
+    if (!trimmed || submitting) return;
+    if (trimmed.includes('/') || trimmed.includes('\\')) {
+      setError('Name cannot contain path separators.');
+      return;
+    }
     setSubmitting(true);
+    setError(null);
     try {
-      await onMove(node.id, browseParentId);
+      await onSubmit(hasLockedExt ? `${trimmed}${split.ext}` : trimmed);
       onClose();
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to rename item.'));
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <Modal open title={`Move "${node.name}"`} subtitle="Choose a destination folder" onClose={onClose}>
-      <div className="space-y-3">
-        <div className="flex items-center justify-between border border-[#30363D] bg-[#0D1117] px-3 py-2 text-xs">
-          <span className="font-mono text-[#8B949E]">
-            Destination: <span className="text-[#22C55E]">{browseParentId ? 'Selected Folder' : 'Root'}</span>
-          </span>
-          {browseParentId && (
-            <button
-              type="button"
-              onClick={() => setBrowseParentId(null)}
-              className="font-mono text-[11px] text-[#8B949E] hover:text-[#22C55E]"
-            >
-              Back to Root
-            </button>
-          )}
+    <Modal
+      open
+      title={node.nodeType === 'FOLDER' ? 'Rename Folder' : 'Rename File'}
+      subtitle={hasLockedExt ? 'File extension is locked to preserve format compatibility' : undefined}
+      onClose={onClose}
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="cloud-rename-input" className="block font-mono text-[11px] uppercase text-[#8B949E]">
+            {hasLockedExt ? 'File Name' : 'Name'}
+          </label>
+          <div className="mt-1.5 flex items-stretch border border-[#3B434B] bg-[#0D1117] focus-within:border-[#22C55E]">
+            <input
+              id="cloud-rename-input"
+              type="text"
+              autoFocus
+              required
+              maxLength={255 - split.ext.length}
+              value={baseName}
+              onChange={(e) => setBaseName(e.target.value)}
+              placeholder="Enter name..."
+              className="h-9 min-w-0 flex-1 rounded-none bg-transparent px-3 text-sm text-[#E6EDF3] placeholder-[#7D8590] focus:outline-none"
+            />
+            {hasLockedExt && (
+              <span
+                data-testid="locked-extension-badge"
+                aria-label={`Locked extension ${split.ext}`}
+                className="flex shrink-0 select-none items-center border-l border-[#30363D] bg-[#161B22] px-3 font-mono text-xs font-medium text-[#22C55E]"
+              >
+                {split.ext}
+              </span>
+            )}
+          </div>
         </div>
 
-        <div className="max-h-60 divide-y divide-[#21262D] overflow-y-auto border border-[#30363D] bg-[#0D1117]">
-          {loading ? (
-            <p className="p-4 text-center font-mono text-xs text-[#7D8590]">Loading folders...</p>
-          ) : folders.length === 0 ? (
-            <p className="p-4 text-center text-xs text-[#7D8590]">No subfolders here.</p>
-          ) : (
-            folders.map((folder) => (
-              <button
-                key={folder.id}
-                type="button"
-                onClick={() => setBrowseParentId(folder.id)}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs text-[#E6EDF3] hover:bg-[#161B22]"
-              >
-                <Folder className="h-4 w-4 text-[#22C55E]" strokeWidth={1.5} />
-                <span className="truncate">{folder.name}</span>
-              </button>
-            ))
-          )}
-        </div>
+        {error && (
+          <div role="alert" className="flex items-center gap-2 border border-[#EF4444]/40 bg-[#EF4444]/10 px-3 py-2 text-xs text-[#EF4444]">
+            <AlertCircle className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
+            <span>{error}</span>
+          </div>
+        )}
 
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="button" variant="primary" disabled={submitting} onClick={() => void handleConfirm()}>
-            {submitting ? 'Moving...' : 'Move Here'}
+          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="primary" disabled={submitting || !baseName.trim()}>
+            {submitting ? 'Renaming...' : 'Rename'}
           </Button>
         </div>
-      </div>
+      </form>
     </Modal>
   );
 }
