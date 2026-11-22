@@ -1,11 +1,12 @@
 import { useRef } from 'react';
 import {
-  ArrowDownAZ,
-  ArrowUpAZ,
+  ChevronLeft,
   ChevronRight,
+  Columns3,
   FilePlus2,
   FolderPlus,
-  Search,
+  LayoutGrid,
+  List,
   Trash2,
   Upload,
 } from 'lucide-react';
@@ -17,89 +18,103 @@ import type {
   CloudSortDir,
   CloudView,
 } from '../../types/cloud.types';
+import { viewDisplayTitle } from './cloudFormat';
+import { CloudSearchSortBar } from './CloudSearchSortBar';
+
+export type FinderViewMode = 'icons' | 'list' | 'columns';
 
 interface CloudToolbarProps {
   view: CloudView;
+  viewMode: FinderViewMode;
+  locationLabel: string;
   breadcrumbs: CloudBreadcrumbItem[];
+  canGoBack: boolean;
+  canGoForward: boolean;
   search: string;
   sortBy: CloudSortBy;
   sortDir: CloudSortDir;
   permissions: CloudPermissions;
   hasNodes: boolean;
+  onGoBack: () => void;
+  onGoForward: () => void;
+  onViewModeChange: (mode: FinderViewMode) => void;
   onSearchChange: (value: string) => void;
   onSortByChange: (value: CloudSortBy) => void;
   onToggleSortDir: () => void;
-  onNavigateFolder: (folderId: string | null) => void;
   onUploadFiles: (files: File[]) => void;
   onOpenNewDocument: () => void;
   onOpenNewFolder: () => void;
   onEmptyTrash: () => void;
 }
 
+const MODES: Array<{ id: FinderViewMode; label: string; icon: typeof List }> = [
+  { id: 'icons', label: 'Icons view', icon: LayoutGrid },
+  { id: 'list', label: 'List view', icon: List },
+  { id: 'columns', label: 'Columns view', icon: Columns3 },
+];
+
 export function CloudToolbar({
-  view,
-  breadcrumbs,
-  search,
-  sortBy,
-  sortDir,
-  permissions,
-  hasNodes,
-  onSearchChange,
-  onSortByChange,
-  onToggleSortDir,
-  onNavigateFolder,
-  onUploadFiles,
-  onOpenNewDocument,
-  onOpenNewFolder,
-  onEmptyTrash,
+  view, viewMode, locationLabel, breadcrumbs, canGoBack, canGoForward,
+  search, sortBy, sortDir, permissions, hasNodes, onGoBack, onGoForward,
+  onViewModeChange, onSearchChange, onSortByChange, onToggleSortDir,
+  onUploadFiles, onOpenNewDocument, onOpenNewFolder, onEmptyTrash,
 }: CloudToolbarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const title =
+    view === 'ALL'
+      ? (breadcrumbs[breadcrumbs.length - 1]?.name ?? locationLabel)
+      : viewDisplayTitle(view);
 
   return (
-    <div className="border-b border-[#30363D] bg-[#161B22]">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#30363D] px-4 py-2.5">
-        <nav aria-label="Folder breadcrumbs" className="flex min-w-0 flex-wrap items-center gap-1 text-xs">
-          {view === 'ALL' ? (
-            <>
-              <button
-                type="button"
-                onClick={() => onNavigateFolder(null)}
-                className={`px-1.5 py-0.5 font-medium transition-colors ${
-                  breadcrumbs.length === 0
-                    ? 'text-[#22C55E]'
-                    : 'text-[#8B949E] hover:bg-[#21262D] hover:text-[#E6EDF3]'
-                }`}
-              >
-                Root
-              </button>
-              {breadcrumbs.map((crumb, index) => {
-                const isLast = index === breadcrumbs.length - 1;
-                return (
-                  <span key={crumb.id} className="flex items-center gap-1">
-                    <ChevronRight className="h-3.5 w-3.5 text-[#7D8590]" strokeWidth={1.5} />
-                    <button
-                      type="button"
-                      onClick={() => onNavigateFolder(crumb.id)}
-                      className={`max-w-44 truncate px-1.5 py-0.5 font-medium transition-colors ${
-                        isLast
-                          ? 'text-[#22C55E]'
-                          : 'text-[#8B949E] hover:bg-[#21262D] hover:text-[#E6EDF3]'
-                      }`}
-                    >
-                      {crumb.name}
-                    </button>
-                  </span>
-                );
-              })}
-            </>
-          ) : (
-            <span className="font-mono text-xs uppercase tracking-wider text-[#22C55E]">
-              {view === 'STARRED' ? 'Starred Items' : 'Trash (Auto-purged after 30 days)'}
-            </span>
-          )}
-        </nav>
+    <div className="bg-[#161B22]">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#30363D] px-4 py-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <div className="flex items-center border border-[#30363D] bg-[#0D1117]">
+            <button
+              type="button"
+              aria-label="Back"
+              disabled={!canGoBack}
+              onClick={onGoBack}
+              className="flex h-7 w-7 items-center justify-center border-r border-[#30363D] text-[#8B949E] hover:text-[#22C55E] disabled:opacity-35"
+            >
+              <ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
+            </button>
+            <button
+              type="button"
+              aria-label="Forward"
+              disabled={!canGoForward}
+              onClick={onGoForward}
+              className="flex h-7 w-7 items-center justify-center text-[#8B949E] hover:text-[#22C55E] disabled:opacity-35"
+            >
+              <ChevronRight className="h-4 w-4" strokeWidth={1.5} />
+            </button>
+          </div>
+          <h2 className="truncate text-sm font-semibold text-[#E6EDF3]">{title}</h2>
+        </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div role="group" aria-label="View mode" className="flex items-center border border-[#30363D] bg-[#0D1117]">
+            {MODES.map((m) => {
+              const Icon = m.icon;
+              const active = viewMode === m.id;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  title={m.label}
+                  aria-label={m.label}
+                  aria-pressed={active}
+                  onClick={() => onViewModeChange(m.id)}
+                  className={`flex h-7 w-8 items-center justify-center border-r border-[#30363D] last:border-r-0 transition-colors ${
+                    active ? 'bg-[#052E16] text-[#22C55E]' : 'text-[#8B949E] hover:bg-[#21262D] hover:text-[#E6EDF3]'
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" strokeWidth={1.5} />
+                </button>
+              );
+            })}
+          </div>
+
           {view !== 'TRASH' && permissions.canWrite && (
             <>
               <input
@@ -144,47 +159,14 @@ export function CloudToolbar({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2">
-        <div className="flex items-center border border-[#30363D] bg-[#0D1117] px-2.5 focus-within:border-[#22C55E]">
-          <Search className="h-3.5 w-3.5 text-[#7D8590]" strokeWidth={1.5} />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search files and folders..."
-            className="h-7 w-56 bg-transparent px-2 text-xs text-[#E6EDF3] placeholder-[#7D8590] focus:outline-none"
-          />
-        </div>
-
-        <div className="flex items-center gap-1.5">
-          <label htmlFor="cloud-sort-by" className="font-mono text-[10px] uppercase tracking-wider text-[#7D8590]">
-            Sort
-          </label>
-          <select
-            id="cloud-sort-by"
-            value={sortBy}
-            onChange={(e) => onSortByChange(e.target.value as CloudSortBy)}
-            className="h-7 border border-[#30363D] bg-[#0D1117] px-2 text-xs text-[#E6EDF3] focus:border-[#22C55E] focus:outline-none"
-          >
-            <option value="name">Name</option>
-            <option value="size">Size</option>
-            <option value="updatedAt">Modified</option>
-          </select>
-          <button
-            type="button"
-            title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
-            aria-label={`Sort direction: ${sortDir}`}
-            onClick={onToggleSortDir}
-            className="flex h-7 w-7 items-center justify-center border border-[#30363D] bg-[#0D1117] text-[#8B949E] hover:border-[#22C55E] hover:text-[#22C55E]"
-          >
-            {sortDir === 'asc' ? (
-              <ArrowDownAZ className="h-3.5 w-3.5" strokeWidth={1.5} />
-            ) : (
-              <ArrowUpAZ className="h-3.5 w-3.5" strokeWidth={1.5} />
-            )}
-          </button>
-        </div>
-      </div>
+      <CloudSearchSortBar
+        search={search}
+        sortBy={sortBy}
+        sortDir={sortDir}
+        onSearchChange={onSearchChange}
+        onSortByChange={onSortByChange}
+        onToggleSortDir={onToggleSortDir}
+      />
     </div>
   );
 }

@@ -9,6 +9,7 @@ const AREA_LABEL: Record<WorkspaceAreaId, string> = {
   git: 'Git',
   docs: 'Docs',
   sheets: 'Sheets',
+  slides: 'Slides',
   chat: 'Chat',
   mail: 'Mails',
   cloud: 'Cloud Files',

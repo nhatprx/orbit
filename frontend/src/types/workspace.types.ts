@@ -1,7 +1,7 @@
 export * from './workspace-access.types';
 export * from './workspace-collab.types';
 
-export type ModuleKey = 'git' | 'docs' | 'sheets' | 'chat' | 'cloud' | 'issues';
+export type ModuleKey = 'git' | 'docs' | 'sheets' | 'slides' | 'chat' | 'cloud' | 'issues';
 
 export interface PageResponse<T> {
   items: T[];

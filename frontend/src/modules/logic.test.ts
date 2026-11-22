@@ -123,8 +123,11 @@ describe('profile and settings helpers', () => {
   });
 
   it('orders modules by catalog order and drops unknown keys', () => {
-    expect(orderModules(['issues', 'cloud', 'chat', 'unknown', 'git'])).toEqual(['git', 'chat', 'cloud', 'issues']);
+    expect(orderModules(['issues', 'cloud', 'slides', 'chat', 'unknown', 'git'])).toEqual([
+      'git', 'slides', 'chat', 'cloud', 'issues',
+    ]);
     expect(isModuleKey('docs')).toBe(true);
+    expect(isModuleKey('slides')).toBe(true);
     expect(isModuleKey('cloud')).toBe(true);
     expect(isModuleKey('issues')).toBe(true);
     expect(isModuleKey('ppt')).toBe(false);

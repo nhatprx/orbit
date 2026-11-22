@@ -9,6 +9,7 @@ export type WorkspaceAreaId =
   | 'git'
   | 'docs'
   | 'sheets'
+  | 'slides'
   | 'chat'
   | 'mail'
   | 'cloud'

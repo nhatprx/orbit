@@ -5,6 +5,7 @@ import { useActiveProject, useActiveWorkspace } from '../../store/workspaceStore
 import type { ModuleKey } from '../../types/workspace.types';
 import { ChatPage } from '../chat/ChatPage';
 import { CloudFilesPage } from '../cloud/CloudFilesPage';
+import { OfficeModulePage } from '../cloud/OfficeModulePage';
 import { GitPage } from '../git/GitPage';
 import { IssuesPage } from '../issues/IssuesPage';
 import { MODULE_META } from '../workspace/moduleMeta';
@@ -56,32 +57,41 @@ export function ModuleArea({ module, nav }: ModuleAreaProps) {
       />
     );
   }
-  if (module === 'cloud' || module === 'docs' || module === 'sheets') {
-    if (project) {
-      return (
-        <CloudFilesPage
-          scope={{
-            type: 'PROJECT',
-            workspaceId: workspace.id,
-            projectId: project.id,
-            permissions: project.myPermissions,
-          }}
-          scopeLabel={project.name}
-          modulePreset={module}
-        />
-      );
-    }
-    return (
-      <CloudFilesPage
-        scope={{
-          type: 'WORKSPACE',
+  if (module === 'docs' || module === 'sheets' || module === 'slides') {
+    const cloudScope = project
+      ? {
+          type: 'PROJECT' as const,
+          workspaceId: workspace.id,
+          projectId: project.id,
+          permissions: project.myPermissions,
+        }
+      : {
+          type: 'WORKSPACE' as const,
           workspaceId: workspace.id,
           permissions: workspace.myPermissions,
-        }}
-        scopeLabel={workspace.name}
-        modulePreset={module}
+        };
+    return (
+      <OfficeModulePage
+        scope={cloudScope}
+        scopeLabel={project ? project.name : workspace.name}
+        officeModule={module}
       />
     );
+  }
+  if (module === 'cloud') {
+    const cloudScope = project
+      ? {
+          type: 'PROJECT' as const,
+          workspaceId: workspace.id,
+          projectId: project.id,
+          permissions: project.myPermissions,
+        }
+      : {
+          type: 'WORKSPACE' as const,
+          workspaceId: workspace.id,
+          permissions: workspace.myPermissions,
+        };
+    return <CloudFilesPage scope={cloudScope} scopeLabel={project ? project.name : workspace.name} />;
   }
   if (module === 'git') {
     if (project) {

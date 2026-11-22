@@ -26,6 +26,7 @@ function makeMockApi(overrides: Partial<CloudFilesApi> = {}): CloudFilesApi {
     getQuota: vi.fn().mockResolvedValue(QUOTA),
     createFolder: vi.fn().mockResolvedValue(makeNode({ id: 'f-new', nodeType: 'FOLDER', name: 'Specs' })),
     updateNode: vi.fn().mockResolvedValue(makeNode()),
+    moveCloudNodes: vi.fn().mockResolvedValue({ moved: [makeNode()] }),
     softDeleteNode: vi.fn().mockResolvedValue(makeNode()),
     restoreNode: vi.fn().mockResolvedValue(makeNode()),
     permanentDeleteNode: vi.fn().mockResolvedValue(undefined),
@@ -73,7 +74,7 @@ describe('CloudFilesPage', () => {
 
     render(<CloudFilesPage scope={{ type: 'USER' }} apiOverride={api} />);
 
-    expect(await screen.findByText('Personal Cloud')).toBeTruthy();
+    expect((await screen.findAllByText('Personal Cloud')).length).toBeGreaterThan(0);
     expect(await screen.findByText('Designs')).toBeTruthy();
     expect(screen.getByText('512 MB / 5.00 GB')).toBeTruthy();
 
