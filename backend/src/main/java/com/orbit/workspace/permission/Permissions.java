@@ -38,6 +38,10 @@ public final class Permissions {
     public static final String ISSUES_WRITE = "issues.write";
     public static final String ISSUES_DELETE = "issues.delete";
     public static final String ISSUES_MANAGE = "issues.manage";
+    public static final String WHITEBOARD_READ = "whiteboard.read";
+    public static final String WHITEBOARD_WRITE = "whiteboard.write";
+    public static final String WHITEBOARD_DELETE = "whiteboard.delete";
+    public static final String WHITEBOARD_MANAGE = "whiteboard.manage";
 
     public static final String PROJECT_VIEW = "project.view";
     public static final String PROJECT_EDIT = "project.edit";
@@ -64,6 +68,10 @@ public final class Permissions {
     public static final String PISSUES_WRITE = "pissues.write";
     public static final String PISSUES_DELETE = "pissues.delete";
     public static final String PISSUES_MANAGE = "pissues.manage";
+    public static final String PWHITEBOARD_READ = "pwhiteboard.read";
+    public static final String PWHITEBOARD_WRITE = "pwhiteboard.write";
+    public static final String PWHITEBOARD_DELETE = "pwhiteboard.delete";
+    public static final String PWHITEBOARD_MANAGE = "pwhiteboard.manage";
 
     public static final List<String> WORKSPACE_KEYS = List.of(
         WORKSPACE_VIEW, WORKSPACE_EDIT, WORKSPACE_DELETE, WORKSPACE_TRANSFER_OWNER,
@@ -74,7 +82,8 @@ public final class Permissions {
         CHAT_READ, CHAT_WRITE, CHAT_MANAGE,
         FILES_READ, FILES_WRITE, FILES_DELETE, FILES_MANAGE,
         GIT_READ, GIT_WRITE, GIT_DELETE, GIT_MANAGE,
-        ISSUES_READ, ISSUES_WRITE, ISSUES_DELETE, ISSUES_MANAGE
+        ISSUES_READ, ISSUES_WRITE, ISSUES_DELETE, ISSUES_MANAGE,
+        WHITEBOARD_READ, WHITEBOARD_WRITE, WHITEBOARD_DELETE, WHITEBOARD_MANAGE
     );
 
     public static final List<String> PROJECT_KEYS = List.of(
@@ -85,7 +94,8 @@ public final class Permissions {
         PCHAT_READ, PCHAT_WRITE, PCHAT_MANAGE,
         PFILES_READ, PFILES_WRITE, PFILES_DELETE, PFILES_MANAGE,
         PGIT_READ, PGIT_WRITE, PGIT_DELETE, PGIT_MANAGE,
-        PISSUES_READ, PISSUES_WRITE, PISSUES_DELETE, PISSUES_MANAGE
+        PISSUES_READ, PISSUES_WRITE, PISSUES_DELETE, PISSUES_MANAGE,
+        PWHITEBOARD_READ, PWHITEBOARD_WRITE, PWHITEBOARD_DELETE, PWHITEBOARD_MANAGE
     );
 
     private static final Set<String> WORKSPACE_KEY_SET = Set.copyOf(WORKSPACE_KEYS);

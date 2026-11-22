@@ -15,10 +15,10 @@ class PermissionModelTest {
 
     @Test
     void keyCatalogsHaveNoDuplicatesAndDoNotOverlap() {
-        assertEquals(32, Permissions.WORKSPACE_KEYS.size());
-        assertEquals(25, Permissions.PROJECT_KEYS.size());
-        assertEquals(32, new HashSet<>(Permissions.WORKSPACE_KEYS).size());
-        assertEquals(25, new HashSet<>(Permissions.PROJECT_KEYS).size());
+        assertEquals(36, Permissions.WORKSPACE_KEYS.size());
+        assertEquals(29, Permissions.PROJECT_KEYS.size());
+        assertEquals(36, new HashSet<>(Permissions.WORKSPACE_KEYS).size());
+        assertEquals(29, new HashSet<>(Permissions.PROJECT_KEYS).size());
         Set<String> overlap = new HashSet<>(Permissions.WORKSPACE_KEYS);
         overlap.retainAll(Permissions.PROJECT_KEYS);
         assertTrue(overlap.isEmpty());
@@ -29,10 +29,12 @@ class PermissionModelTest {
         assertTrue(Permissions.isWorkspaceKey("workspace.view"));
         assertTrue(Permissions.isWorkspaceKey("git.read"));
         assertTrue(Permissions.isWorkspaceKey("issues.read"));
+        assertTrue(Permissions.isWorkspaceKey("whiteboard.read"));
         assertFalse(Permissions.isWorkspaceKey("project.view"));
         assertTrue(Permissions.isProjectKey("project.view"));
         assertTrue(Permissions.isProjectKey("pgit.manage"));
         assertTrue(Permissions.isProjectKey("pissues.manage"));
+        assertTrue(Permissions.isProjectKey("pwhiteboard.manage"));
         assertFalse(Permissions.isProjectKey("workspace.view"));
         assertFalse(Permissions.isWorkspaceKey(null));
         assertFalse(Permissions.isProjectKey(""));
@@ -41,9 +43,9 @@ class PermissionModelTest {
 
     @Test
     void seededWorkspaceRolesMatchTheSpecification() {
-        assertEquals(32, SystemRole.OWNER.workspacePermissions().size());
+        assertEquals(36, SystemRole.OWNER.workspacePermissions().size());
         Set<String> admin = SystemRole.ADMIN.workspacePermissions();
-        assertEquals(30, admin.size());
+        assertEquals(34, admin.size());
         assertFalse(admin.contains(Permissions.WORKSPACE_DELETE));
         assertFalse(admin.contains(Permissions.WORKSPACE_TRANSFER_OWNER));
         assertEquals(
@@ -51,7 +53,8 @@ class PermissionModelTest {
                 "workspace.view", "member.view", "role.view", "project.create",
                 "chat.read", "chat.write", "files.read", "files.write", "files.delete",
                 "git.read", "git.write", "git.delete",
-                "issues.read", "issues.write", "issues.delete"
+                "issues.read", "issues.write", "issues.delete",
+                "whiteboard.read", "whiteboard.write"
             ),
             SystemRole.MEMBER.workspacePermissions()
         );
@@ -61,16 +64,17 @@ class PermissionModelTest {
 
     @Test
     void seededProjectRolesMatchTheSpecification() {
-        assertEquals(25, SystemRole.OWNER.projectPermissions().size());
+        assertEquals(29, SystemRole.OWNER.projectPermissions().size());
         Set<String> admin = SystemRole.ADMIN.projectPermissions();
-        assertEquals(24, admin.size());
+        assertEquals(28, admin.size());
         assertFalse(admin.contains(Permissions.PROJECT_DELETE));
         assertEquals(
             Set.of(
                 "project.view", "pchat.read", "pchat.write",
                 "pfiles.read", "pfiles.write", "pfiles.delete",
                 "pgit.read", "pgit.write", "pgit.delete",
-                "pissues.read", "pissues.write", "pissues.delete"
+                "pissues.read", "pissues.write", "pissues.delete",
+                "pwhiteboard.read", "pwhiteboard.write"
             ),
             SystemRole.MEMBER.projectPermissions()
         );
@@ -88,22 +92,25 @@ class PermissionModelTest {
         assertEquals(
             Set.of(
                 Permissions.PROJECT_VIEW, Permissions.PCHAT_READ, Permissions.PFILES_READ,
-                Permissions.PGIT_READ, Permissions.PISSUES_READ
+                Permissions.PGIT_READ, Permissions.PISSUES_READ, Permissions.PWHITEBOARD_READ
             ),
             viewAll
         );
 
         Set<String> admin = ProjectPermissionPolicy.effective(Set.of(Permissions.WORKSPACE_EDIT), false, false, none);
-        assertEquals(25, admin.size());
+        assertEquals(29, admin.size());
 
         Set<String> owner = ProjectPermissionPolicy.effective(none, true, false, none);
-        assertEquals(25, owner.size());
+        assertEquals(29, owner.size());
 
         Set<String> merged = ProjectPermissionPolicy.effective(
             Set.of(Permissions.PROJECT_VIEW_ALL), false, true, Set.of(Permissions.PCHAT_WRITE)
         );
         assertEquals(
-            Set.of("project.view", "pchat.read", "pchat.write", "pfiles.read", "pgit.read", "pissues.read"),
+            Set.of(
+                "project.view", "pchat.read", "pchat.write", "pfiles.read",
+                "pgit.read", "pissues.read", "pwhiteboard.read"
+            ),
             merged
         );
     }
