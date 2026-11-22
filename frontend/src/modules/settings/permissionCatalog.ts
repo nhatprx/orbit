@@ -38,6 +38,10 @@ export const WORKSPACE_PERMISSIONS: PermissionDef[] = [
   { key: 'issues.write', label: 'Create and edit issues and sprints', group: 'Issues & Sprints' },
   { key: 'issues.delete', label: 'Delete issues and sprints', group: 'Issues & Sprints' },
   { key: 'issues.manage', label: 'Manage sprint lifecycle and issue settings', group: 'Issues & Sprints' },
+  { key: 'whiteboard.read', label: 'Read whiteboards', group: 'Whiteboard' },
+  { key: 'whiteboard.write', label: 'Create and edit whiteboards', group: 'Whiteboard' },
+  { key: 'whiteboard.delete', label: 'Delete whiteboards', group: 'Whiteboard' },
+  { key: 'whiteboard.manage', label: 'Manage whiteboard settings and boards', group: 'Whiteboard' },
 ];
 
 /** Project-level permission keys. */
@@ -67,6 +71,10 @@ export const PROJECT_PERMISSIONS: PermissionDef[] = [
   { key: 'pissues.write', label: 'Create and edit issues and sprints', group: 'Issues & Sprints' },
   { key: 'pissues.delete', label: 'Delete issues and sprints', group: 'Issues & Sprints' },
   { key: 'pissues.manage', label: 'Manage sprint lifecycle and issue settings', group: 'Issues & Sprints' },
+  { key: 'pwhiteboard.read', label: 'Read whiteboards', group: 'Whiteboard' },
+  { key: 'pwhiteboard.write', label: 'Create and edit whiteboards', group: 'Whiteboard' },
+  { key: 'pwhiteboard.delete', label: 'Delete whiteboards', group: 'Whiteboard' },
+  { key: 'pwhiteboard.manage', label: 'Manage whiteboard settings and boards', group: 'Whiteboard' },
 ];
 
 export interface PermissionGroup {

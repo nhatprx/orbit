@@ -8,6 +8,7 @@ import { CloudFilesPage } from '../cloud/CloudFilesPage';
 import { OfficeModulePage } from '../cloud/OfficeModulePage';
 import { GitPage } from '../git/GitPage';
 import { IssuesPage } from '../issues/IssuesPage';
+import { WhiteboardPage } from '../whiteboard/WhiteboardPage';
 import { MODULE_META } from '../workspace/moduleMeta';
 import type { DashboardNavigation } from './useDashboardNavigation';
 
@@ -47,6 +48,9 @@ export function ModuleArea({ module, nav }: ModuleAreaProps) {
 
   if (module === 'chat') {
     return <ChatPage workspace={workspace} project={project} />;
+  }
+  if (module === 'whiteboard') {
+    return <WhiteboardPage workspace={workspace} project={project} />;
   }
   if (module === 'issues') {
     return (

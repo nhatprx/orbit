@@ -5,12 +5,13 @@ import {
   GitBranch,
   ListTodo,
   MessageSquare,
+  PenTool,
   Presentation,
   type LucideIcon,
 } from 'lucide-react';
 import type { ModuleKey } from '../../types/workspace.types';
 
-/** Display metadata for the module catalog (git, docs, sheets, slides, chat, cloud, issues). */
+/** Display metadata for the module catalog (git, docs, sheets, slides, chat, cloud, issues, whiteboard). */
 export const MODULE_META: Record<ModuleKey, { label: string; summary: string; icon: LucideIcon }> = {
   git: { label: 'Git', summary: 'Repositories, commits, and pull requests', icon: GitBranch },
   docs: { label: 'Docs', summary: 'Collaborative documents', icon: FileText },
@@ -19,9 +20,19 @@ export const MODULE_META: Record<ModuleKey, { label: string; summary: string; ic
   chat: { label: 'Chat', summary: 'Real-time workspace and project messaging', icon: MessageSquare },
   cloud: { label: 'Cloud Files', summary: 'Structured cloud storage, folders, and file sharing', icon: Cloud },
   issues: { label: 'Issues & Sprints', summary: 'Agile issue tracking, epics, sprints, and lifecycle boards', icon: ListTodo },
+  whiteboard: { label: 'Whiteboard', summary: 'Visual diagrams, system sketches, and freeform canvases', icon: PenTool },
 };
 
-export const MODULE_ORDER: ModuleKey[] = ['git', 'docs', 'sheets', 'slides', 'chat', 'cloud', 'issues'];
+export const MODULE_ORDER: ModuleKey[] = [
+  'git',
+  'docs',
+  'sheets',
+  'slides',
+  'chat',
+  'cloud',
+  'issues',
+  'whiteboard',
+];
 
 export function isModuleKey(value: string): value is ModuleKey {
   return value in MODULE_META;

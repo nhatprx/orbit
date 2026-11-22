@@ -14,6 +14,7 @@ export type WorkspaceAreaId =
   | 'mail'
   | 'cloud'
   | 'issues'
+  | 'whiteboard'
   | 'personal-cloud'
   | 'admin';
 

@@ -23,7 +23,7 @@ interface DashboardContentProps {
 }
 
 /** Areas that fill the viewport instead of scrolling inside a padded column. */
-export const FULL_HEIGHT_AREAS = ['ai', 'mail', 'cloud', 'docs', 'sheets', 'slides', 'personal-cloud', 'chat', 'issues'] as const;
+export const FULL_HEIGHT_AREAS = ['ai', 'mail', 'cloud', 'docs', 'sheets', 'slides', 'personal-cloud', 'chat', 'issues', 'whiteboard'] as const;
 
 export function DashboardContent({
   user,
