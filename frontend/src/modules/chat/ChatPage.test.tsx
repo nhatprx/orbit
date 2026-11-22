@@ -149,8 +149,9 @@ describe('ChatPage', () => {
     expect(screen.queryByLabelText('Search messages')).toBeNull();
     expect(screen.queryByLabelText('Members panel')).toBeNull();
 
-    fireEvent.click(screen.getByLabelText('More actions for Alice Chen'));
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }));
+    const moreButtons = screen.getAllByLabelText('More message actions');
+    fireEvent.click(moreButtons[moreButtons.length - 1]!);
+    fireEvent.click(screen.getByLabelText('Delete message from Alice Chen'));
     await waitFor(() => expect(store.deleteMessage).toHaveBeenCalledTimes(1));
     expect(screen.queryByText('Shipping now')).toBeNull();
 
