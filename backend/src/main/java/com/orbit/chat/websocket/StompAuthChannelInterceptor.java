@@ -6,6 +6,7 @@ import com.orbit.auth.service.JwtService.VerifiedToken;
 import com.orbit.auth.service.RedisSessionService;
 import com.orbit.chat.service.ChatRelay;
 import com.orbit.chat.service.ChatAccessGuard;
+import com.orbit.chat.entity.ChatScopeType;
 import com.orbit.collab.service.CollabStompAuthorizer;
 import java.security.Principal;
 import java.util.List;
@@ -102,6 +103,10 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
             collabAuthorizer.authorizeSubscribe(userId, destination);
             return;
         }
+        if (destination != null && destination.startsWith("/topic/chat-presence.")) {
+            authorizePresenceSubscribe(userId, destination);
+            return;
+        }
         if (destination == null || !destination.startsWith(ChatRelay.TOPIC_PREFIX)) {
             throw new MessagingException("Destination is not allowed.");
         }
@@ -117,6 +122,17 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         }
         if (!guard.canRead(userId, channelId)) {
             throw new MessagingException("You cannot read this channel.");
+        }
+    }
+
+    private void authorizePresenceSubscribe(UUID userId, String destination) {
+        String[] parts = destination.substring("/topic/chat-presence.".length()).split("\\.", 2);
+        try {
+            if (parts.length != 2 || !guard.canReadScope(
+                userId, ChatScopeType.valueOf(parts[0].toUpperCase()), UUID.fromString(parts[1])
+            )) throw new MessagingException("You cannot read this chat scope.");
+        } catch (IllegalArgumentException ex) {
+            throw new MessagingException("Destination is not allowed.");
         }
     }
 

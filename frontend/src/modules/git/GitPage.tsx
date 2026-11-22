@@ -66,6 +66,7 @@ export function GitPage({ scope, scopeLabel, api }: GitPageProps) {
       <GitConnectPanel
         scopeLabel={scopeLabel}
         canManage={perms.canManage}
+        onAutoFetchToken={() => ws.api.fetchOAuthToken()}
         onInspectToken={(token) => ws.api.inspectToken(token)}
         onConnectRepo={(req) => ws.connectRepo(req)}
         onCreateRepo={(req) => ws.createRepo(req)}
@@ -161,6 +162,7 @@ export function GitPage({ scope, scopeLabel, api }: GitPageProps) {
         onCloseFileEditor={() => setFileEditor(null)}
         onCloseCommitModal={() => setCommitModal(EMPTY_COMMIT_MODAL)}
         onSelectBranch={ws.setActiveBranch}
+        onAutoFetchToken={() => ws.api.fetchOAuthToken()}
         onUpdateToken={ws.updateToken}
         onDisconnect={ws.disconnectRepo}
         onCreateBranch={ws.createBranch}

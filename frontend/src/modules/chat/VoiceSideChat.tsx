@@ -22,7 +22,7 @@ export function VoiceSideChat({
   canWriteChat = true,
   onClose,
 }: VoiceSideChatProps) {
-  const chat = useChatChannel(channel.id);
+  const chat = useChatChannel(channel.id, currentUserId);
   const [replyTo, setReplyTo] = useState<ChatMessageDto | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const activeReplyTo =
@@ -77,6 +77,7 @@ export function VoiceSideChat({
           onLoadOlder={() => void chat.loadOlder()}
           onReply={(message) => setReplyTo(message)}
           onDeleteMessage={handleDelete}
+          onToggleReaction={chat.setReaction}
         />
       )}
 

@@ -4,6 +4,8 @@ import type {
   ChatMessageDeletedEvent,
   ChatMessageDto,
   ChatTypingEvent,
+  ChatReactionEvent,
+  ChatReactionKey,
   CreateChatChannelRequest,
   CursorPageResponse,
   SendChatMessageRequest,
@@ -17,6 +19,7 @@ import type {
 import type { ChatService } from './collab.service';
 import { apiRequest, seg } from './httpClient';
 import { StompConnection } from './stomp/StompConnection';
+import { subscribeChatChannel } from './chatChannelSubscription';
 
 const TOPIC_PREFIX = '/topic/chat.';
 
@@ -99,37 +102,19 @@ class HttpChatService implements ChatService {
     );
   }
 
+  setReaction(channelId: string, messageId: string, key: ChatReactionKey, active: boolean) {
+    const method = active ? 'PUT' : 'DELETE';
+    return apiRequest<ChatReactionEvent>(method, `/api/v1/chat/channels/${seg(channelId)}/messages/${seg(messageId)}/reactions/${seg(key)}`);
+  }
+
   subscribeChannel(
     channelId: string,
     onMessage: (message: ChatMessageDto) => void,
     onDeleted?: (event: ChatMessageDeletedEvent) => void,
-    onTyping?: (event: ChatTypingEvent) => void
+    onTyping?: (event: ChatTypingEvent) => void,
+    onReaction?: (event: ChatReactionEvent) => void
   ): () => void {
-    return chatConnection.subscribe(`${TOPIC_PREFIX}${channelId}`, (frame) => {
-      try {
-        const payload = JSON.parse(frame.body) as Record<string, unknown>;
-        if (payload.eventType === 'TYPING' && typeof payload.userId === 'string'
-          && typeof payload.active === 'boolean' && typeof payload.displayName === 'string'
-          && (payload.channelId === undefined || payload.channelId === channelId)) {
-          onTyping?.(payload as unknown as ChatTypingEvent);
-          return;
-        }
-        if (payload.eventType === 'MESSAGE_DELETED' && typeof payload.messageId === 'string') {
-          onDeleted?.({
-            eventType: 'MESSAGE_DELETED',
-            channelId: typeof payload.channelId === 'string' ? payload.channelId : channelId,
-            messageId: payload.messageId,
-            deletedAt: typeof payload.deletedAt === 'string' ? payload.deletedAt : undefined,
-          });
-          return;
-        }
-        if (typeof payload.id === 'string') {
-          onMessage(payload as unknown as ChatMessageDto);
-        }
-      } catch {
-        // Ignore a malformed broadcast rather than tearing down the subscription.
-      }
-    });
+    return subscribeChatChannel(chatConnection, channelId, onMessage, onDeleted, onTyping, onReaction);
   }
 
   sendTyping(channelId: string, active: boolean) {

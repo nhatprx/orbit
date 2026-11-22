@@ -68,6 +68,22 @@ public class ChatAccessGuard {
         }
     }
 
+    public boolean canReadScope(UUID userId, ChatScopeType scopeType, UUID scopeId) {
+        try {
+            if (scopeType == ChatScopeType.WORKSPACE) {
+                requireWorkspaceChat(userId, scopeId, Permissions.CHAT_READ);
+            } else {
+                ProjectEntity project = projects.findById(scopeId)
+                    .filter(p -> p.getDeletedAt() == null)
+                    .orElseThrow(() -> ApiException.notFound("NOT_FOUND", "Chat scope not found."));
+                requireProjectChat(userId, project.getWorkspaceId(), project.getId(), Permissions.PCHAT_READ);
+            }
+            return true;
+        } catch (ApiException ex) {
+            return false;
+        }
+    }
+
     /** Non-throwing check used for moderation actions such as deleting another user's message. */
     public boolean canManage(UUID userId, ChatChannelEntity channel) {
         try {

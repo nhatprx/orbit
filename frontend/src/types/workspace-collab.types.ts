@@ -1,3 +1,5 @@
+import type { ChatReactionSummaryDto } from './chat-reaction.types';
+
 export type ChatScopeType = 'WORKSPACE' | 'PROJECT';
 export type ChatChannelType = 'TEXT' | 'VOICE' | 'FORUM';
 
@@ -32,6 +34,7 @@ export interface ChatMessageDto {
   senderId: string;
   senderName: string;
   senderUsername: string;
+  senderAvatarUrl?: string | null;
   content: string;
   replyToId?: string | null;
   replyToSenderName?: string | null;
@@ -39,6 +42,7 @@ export interface ChatMessageDto {
   attachmentName?: string | null;
   attachmentUrl?: string | null;
   createdAt: string;
+  reactions?: ChatReactionSummaryDto[];
 }
 
 export interface SendChatMessageRequest {

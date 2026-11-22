@@ -32,6 +32,7 @@ interface GitModalsProps {
   onCloseFileEditor: () => void;
   onCloseCommitModal: () => void;
   onSelectBranch: (branch: string) => void;
+  onAutoFetchToken?: () => Promise<string>;
   onUpdateToken: (token: string) => Promise<unknown>;
   onDisconnect: () => Promise<unknown>;
   onCreateBranch: (req: CreateGitBranchRequest) => Promise<unknown>;
@@ -59,6 +60,7 @@ export function GitModals({
   onCloseFileEditor,
   onCloseCommitModal,
   onSelectBranch,
+  onAutoFetchToken,
   onUpdateToken,
   onDisconnect,
   onCreateBranch,
@@ -73,6 +75,7 @@ export function GitModals({
           repo={repo}
           canManage={canManage}
           onClose={onCloseAccess}
+          onAutoFetchToken={onAutoFetchToken}
           onUpdateToken={async (token) => {
             await onUpdateToken(token);
           }}

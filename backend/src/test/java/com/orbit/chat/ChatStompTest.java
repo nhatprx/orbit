@@ -143,6 +143,7 @@ class ChatStompTest extends AbstractIntegrationTest {
         UUID channel = channelOf(owner, ws);
 
         StompSession session = connect(reader, new Recorder());
+        @SuppressWarnings("rawtypes")
         BlockingQueue<Map> errors = StompTestClient.subscribe(session, "/user/queue/errors", Map.class);
         BlockingQueue<ChatMessageDto> inbox =
             StompTestClient.subscribe(session, "/topic/chat." + channel, ChatMessageDto.class);

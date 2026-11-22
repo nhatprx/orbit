@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { errorMessage } from '../../services/workspace/httpClient';
 import { chatService } from '../../services/workspace/services';
-import type { ChatMessageDto, ChatTypingEvent, SendChatMessageRequest } from '../../types/workspace.types';
-import { mergeMessage, mergeOlder, removeMessage } from './chatMessages';
+import type { ChatMessageDto, ChatReactionKey, ChatTypingEvent, SendChatMessageRequest } from '../../types/workspace.types';
+import { applyReaction, mergeMessage, mergeOlder, removeMessage } from './chatMessages';
 
 const PAGE_SIZE = 50;
 
@@ -50,7 +50,8 @@ export function useChatChannel(channelId: string, currentUserId: string | null =
           setMessages((current) => removeMessage(current, deleted.messageId));
         }
       },
-      receiveTyping
+      receiveTyping,
+      (event) => { if (active) setMessages((current) => applyReaction(current, event, currentUserId)); }
     );
     chatService
       .listMessages(channelId, undefined, PAGE_SIZE)
@@ -106,6 +107,14 @@ export function useChatChannel(channelId: string, currentUserId: string | null =
 
   const sendTyping = useCallback((active: boolean) => chatService.sendTyping(channelId, active), [channelId]);
 
+  const setReaction = useCallback(async (messageId: string, key: ChatReactionKey) => {
+    const target = messages.find((message) => message.id === messageId);
+    if (!target) return;
+    const existing = (target.reactions ?? []).find((reaction) => reaction.reactionKey === key);
+    const event = await chatService.setReaction(channelId, messageId, key, !existing?.reactedByMe);
+    setMessages((current) => applyReaction(current, event, currentUserId));
+  }, [channelId, currentUserId, messages]);
+
   return {
     messages,
     loading,
@@ -115,6 +124,7 @@ export function useChatChannel(channelId: string, currentUserId: string | null =
     loadOlder,
     send,
     deleteMessage,
+    setReaction,
     typingUsers: Object.values(typingUsers),
     sendTyping,
   };

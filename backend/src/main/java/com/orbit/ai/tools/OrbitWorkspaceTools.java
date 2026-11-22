@@ -16,7 +16,6 @@ import com.orbit.workspace.service.WorkspaceModuleService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Component;
 

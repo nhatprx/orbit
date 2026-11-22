@@ -1,4 +1,4 @@
-import { CheckCircle2, KeyRound } from 'lucide-react';
+import { CheckCircle2, Github, KeyRound } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import type { InspectGitTokenResponse } from '../../types/git.types';
@@ -6,23 +6,42 @@ import type { InspectGitTokenResponse } from '../../types/git.types';
 interface GitTokenVerifyBoxProps {
   token: string;
   verifying: boolean;
+  autoFetching: boolean;
   tokenInfo: InspectGitTokenResponse | null;
   onChangeToken: (value: string) => void;
   onVerify: () => void;
+  onAutoFetch?: () => void;
 }
 
 export function GitTokenVerifyBox({
   token,
   verifying,
+  autoFetching,
   tokenInfo,
   onChangeToken,
   onVerify,
+  onAutoFetch,
 }: GitTokenVerifyBoxProps) {
+  const busy = verifying || autoFetching;
+
   return (
     <div className="space-y-2 border border-[#30363D] bg-[#0D1117] p-4">
-      <label htmlFor="git-pat-input" className="block text-xs font-medium text-[#BDBDBD]">
-        GitHub Personal Access Token
-      </label>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <label htmlFor="git-pat-input" className="block text-xs font-medium text-[#BDBDBD]">
+          GitHub Personal Access Token
+        </label>
+        {onAutoFetch && (
+          <Button
+            type="button"
+            variant="primary"
+            disabled={busy}
+            onClick={onAutoFetch}
+          >
+            <Github className="h-3.5 w-3.5" strokeWidth={1.5} />
+            {autoFetching ? 'Authorizing GitHub...' : 'Auto-Fetch from GitHub'}
+          </Button>
+        )}
+      </div>
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1">
           <KeyRound
@@ -41,7 +60,7 @@ export function GitTokenVerifyBox({
         <Button
           type="button"
           variant="secondary"
-          disabled={verifying || !token.trim()}
+          disabled={busy || !token.trim()}
           onClick={onVerify}
         >
           {verifying ? 'Verifying...' : 'Verify GitHub Access'}

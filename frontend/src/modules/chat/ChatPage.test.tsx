@@ -38,14 +38,7 @@ vi.mock('../../services/auth.service', () => ({
   },
 }));
 
-vi.mock('../../services/workspace/services', () => ({
-  memberService: {
-    listWorkspaceMembers: vi.fn(async () => ({ items: store.members, page: 0, size: 100, totalElements: store.members.length, totalPages: 1, hasMore: false })),
-    listProjectMembers: vi.fn(async () => ({ items: store.members, page: 0, size: 100, totalElements: store.members.length, totalPages: 1, hasMore: false })),
-  },
-}));
-
-vi.mock('./useChatConnection', () => ({ useChatConnection: () => 'connected' as const }));
+vi.mock('./useChatOnlineCount', () => ({ useChatOnlineCount: () => 3 }));
 vi.mock('./useChatChannels', () => ({ useChatChannels: () => useFakeChatChannels(store) }));
 vi.mock('./useChatChannel', () => ({ useChatChannel: (id: string) => useFakeChatChannel(store, id) }));
 vi.mock('./useVoiceSession', () => ({ useVoiceSession: (channels: ChatChannelDto[]) => useFakeVoiceSession(store, channels) }));
@@ -101,19 +94,19 @@ describe('ChatPage', () => {
     expect(screen.queryByLabelText('Delete standup')).toBeNull();
   });
 
-  it('joins voice, toggles media controls and side chat, keeps Voice Connected dock in text view, and disconnects', async () => {
+  it('joins voice, toggles media controls and side chat, leaves voice when switching to text, and disconnects', async () => {
     render(<ChatPage workspace={makeTestWorkspace(['chat.read', 'chat.write'])} project={null} />);
     fireEvent.click(screen.getByRole('button', { name: 'lounge' }));
     await waitFor(() => expect(store.joinVoiceSpy).toHaveBeenCalledWith('ch-voice'));
     expect(screen.getByText('VOICE CONNECTED')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Mute' }));
-    expect(screen.getByRole('button', { name: 'Unmute' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Deafen' }));
-    expect(screen.getByRole('button', { name: 'Undeafen' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Camera On' }));
-    expect(screen.getByRole('button', { name: 'Camera Off' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Share Screen' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mute microphone' }));
+    expect(screen.getByRole('button', { name: 'Unmute microphone' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Deafen audio' }));
+    expect(screen.getByRole('button', { name: 'Undeafen audio' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Turn camera on' }));
+    expect(screen.getByRole('button', { name: 'Turn camera off' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Share screen' }));
     expect(screen.getByText('LIVE SCREEN')).toBeTruthy();
 
     fireEvent.click(screen.getByLabelText('Toggle voice text chat'));
@@ -121,15 +114,17 @@ describe('ChatPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'general' }));
     expect(screen.getByPlaceholderText('Message #general')).toBeTruthy();
-    expect(screen.getByText('VOICE CONNECTED')).toBeTruthy();
-
-    fireEvent.click(screen.getByLabelText('Open voice stage'));
-    fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }));
     await waitFor(() => expect(store.leaveVoiceSpy).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText('VOICE CONNECTED')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'lounge' }));
+    await waitFor(() => expect(store.joinVoiceSpy).toHaveBeenCalledTimes(2));
+    fireEvent.click(screen.getByRole('button', { name: 'Disconnect voice' }));
+    await waitFor(() => expect(store.leaveVoiceSpy).toHaveBeenCalledTimes(2));
     expect(screen.getByRole('button', { name: 'Join Voice Channel' })).toBeTruthy();
   });
 
-  it('validates attachments, sends replies, deletes messages, filters messages, and toggles Members panel', async () => {
+  it('validates attachments, sends replies, removes member/search controls, and deletes messages', async () => {
     render(<ChatPage workspace={makeTestWorkspace(['chat.read', 'chat.write', 'chat.manage'])} project={null} />);
 
     fireEvent.click(screen.getByLabelText('Attach link'));
@@ -150,19 +145,14 @@ describe('ChatPage', () => {
     );
     expect(screen.getByText('Shipping now')).toBeTruthy();
 
-    fireEvent.change(screen.getByLabelText('Search messages'), { target: { value: 'unmatched-term' } });
-    expect(screen.getByText('No messages match your search.')).toBeTruthy();
-    fireEvent.click(screen.getByLabelText('Clear message search'));
+    expect(screen.getByRole('status', { name: '3 people online' })).toBeTruthy();
+    expect(screen.queryByLabelText('Search messages')).toBeNull();
+    expect(screen.queryByLabelText('Members panel')).toBeNull();
 
     fireEvent.click(screen.getByLabelText('Delete message from Alice Chen'));
     await waitFor(() => expect(store.deleteMessage).toHaveBeenCalledTimes(1));
     expect(screen.queryByText('Shipping now')).toBeNull();
 
-    expect(await screen.findByText(/OWNERS & ADMINS/i)).toBeTruthy();
-    fireEvent.click(screen.getByLabelText('Toggle members panel'));
-    expect(screen.queryByLabelText('Members panel')).toBeNull();
-    fireEvent.click(screen.getByLabelText('Toggle members panel'));
-    expect(screen.getByLabelText('Members panel')).toBeTruthy();
   });
 
   it('blocks protocol-relative attachments, enforces 64-char category maxLength, and binds delayed camera streams', () => {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ExternalLink, KeyRound, Unplug, X } from 'lucide-react';
+import { ExternalLink, Github, KeyRound, Unplug, X } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import type { GitRepositoryDto } from '../../types/git.types';
@@ -8,35 +8,52 @@ interface GitAccessModalProps {
   repo: GitRepositoryDto;
   canManage: boolean;
   onClose: () => void;
+  onAutoFetchToken?: () => Promise<string>;
   onUpdateToken: (accessToken: string) => Promise<void>;
   onDisconnect: () => Promise<void>;
 }
 
 export function GitAccessModal({
-  repo,
-  canManage,
-  onClose,
-  onUpdateToken,
-  onDisconnect,
+  repo, canManage, onClose, onAutoFetchToken, onUpdateToken, onDisconnect,
 }: GitAccessModalProps) {
   const [newToken, setNewToken] = useState('');
   const [saving, setSaving] = useState(false);
+  const [autoFetching, setAutoFetching] = useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  async function handleRotate(e: React.FormEvent) {
-    e.preventDefault();
-    if (!newToken.trim()) return;
+  async function applyToken(rawToken: string) {
     setSaving(true);
     setLocalError(null);
     try {
-      await onUpdateToken(newToken.trim());
+      await onUpdateToken(rawToken);
       setNewToken('');
       onClose();
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : 'Failed to update token');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleRotate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newToken.trim()) return;
+    await applyToken(newToken.trim());
+  }
+
+  async function handleAutoFetchAndSet() {
+    if (!onAutoFetchToken) return;
+    setAutoFetching(true);
+    setLocalError(null);
+    try {
+      const fetched = (await onAutoFetchToken()).trim();
+      setNewToken(fetched);
+      await applyToken(fetched);
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : 'Failed to auto-fetch GitHub token');
+    } finally {
+      setAutoFetching(false);
     }
   }
 
@@ -52,6 +69,8 @@ export function GitAccessModal({
       setSaving(false);
     }
   }
+
+  const busy = saving || autoFetching;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
@@ -115,9 +134,17 @@ export function GitAccessModal({
                   placeholder="Enter new ghp_... or github_pat_..."
                   className="w-full border border-[#30363D] bg-[#0D1117] px-3 py-2 font-mono text-xs text-[#E6EDF3] placeholder-[#8A8A8A] focus:border-[#22C55E] focus:outline-none"
                 />
-                <Button type="submit" variant="primary" disabled={saving || !newToken.trim()}>
-                  {saving ? 'Updating...' : 'Update Token'}
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button type="submit" variant="primary" disabled={busy || !newToken.trim()}>
+                    {saving ? 'Updating...' : 'Update Token'}
+                  </Button>
+                  {onAutoFetchToken && (
+                    <Button type="button" variant="secondary" disabled={busy} onClick={() => void handleAutoFetchAndSet()}>
+                      <Github className="h-3.5 w-3.5" strokeWidth={1.5} />
+                      {autoFetching ? 'Authorizing GitHub...' : 'Auto-Fetch & Set from GitHub'}
+                    </Button>
+                  )}
+                </div>
               </form>
 
               <div className="border-t border-[#30363D] pt-4">
@@ -132,20 +159,12 @@ export function GitAccessModal({
                   </button>
                 ) : (
                   <div className="flex flex-wrap items-center justify-between gap-2 border border-[#EF4444] bg-[#0D1117] p-3">
-                    <span className="text-xs text-[#E6EDF3]">
-                      Disconnect {repo.slug} from Orbit?
-                    </span>
+                    <span className="text-xs text-[#E6EDF3]">Disconnect {repo.slug} from Orbit?</span>
                     <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => setConfirmDisconnect(false)}
-                      >
-                        Cancel
-                      </Button>
+                      <Button type="button" variant="secondary" onClick={() => setConfirmDisconnect(false)}>Cancel</Button>
                       <button
                         type="button"
-                        disabled={saving}
+                        disabled={busy}
                         onClick={() => void handleDisconnect()}
                         className="border border-[#EF4444] bg-[#EF4444] px-3 py-1.5 text-xs font-medium text-[#0D1117] disabled:opacity-50"
                       >

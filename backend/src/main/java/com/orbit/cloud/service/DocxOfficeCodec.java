@@ -122,7 +122,8 @@ public class DocxOfficeCodec {
         }
         if (!para.getRuns().isEmpty()) {
             XWPFRun r = para.getRuns().get(0);
-            int size = r.getFontSize();
+            Double fontSize = r.getFontSizeAsDouble();
+            double size = fontSize != null ? fontSize : -1d;
             if (size >= 20) return "h1";
             if (size >= 16) return "h2";
             if (size >= 13 && r.isBold()) return "h3";

@@ -3,6 +3,8 @@ import type {
   ChatMessageDeletedEvent,
   ChatMessageDto,
   ChatTypingEvent,
+  ChatReactionEvent,
+  ChatReactionKey,
   ConnectImapMailRequest,
   ConnectOAuthMailRequest,
   CreateChatChannelRequest,
@@ -43,11 +45,13 @@ export interface ChatService {
   ): Promise<CursorPageResponse<ChatMessageDto>>;
   sendMessage(channelId: string, request: SendChatMessageRequest): Promise<ChatMessageDto>;
   deleteMessage(channelId: string, messageId: string): Promise<void>;
+  setReaction(channelId: string, messageId: string, key: ChatReactionKey, active: boolean): Promise<ChatReactionEvent>;
   subscribeChannel(
     channelId: string,
     onMessage: (message: ChatMessageDto) => void,
     onDeleted?: (event: ChatMessageDeletedEvent) => void,
-    onTyping?: (event: ChatTypingEvent) => void
+    onTyping?: (event: ChatTypingEvent) => void,
+    onReaction?: (event: ChatReactionEvent) => void
   ): () => void;
   sendTyping(channelId: string, active: boolean): void;
   getVoiceIceServers(): Promise<VoiceIceServerDto[]>;

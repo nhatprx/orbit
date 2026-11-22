@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Plus, Search, X } from 'lucide-react';
-import type { ConnectionState } from '../../services/workspace/stomp/StompConnection';
 import type { ChatChannelDto } from '../../types/workspace.types';
 import { initialsOf } from '../../utils/format';
 import { ChatSidebarChannels } from './ChatSidebarChannels';
@@ -10,7 +9,6 @@ import type { VoiceSessionState } from './chatVoiceTypes';
 interface ChatSidebarProps {
   scopeName: string;
   scopeType: 'WORKSPACE' | 'PROJECT';
-  connection: ConnectionState;
   channels: ChatChannelDto[];
   selectedChannelId: string | null;
   voice: VoiceSessionState;
@@ -24,17 +22,9 @@ interface ChatSidebarProps {
   onOpenVoiceStage: (channelId: string) => void;
 }
 
-const CONNECTION_BADGE: Record<ConnectionState, { label: string; dot: string }> = {
-  connected: { label: 'Live', dot: 'bg-[#22C55E]' },
-  connecting: { label: 'Connecting', dot: 'bg-[#EAB308]' },
-  reconnecting: { label: 'Connecting', dot: 'bg-[#EAB308]' },
-  idle: { label: 'Offline', dot: 'bg-[#8A8A8A]' },
-};
-
 export function ChatSidebar({
   scopeName,
   scopeType,
-  connection,
   channels,
   selectedChannelId,
   voice,
@@ -48,7 +38,6 @@ export function ChatSidebar({
   onOpenVoiceStage,
 }: ChatSidebarProps) {
   const [filterQuery, setFilterQuery] = useState('');
-  const badge = CONNECTION_BADGE[connection];
 
   return (
     <aside
@@ -68,10 +57,6 @@ export function ChatSidebar({
                   READ-ONLY
                 </span>
               )}
-              <span className="flex items-center gap-1.5 font-mono text-[11px] text-[#8A8A8A]">
-                <span className={`h-1.5 w-1.5 ${badge.dot}`} />
-                {badge.label}
-              </span>
             </div>
           </div>
 

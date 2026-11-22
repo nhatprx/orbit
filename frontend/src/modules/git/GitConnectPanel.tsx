@@ -11,20 +11,21 @@ import { GitTokenVerifyBox } from './GitTokenVerifyBox';
 interface GitConnectPanelProps {
   scopeLabel?: string;
   canManage: boolean;
+  onAutoFetchToken?: () => Promise<string>;
   onInspectToken: (accessToken: string) => Promise<InspectGitTokenResponse>;
   onConnectRepo: (req: ConnectGitRepoRequest) => Promise<unknown>;
   onCreateRepo: (req: CreateGitRepoRequest) => Promise<unknown>;
 }
 
+const TAB_ACTIVE = 'border-[#22C55E] bg-[#052E16] text-[#22C55E]';
+const TAB_IDLE = 'border-[#30363D] bg-[#0D1117] text-[#BDBDBD] hover:text-[#E6EDF3]';
+
 export function GitConnectPanel({
-  scopeLabel,
-  canManage,
-  onInspectToken,
-  onConnectRepo,
-  onCreateRepo,
+  scopeLabel, canManage, onAutoFetchToken, onInspectToken, onConnectRepo, onCreateRepo,
 }: GitConnectPanelProps) {
   const [token, setToken] = useState('');
   const [verifying, setVerifying] = useState(false);
+  const [autoFetching, setAutoFetching] = useState(false);
   const [tokenInfo, setTokenInfo] = useState<InspectGitTokenResponse | null>(null);
   const [mode, setMode] = useState<'connect' | 'create'>('connect');
   const [repoOwner, setRepoOwner] = useState('');
@@ -41,9 +42,7 @@ export function GitConnectPanel({
         <div className="flex items-start gap-3">
           <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-[#8A8A8A]" strokeWidth={1.5} />
           <div>
-            <h2 className="text-sm font-semibold text-[#E6EDF3]">
-              No GitHub Repository Connected
-            </h2>
+            <h2 className="text-sm font-semibold text-[#E6EDF3]">No GitHub Repository Connected</h2>
             <p className="mt-1 text-xs text-[#8A8A8A]">
               You have read-only access for {scopeLabel ?? 'this scope'}. Ask a workspace or
               project manager to connect a GitHub repository.
@@ -54,12 +53,11 @@ export function GitConnectPanel({
     );
   }
 
-  async function handleVerify() {
-    if (!token.trim()) return;
+  async function verifyRawToken(rawToken: string) {
     setVerifying(true);
     setLocalError(null);
     try {
-      const info = await onInspectToken(token.trim());
+      const info = await onInspectToken(rawToken);
       setTokenInfo(info);
       const first = info.repositories[0];
       if (first && !repoOwner && !repoName) {
@@ -72,6 +70,21 @@ export function GitConnectPanel({
       setLocalError(err instanceof Error ? err.message : 'Failed to verify GitHub token');
     } finally {
       setVerifying(false);
+    }
+  }
+
+  async function handleAutoFetch() {
+    if (!onAutoFetchToken) return;
+    setAutoFetching(true);
+    setLocalError(null);
+    try {
+      const fetched = (await onAutoFetchToken()).trim();
+      setToken(fetched);
+      await verifyRawToken(fetched);
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : 'Failed to auto-fetch GitHub token');
+    } finally {
+      setAutoFetching(false);
     }
   }
 
@@ -134,31 +147,25 @@ export function GitConnectPanel({
       <GitTokenVerifyBox
         token={token}
         verifying={verifying}
+        autoFetching={autoFetching}
         tokenInfo={tokenInfo}
         onChangeToken={setToken}
-        onVerify={() => void handleVerify()}
+        onVerify={() => { if (token.trim()) void verifyRawToken(token.trim()); }}
+        onAutoFetch={onAutoFetchToken ? () => void handleAutoFetch() : undefined}
       />
 
       <div className="flex gap-2">
         <button
           type="button"
           onClick={() => setMode('connect')}
-          className={`border px-3 py-1.5 text-xs font-medium ${
-            mode === 'connect'
-              ? 'border-[#22C55E] bg-[#052E16] text-[#22C55E]'
-              : 'border-[#30363D] bg-[#0D1117] text-[#BDBDBD] hover:text-[#E6EDF3]'
-          }`}
+          className={`border px-3 py-1.5 text-xs font-medium ${mode === 'connect' ? TAB_ACTIVE : TAB_IDLE}`}
         >
           Connect Existing Repository
         </button>
         <button
           type="button"
           onClick={() => setMode('create')}
-          className={`inline-flex items-center gap-1.5 border px-3 py-1.5 text-xs font-medium ${
-            mode === 'create'
-              ? 'border-[#22C55E] bg-[#052E16] text-[#22C55E]'
-              : 'border-[#30363D] bg-[#0D1117] text-[#BDBDBD] hover:text-[#E6EDF3]'
-          }`}
+          className={`inline-flex items-center gap-1.5 border px-3 py-1.5 text-xs font-medium ${mode === 'create' ? TAB_ACTIVE : TAB_IDLE}`}
         >
           <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
           Create New GitHub Repository

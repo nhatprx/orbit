@@ -65,6 +65,10 @@ export function createHttpGitApi(scope: GitScope): GitApi {
   const base = gitBasePath(scope);
 
   return {
+    fetchOAuthToken() {
+      return fetchGitHubOAuthToken();
+    },
+
     inspectToken(accessToken) {
       return apiRequest<InspectGitTokenResponse>('POST', `${base}/inspect-token`, {
         body: { accessToken },

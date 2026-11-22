@@ -3,6 +3,8 @@ package com.orbit.chat.service;
 import com.orbit.chat.dto.ChatMessageDeletedDto;
 import com.orbit.chat.dto.ChatMessageDto;
 import com.orbit.chat.dto.ChatTypingDto;
+import com.orbit.chat.dto.ChatPresenceEvent;
+import com.orbit.chat.dto.ChatReactionEvent;
 import com.orbit.chat.dto.VoiceEventDto;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Lazy;
@@ -36,6 +38,15 @@ public class ChatRelay {
     }
 
     public void deliverTyping(ChatTypingDto event) {
+        template.convertAndSend(TOPIC_PREFIX + event.channelId(), event);
+    }
+
+    public void deliverPresence(ChatPresenceEvent event) {
+        template.convertAndSend("/topic/chat-presence." + event.scopeType().toLowerCase()
+            + "." + event.scopeId(), event);
+    }
+
+    public void deliverReaction(ChatReactionEvent event) {
         template.convertAndSend(TOPIC_PREFIX + event.channelId(), event);
     }
 }

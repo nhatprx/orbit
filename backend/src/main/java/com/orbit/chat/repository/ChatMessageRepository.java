@@ -19,7 +19,7 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessageEntity, 
         select new com.orbit.chat.dto.ChatMessageDto(
             m.id, m.channelId, u.id, u.displayName, u.username, m.content,
             m.replyToId, m.replyToSenderName, m.replyToSnippet,
-            m.attachmentName, m.attachmentUrl, m.createdAt)
+            m.attachmentName, m.attachmentUrl, m.createdAt, u.avatarKey)
         from ChatMessageEntity m join UserEntity u on u.id = m.senderId
         where m.channelId = :channelId
         order by m.createdAt desc, m.id desc
@@ -30,7 +30,7 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessageEntity, 
         select new com.orbit.chat.dto.ChatMessageDto(
             m.id, m.channelId, u.id, u.displayName, u.username, m.content,
             m.replyToId, m.replyToSenderName, m.replyToSnippet,
-            m.attachmentName, m.attachmentUrl, m.createdAt)
+            m.attachmentName, m.attachmentUrl, m.createdAt, u.avatarKey)
         from ChatMessageEntity m join UserEntity u on u.id = m.senderId
         where m.channelId = :channelId
           and (m.createdAt < :createdAt or (m.createdAt = :createdAt and m.id < :id))

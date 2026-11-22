@@ -4,6 +4,7 @@ import com.orbit.auth.security.AuthenticatedUserPrincipal;
 import com.orbit.chat.dto.SendChatMessageRequest;
 import com.orbit.chat.dto.VoiceSignalRequest;
 import com.orbit.chat.service.ChatMessageService;
+import com.orbit.chat.service.ChatPresenceService;
 import com.orbit.chat.service.ChatTypingService;
 import com.orbit.chat.service.ChatVoiceService;
 import com.orbit.common.ApiErrorResponse;
@@ -15,6 +16,7 @@ import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Controller;
@@ -27,13 +29,16 @@ public class ChatStompController {
     private final ChatMessageService messages;
     private final ChatVoiceService voiceService;
     private final ChatTypingService typingService;
+    private final ChatPresenceService presenceService;
 
     public ChatStompController(
-        ChatMessageService messages, ChatVoiceService voiceService, ChatTypingService typingService
+        ChatMessageService messages, ChatVoiceService voiceService, ChatTypingService typingService,
+        ChatPresenceService presenceService
     ) {
         this.messages = messages;
         this.voiceService = voiceService;
         this.typingService = typingService;
+        this.presenceService = presenceService;
     }
 
     @MessageMapping("chat.{channelId}.send")
@@ -56,6 +61,18 @@ public class ChatStompController {
     }
 
     public record TypingPayload(boolean active) { }
+
+    @MessageMapping("chat.{channelId}.presence")
+    public void presence(
+        @DestinationVariable UUID channelId, @Payload PresencePayload payload,
+        Principal principal, @Header("simpSessionId") String sessionId
+    ) {
+        if (payload != null && sessionId != null) {
+            presenceService.update(requireUserId(principal), channelId, sessionId, payload.action());
+        }
+    }
+
+    public record PresencePayload(String action) { }
 
     @MessageExceptionHandler(ApiException.class)
     @SendToUser(destinations = "/queue/errors", broadcast = false)

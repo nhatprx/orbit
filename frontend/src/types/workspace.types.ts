@@ -1,5 +1,6 @@
 export * from './workspace-access.types';
 export * from './workspace-collab.types';
+export * from './chat-reaction.types';
 
 export type ModuleKey = 'git' | 'docs' | 'sheets' | 'slides' | 'chat' | 'cloud' | 'issues' | 'whiteboard';
 

@@ -68,10 +68,14 @@ class GitCacheAndBranchRulesTest {
             commitStore.removeIf(c -> c.getRepositoryId().equals(i.getArgument(0)));
             return null;
         }).when(commitRepo).deleteByRepositoryId(any());
-        when(commitRepo.saveAll(any())).thenAnswer(i -> {
+        when(commitRepo.saveAll(anyIterable())).thenAnswer(i -> {
+            List<GitCommitCacheEntity> saved = new ArrayList<>();
             Iterable<GitCommitCacheEntity> items = i.getArgument(0);
-            items.forEach(commitStore::add);
-            return items;
+            items.forEach(item -> {
+                commitStore.add(item);
+                saved.add(item);
+            });
+            return saved;
         });
 
         when(guard.requireProjectScope(eq(userId), eq(wsId), eq(projId), anyString())).thenReturn(scope);
@@ -123,7 +127,10 @@ class GitCacheAndBranchRulesTest {
         var c3 = new GitCommitDto("c3", "after delete", "Alice", null, Instant.now(), 1, 0, 1, null);
         var c4 = new GitCommitDto("c4", "after merge", "Alice", null, Instant.now(), 1, 5, 0, null);
         when(gitHub.listCommits(anyString(), eq("acme"), eq("repo-a"), eq("main"), anyInt()))
-            .thenReturn(List.of(c1), List.of(c2), List.of(c3), List.of(c4));
+            .thenReturn(List.of(c1))
+            .thenReturn(List.of(c2))
+            .thenReturn(List.of(c3))
+            .thenReturn(List.of(c4));
         when(gitHub.upsertFile(anyString(), eq("acme"), eq("repo-a"), any())).thenReturn(new GitMutationResultDto(null, c2));
         when(gitHub.deleteFile(anyString(), eq("acme"), eq("repo-a"), any())).thenReturn(new GitMutationResultDto(null, c3));
         when(gitHub.mergePullRequest(anyString(), eq("acme"), eq("repo-a"), eq(5), any())).thenReturn(
@@ -145,7 +152,8 @@ class GitCacheAndBranchRulesTest {
         var oldCommit = new GitCommitDto("old1", "old", "Alice", null, Instant.now(), 1, 1, 0, null);
         var freshCommit = new GitCommitDto("new2", "fresh", "Alice", null, Instant.now(), 1, 3, 0, null);
         when(gitHub.listCommits(anyString(), eq("acme"), eq("repo-a"), eq("main"), anyInt()))
-            .thenReturn(List.of(oldCommit), List.of(freshCommit));
+            .thenReturn(List.of(oldCommit))
+            .thenReturn(List.of(freshCommit));
 
         assertEquals("old1", historySvc.listCommits(scope, "main", 30).getFirst().sha());
         assertEquals("old1", historySvc.listCommits(scope, "main", 30).getFirst().sha());

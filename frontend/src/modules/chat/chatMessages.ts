@@ -1,4 +1,4 @@
-import type { ChatMessageDto } from '../../types/workspace.types';
+import type { ChatMessageDto, ChatReactionEvent, ChatReactionSummaryDto } from '../../types/workspace.types';
 
 function compare(a: ChatMessageDto, b: ChatMessageDto): number {
   return a.createdAt === b.createdAt ? a.id.localeCompare(b.id) : a.createdAt.localeCompare(b.createdAt);
@@ -20,6 +20,23 @@ export function mergeOlder(messages: ChatMessageDto[], older: ChatMessageDto[]):
 export function removeMessage(messages: ChatMessageDto[], messageId: string): ChatMessageDto[] {
   const next = messages.filter((m) => m.id !== messageId);
   return next.length === messages.length ? messages : next;
+}
+
+export function applyReaction(messages: ChatMessageDto[], event: ChatReactionEvent, currentUserId: string | null): ChatMessageDto[] {
+  return messages.map((message) => {
+    if (message.id !== event.messageId) return message;
+    const summaries = message.reactions ?? [];
+    const previous = summaries.find((entry) => entry.reactionKey === event.reactionKey);
+    const next: ChatReactionSummaryDto = {
+      reactionKey: event.reactionKey,
+      count: event.count,
+      reactedByMe: event.userId === currentUserId ? event.active : Boolean(previous?.reactedByMe),
+    };
+    const reactions = event.count > 0
+      ? [...summaries.filter((entry) => entry.reactionKey !== event.reactionKey), next]
+      : summaries.filter((entry) => entry.reactionKey !== event.reactionKey);
+    return { ...message, reactions };
+  });
 }
 
 export const MAX_MESSAGE_LENGTH = 4000;

@@ -1,7 +1,6 @@
 package com.orbit.git;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 import com.orbit.auth.security.GitAwareOAuth2AuthorizationRequestResolver;
 import com.orbit.git.config.GitProperties;

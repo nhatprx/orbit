@@ -21,6 +21,7 @@ import com.orbit.cloud.service.CloudNodeMapper;
 import com.orbit.cloud.service.CloudNodeService;
 import com.orbit.cloud.service.CloudQuotaService;
 import com.orbit.cloud.service.CloudScope;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -45,8 +46,8 @@ class CloudMoveServiceTest {
         mapper = mock(CloudNodeMapper.class);
         moveService = new CloudMoveService(guard, nodeRepo, nodeService, quotaService, mapper);
         when(mapper.toResponses(anyCollection())).thenAnswer(inv -> {
-            @SuppressWarnings("unchecked")
-            List<CloudNodeEntity> nodes = List.copyOf(inv.getArgument(0));
+            Collection<CloudNodeEntity> input = inv.getArgument(0);
+            List<CloudNodeEntity> nodes = List.copyOf(input);
             return nodes.stream().map(n -> new CloudNodeResponse(
                 n.getId(), n.getScopeType(), n.getScopeId(), n.getParentId(), n.getNodeType(),
                 n.getName(), n.getMimeType(), n.getSizeBytes(), n.isStarred(), n.getDepth(),

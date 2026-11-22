@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.orbit.chat.dto.ChatMessageDeletedDto;
 import com.orbit.chat.dto.ChatMessageDto;
 import com.orbit.chat.dto.ChatTypingDto;
+import com.orbit.chat.dto.ChatPresenceEvent;
 import com.orbit.chat.dto.VoiceEventDto;
 import java.util.List;
 import org.springframework.data.redis.connection.MessageListener;
@@ -46,6 +47,12 @@ public final class ChatBroadcasters {
 
             @Override
             public void broadcastTyping(ChatTypingDto event) { relay.deliverTyping(event); }
+
+            @Override
+            public void broadcastPresence(ChatPresenceEvent event) { relay.deliverPresence(event); }
+
+            @Override
+            public void broadcastReaction(com.orbit.chat.dto.ChatReactionEvent event) { relay.deliverReaction(event); }
         };
     }
 
@@ -78,7 +85,9 @@ public final class ChatBroadcasters {
             RedisChatBroadcaster.TOPIC,
             RedisChatBroadcaster.DELETION_TOPIC,
             RedisChatBroadcaster.VOICE_TOPIC,
-            RedisChatBroadcaster.TYPING_TOPIC
+            RedisChatBroadcaster.TYPING_TOPIC,
+            RedisChatBroadcaster.PRESENCE_TOPIC,
+            RedisChatBroadcaster.REACTION_TOPIC
         );
     }
 }

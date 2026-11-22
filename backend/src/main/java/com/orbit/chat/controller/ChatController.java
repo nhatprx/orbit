@@ -3,11 +3,13 @@ package com.orbit.chat.controller;
 import com.orbit.auth.security.AuthenticatedUserPrincipal;
 import com.orbit.chat.dto.ChatChannelDto;
 import com.orbit.chat.dto.ChatMessageDto;
+import com.orbit.chat.dto.ChatReactionEvent;
 import com.orbit.chat.dto.CreateChatChannelRequest;
 import com.orbit.chat.dto.SendChatMessageRequest;
 import com.orbit.chat.dto.UpdateChatChannelRequest;
 import com.orbit.chat.service.ChatChannelService;
 import com.orbit.chat.service.ChatMessageService;
+import com.orbit.chat.service.ChatReactionService;
 import com.orbit.common.CursorPageResponse;
 import com.orbit.common.PageParams;
 import jakarta.validation.Valid;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -32,10 +35,12 @@ public class ChatController {
 
     private final ChatChannelService channels;
     private final ChatMessageService messages;
+    private final ChatReactionService reactions;
 
-    public ChatController(ChatChannelService channels, ChatMessageService messages) {
+    public ChatController(ChatChannelService channels, ChatMessageService messages, ChatReactionService reactions) {
         this.channels = channels;
         this.messages = messages;
+        this.reactions = reactions;
     }
 
     @GetMapping("/workspaces/{workspaceId}/chat/channels")
@@ -124,5 +129,25 @@ public class ChatController {
         @PathVariable UUID messageId
     ) {
         messages.deleteMessage(principal.userId(), channelId, messageId);
+    }
+
+    @PutMapping("/chat/channels/{channelId}/messages/{messageId}/reactions/{reactionKey}")
+    public ChatReactionEvent addReaction(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+        @PathVariable UUID channelId,
+        @PathVariable UUID messageId,
+        @PathVariable String reactionKey
+    ) {
+        return reactions.set(principal.userId(), channelId, messageId, reactionKey, true);
+    }
+
+    @DeleteMapping("/chat/channels/{channelId}/messages/{messageId}/reactions/{reactionKey}")
+    public ChatReactionEvent removeReaction(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+        @PathVariable UUID channelId,
+        @PathVariable UUID messageId,
+        @PathVariable String reactionKey
+    ) {
+        return reactions.set(principal.userId(), channelId, messageId, reactionKey, false);
     }
 }

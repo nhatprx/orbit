@@ -17,7 +17,9 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
+import com.orbit.storage.service.StorageService;
 
 @Service
 public class ChatMessageService {
@@ -29,19 +31,31 @@ public class ChatMessageService {
     private final ChatAccessGuard guard;
     private final ChatBroadcaster broadcaster;
     private final ChatRateLimiter rateLimiter;
+    private final ChatReactionService reactions;
+    private final StorageService storage;
 
+    @Autowired
     public ChatMessageService(
         ChatMessageRepository messages,
         UserRepository users,
         ChatAccessGuard guard,
         ChatBroadcaster broadcaster,
-        ChatRateLimiter rateLimiter
+        ChatRateLimiter rateLimiter,
+        ChatReactionService reactions,
+        StorageService storage
     ) {
         this.messages = messages;
         this.users = users;
         this.guard = guard;
         this.broadcaster = broadcaster;
         this.rateLimiter = rateLimiter;
+        this.reactions = reactions;
+        this.storage = storage;
+    }
+
+    public ChatMessageService(ChatMessageRepository messages, UserRepository users, ChatAccessGuard guard,
+        ChatBroadcaster broadcaster, ChatRateLimiter rateLimiter) {
+        this(messages, users, guard, broadcaster, rateLimiter, null, null);
     }
 
     /** Chronological page, newest page first; {@code nextCursor} points at older messages. */
@@ -65,7 +79,13 @@ public class ChatMessageService {
             nextCursor = ChatCursor.encode(oldest.createdAt(), oldest.id());
         }
         Collections.reverse(newestFirst);
-        return new CursorPageResponse<>(newestFirst, nextCursor, hasMore, size);
+        List<UUID> ids = newestFirst.stream().map(ChatMessageDto::id).toList();
+        var summaries = reactions == null ? java.util.Map.<UUID, List<com.orbit.chat.dto.ChatReactionSummaryDto>>of()
+            : reactions.summaries(userId, ids);
+        List<ChatMessageDto> enriched = newestFirst.stream().map(row -> row.withAvatarAndReactions(
+            storage == null ? null : storage.resolveObjectUrl(row.senderAvatarUrl()),
+            summaries.getOrDefault(row.id(), List.of()))).toList();
+        return new CursorPageResponse<>(enriched, nextCursor, hasMore, size);
     }
 
     public ChatMessageDto send(UUID userId, UUID channelId, String rawContent) {
@@ -109,7 +129,7 @@ public class ChatMessageService {
             saved.getId(), channelId, userId, sender.getDisplayName(), sender.getUsername(),
             saved.getContent(), saved.getReplyToId(), saved.getReplyToSenderName(),
             saved.getReplyToSnippet(), saved.getAttachmentName(), saved.getAttachmentUrl(),
-            saved.getCreatedAt()
+            saved.getCreatedAt(), storage == null ? null : storage.resolveObjectUrl(sender.getAvatarKey()), List.of()
         );
         broadcaster.broadcast(dto);
         return dto;

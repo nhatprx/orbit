@@ -19,6 +19,7 @@ import com.orbit.chat.service.ChatMessageService;
 import com.orbit.chat.service.ChatRelay;
 import com.orbit.chat.service.ChatVoiceService;
 import com.orbit.chat.service.ChatTypingService;
+import com.orbit.chat.service.ChatPresenceService;
 import com.orbit.chat.websocket.ChatStompController;
 import com.orbit.chat.websocket.StompAuthChannelInterceptor;
 import com.orbit.common.ApiException;
@@ -74,7 +75,9 @@ class ChatStompVoiceAuthTest {
     void stompControllerForwardsFullSendRequestAndVoiceSignals() {
         ChatMessageService messageService = mock(ChatMessageService.class);
         ChatVoiceService voiceService = mock(ChatVoiceService.class);
-        ChatStompController controller = new ChatStompController(messageService, voiceService, mock(ChatTypingService.class));
+        ChatStompController controller = new ChatStompController(
+            messageService, voiceService, mock(ChatTypingService.class), mock(ChatPresenceService.class)
+        );
         UUID userId = UUID.randomUUID();
         UUID channelId = UUID.randomUUID();
         UsernamePasswordAuthenticationToken auth = authFor(userId);

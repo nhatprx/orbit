@@ -136,6 +136,7 @@ export const SAMPLE_PRS: GitPullRequestDto[] = [
 export function createMockGitApi(initialRepo: GitRepositoryDto | null = SAMPLE_REPO): GitApi {
   let repo = initialRepo;
   return {
+    fetchOAuthToken: vi.fn().mockResolvedValue('gho_auto_fetched_12345'),
     inspectToken: vi.fn().mockResolvedValue(SAMPLE_TOKEN_INFO),
     getRepository: vi.fn().mockImplementation(async () => repo),
     connectRepository: vi.fn().mockImplementation(async () => {

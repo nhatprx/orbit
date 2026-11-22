@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.orbit.chat.dto.ChatMessageDeletedDto;
 import com.orbit.chat.dto.ChatMessageDto;
 import com.orbit.chat.dto.ChatTypingDto;
+import com.orbit.chat.dto.ChatPresenceEvent;
+import com.orbit.chat.dto.ChatReactionEvent;
 import com.orbit.chat.dto.VoiceEventDto;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -32,10 +34,14 @@ class ChatRedisSubscriber implements MessageListener {
         try {
             if (RedisChatBroadcaster.VOICE_TOPIC.equals(topic)) {
                 relay.deliverVoice(mapper.readValue(message.getBody(), VoiceEventDto.class));
+            } else if (RedisChatBroadcaster.PRESENCE_TOPIC.equals(topic)) {
+                relay.deliverPresence(mapper.readValue(message.getBody(), ChatPresenceEvent.class));
             } else if (RedisChatBroadcaster.TYPING_TOPIC.equals(topic)) {
                 relay.deliverTyping(mapper.readValue(message.getBody(), ChatTypingDto.class));
             } else if (RedisChatBroadcaster.DELETION_TOPIC.equals(topic)) {
                 relay.deliverDeletion(mapper.readValue(message.getBody(), ChatMessageDeletedDto.class));
+            } else if (RedisChatBroadcaster.REACTION_TOPIC.equals(topic)) {
+                relay.deliverReaction(mapper.readValue(message.getBody(), ChatReactionEvent.class));
             } else {
                 relay.deliver(mapper.readValue(message.getBody(), ChatMessageDto.class));
             }

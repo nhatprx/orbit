@@ -12,8 +12,7 @@ interface ChatVoiceRoomProps {
   currentUserId: string | null;
   canManageChannels: boolean;
   canWriteChat?: boolean;
-  showMembers: boolean;
-  onToggleMembers: () => void;
+  onlineCount: number;
 }
 
 export function ChatVoiceRoom({
@@ -22,8 +21,7 @@ export function ChatVoiceRoom({
   currentUserId,
   canManageChannels,
   canWriteChat = true,
-  showMembers,
-  onToggleMembers,
+  onlineCount,
 }: ChatVoiceRoomProps) {
   const [showSideChat, setShowSideChat] = useState(false);
   const isJoined = voice.activeChannelId === channel.id;
@@ -68,20 +66,10 @@ export function ChatVoiceRoom({
               Chat
             </button>
 
-            <button
-              type="button"
-              aria-label="Toggle members panel"
-              aria-pressed={showMembers}
-              onClick={onToggleMembers}
-              className={`flex h-8 items-center gap-1.5 border px-2.5 text-xs font-medium ${
-                showMembers
-                  ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]'
-                  : 'border-[#30363D] bg-[#21262D] text-[#BDBDBD] hover:border-[#22C55E] hover:text-[#E6EDF3]'
-              }`}
-            >
-              <Users className="h-3.5 w-3.5" strokeWidth={1.5} />
-              Members
-            </button>
+            <span className="flex h-8 items-center gap-1.5 border border-[#30363D] bg-[#0D1117] px-2.5 font-mono text-xs text-[#8A8A8A]" role="status" aria-label={`${onlineCount} people online`}>
+              <Users className="h-3.5 w-3.5 text-[#22C55E]" strokeWidth={1.5} />
+              <span className="text-[#22C55E]">{onlineCount}</span> online
+            </span>
           </div>
         </header>
 

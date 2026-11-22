@@ -1,7 +1,6 @@
 package com.orbit.notifications.controller;
 
 import com.orbit.auth.security.AuthenticatedUserPrincipal;
-import com.orbit.common.PageParams;
 import com.orbit.notifications.dto.NotificationInboxResponse;
 import com.orbit.notifications.service.NotificationService;
 import java.util.UUID;
