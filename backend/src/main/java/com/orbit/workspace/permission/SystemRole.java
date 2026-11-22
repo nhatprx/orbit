@@ -49,7 +49,9 @@ public enum SystemRole {
                 Permissions.GIT_DELETE,
                 Permissions.ISSUES_READ,
                 Permissions.ISSUES_WRITE,
-                Permissions.ISSUES_DELETE
+                Permissions.ISSUES_DELETE,
+                Permissions.WHITEBOARD_READ,
+                Permissions.WHITEBOARD_WRITE
             ));
         };
     }
@@ -74,7 +76,9 @@ public enum SystemRole {
                 Permissions.PGIT_DELETE,
                 Permissions.PISSUES_READ,
                 Permissions.PISSUES_WRITE,
-                Permissions.PISSUES_DELETE
+                Permissions.PISSUES_DELETE,
+                Permissions.PWHITEBOARD_READ,
+                Permissions.PWHITEBOARD_WRITE
             ));
         };
     }
