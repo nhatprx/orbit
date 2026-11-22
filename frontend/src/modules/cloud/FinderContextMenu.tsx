@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import {
   Download,
   ExternalLink,
+  Eye,
   FolderInput,
   Pencil,
   RotateCcw,
@@ -23,6 +24,7 @@ interface FinderContextMenuProps {
   view: CloudView;
   permissions: CloudPermissions;
   onClose: () => void;
+  onQuickLook: (node: CloudNodeDto) => void;
   onOpenFolder: (folderId: string) => void;
   onOpenEditor: (node: CloudNodeDto) => void;
   onRename: (node: CloudNodeDto) => void;
@@ -44,6 +46,7 @@ export function FinderContextMenu({
   view,
   permissions,
   onClose,
+  onQuickLook,
   onOpenFolder,
   onOpenEditor,
   onRename,
@@ -80,7 +83,7 @@ export function FinderContextMenu({
   const isFolder = targetNode.nodeType === 'FOLDER';
   const canOpenFile = !isFolder && permissions.canRead && classifyFileEditor(targetNode.name, targetNode.mimeType) !== 'NONE';
   const left = Math.min(menu.x, Math.max(8, window.innerWidth - 220));
-  const top = Math.min(menu.y, Math.max(8, window.innerHeight - 260));
+  const top = Math.min(menu.y, Math.max(8, window.innerHeight - 280));
 
   const run = (fn: () => void) => {
     fn();
@@ -112,6 +115,12 @@ export function FinderContextMenu({
         </>
       ) : (
         <>
+          {!isBatch && !isFolder && permissions.canRead && (
+            <button type="button" role="menuitem" onClick={() => run(() => onQuickLook(targetNode))} className={ITEM_CLS}>
+              <Eye className="h-3.5 w-3.5" strokeWidth={1.5} />
+              <span>Quick Look</span>
+            </button>
+          )}
           {!isBatch && (isFolder || canOpenFile) && (
             <button
               type="button"

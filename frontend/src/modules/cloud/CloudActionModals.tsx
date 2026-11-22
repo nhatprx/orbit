@@ -11,6 +11,7 @@ import type { CloudLocationOption } from './cloudLocations';
 import { FolderNameModal, RenameNodeModal } from './CloudNodeModals';
 import { NewDocumentModal } from './editor/NewDocumentModal';
 import { FinderContextMenu, type ContextMenuState } from './FinderContextMenu';
+import { FinderQuickLookModal } from './FinderQuickLookModal';
 import { MoveNodeModal } from './MoveNodeModal';
 
 interface CloudActionModalsProps {
@@ -27,11 +28,14 @@ interface CloudActionModalsProps {
   renamingNode: CloudNodeDto | null;
   movingNodes: CloudNodeDto[];
   contextMenu: ContextMenuState | null;
+  quickLookNode: CloudNodeDto | null;
   onCloseNewFolder?: () => void;
   onCloseNewDoc: () => void;
   onCloseRename: () => void;
   onCloseMove: () => void;
   onCloseContextMenu: () => void;
+  onCloseQuickLook: () => void;
+  onQuickLook: (node: CloudNodeDto) => void;
   onRefresh: () => void;
   onCreatedDoc: (node: CloudNodeDto) => void;
   onOpenFolder: (folderId: string) => void;
@@ -48,9 +52,10 @@ interface CloudActionModalsProps {
 export function CloudActionModals({
   api, apiForScope, sourceScope, locations, view, permissions, activeParentId,
   defaultTemplate = 'MD', newFolderOpen = false, newDocOpen, renamingNode, movingNodes,
-  contextMenu, onCloseNewFolder, onCloseNewDoc, onCloseRename, onCloseMove, onCloseContextMenu,
-  onRefresh, onCreatedDoc, onOpenFolder, onOpenEditor, onRenameRequest, onMoveRequest,
-  onToggleStar, onDownload, onSoftDeleteNodes, onRestoreNodes, onPermanentDeleteNodes,
+  contextMenu, quickLookNode, onCloseNewFolder, onCloseNewDoc, onCloseRename, onCloseMove,
+  onCloseContextMenu, onCloseQuickLook, onQuickLook, onRefresh, onCreatedDoc, onOpenFolder,
+  onOpenEditor, onRenameRequest, onMoveRequest, onToggleStar, onDownload,
+  onSoftDeleteNodes, onRestoreNodes, onPermanentDeleteNodes,
 }: CloudActionModalsProps) {
   return (
     <>
@@ -59,6 +64,7 @@ export function CloudActionModals({
         view={view}
         permissions={permissions}
         onClose={onCloseContextMenu}
+        onQuickLook={onQuickLook}
         onOpenFolder={onOpenFolder}
         onOpenEditor={onOpenEditor}
         onRename={onRenameRequest}
@@ -68,6 +74,15 @@ export function CloudActionModals({
         onSoftDeleteNodes={onSoftDeleteNodes}
         onRestoreNodes={onRestoreNodes}
         onPermanentDeleteNodes={onPermanentDeleteNodes}
+      />
+
+      <FinderQuickLookModal
+        node={quickLookNode}
+        api={api}
+        canRead={permissions.canRead}
+        onClose={onCloseQuickLook}
+        onOpenEditor={onOpenEditor}
+        onDownload={onDownload}
       />
 
       {onCloseNewFolder && (

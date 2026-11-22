@@ -29,22 +29,22 @@ export function CloudNodeIcon({ node, className = 'h-4 w-4 shrink-0' }: CloudNod
   }
   const ext = getFileExtension(node.name);
   if (ext === 'docx') {
-    return <FileText className={`${className} text-[#22C55E]`} strokeWidth={1.5} />;
+    return <FileText className={`${className} text-[#4ADE80]`} strokeWidth={1.5} />;
   }
   if (ext === 'xlsx' || ext === 'csv') {
     return <FileSpreadsheet className={`${className} text-[#22C55E]`} strokeWidth={1.5} />;
   }
   if (ext === 'pptx') {
-    return <Presentation className={`${className} text-[#22C55E]`} strokeWidth={1.5} />;
+    return <Presentation className={`${className} text-[#86EFAC]`} strokeWidth={1.5} />;
   }
   if (ext === 'pdf' || node.mimeType === 'application/pdf') {
     return <FileText className={`${className} text-[#E6EDF3]`} strokeWidth={1.5} />;
   }
+  if (IMAGE_EXTS.has(ext) || node.mimeType?.startsWith('image/')) {
+    return <FileImage className={`${className} text-[#A7F3D0]`} strokeWidth={1.5} />;
+  }
   if (CODE_EXTS.has(ext)) {
     return <FileCode2 className={`${className} text-[#22C55E]`} strokeWidth={1.5} />;
-  }
-  if (IMAGE_EXTS.has(ext) || node.mimeType?.startsWith('image/')) {
-    return <FileImage className={`${className} text-[#8B949E]`} strokeWidth={1.5} />;
   }
   if (ARCHIVE_EXTS.has(ext)) {
     return <FileArchive className={`${className} text-[#8B949E]`} strokeWidth={1.5} />;

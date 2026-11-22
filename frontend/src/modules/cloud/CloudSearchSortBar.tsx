@@ -12,9 +12,9 @@ interface CloudSearchSortBarProps {
   onToggleSortDir: () => void;
 }
 
-export function CloudSearchSortBar({
+export function InlineSearchSortControls({
   search,
-  placeholder = 'Search files and folders...',
+  placeholder = 'Search files...',
   sortBy,
   sortDir,
   selectId = 'cloud-sort-by',
@@ -23,24 +23,23 @@ export function CloudSearchSortBar({
   onToggleSortDir,
 }: CloudSearchSortBarProps) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#30363D] bg-[#161B22] px-4 py-2">
-      <div className="flex items-center border border-[#30363D] bg-[#0D1117] px-2.5 focus-within:border-[#22C55E]">
-        <Search className="h-3.5 w-3.5 text-[#7D8590]" strokeWidth={1.5} />
+    <>
+      <div className="flex items-center border border-[#30363D] bg-[#0D1117] px-2 focus-within:border-[#22C55E]">
+        <Search className="h-3.5 w-3.5 shrink-0 text-[#7D8590]" strokeWidth={1.5} />
         <input
           type="text"
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder={placeholder}
-          className="h-7 w-56 bg-transparent px-2 text-xs text-[#E6EDF3] placeholder-[#7D8590] focus:outline-none"
+          aria-label="Search files"
+          className="h-7 w-36 bg-transparent px-1.5 text-xs text-[#E6EDF3] placeholder-[#7D8590] focus:outline-none sm:w-44"
         />
       </div>
 
-      <div className="flex items-center gap-1.5">
-        <label htmlFor={selectId} className="font-mono text-[10px] uppercase tracking-wider text-[#7D8590]">
-          Sort
-        </label>
+      <div className="flex items-center">
         <select
           id={selectId}
+          aria-label="Sort by"
           value={sortBy}
           onChange={(e) => onSortByChange(e.target.value as CloudSortBy)}
           className="h-7 rounded-none border border-[#30363D] bg-[#0D1117] px-2 text-xs text-[#E6EDF3] focus:border-[#22C55E] focus:outline-none"
@@ -54,7 +53,7 @@ export function CloudSearchSortBar({
           title={sortDir === 'asc' ? 'Ascending' : 'Descending'}
           aria-label={`Sort direction: ${sortDir}`}
           onClick={onToggleSortDir}
-          className="flex h-7 w-7 items-center justify-center border border-[#30363D] bg-[#0D1117] text-[#8B949E] hover:border-[#22C55E] hover:text-[#22C55E]"
+          className="flex h-7 w-7 items-center justify-center border border-l-0 border-[#30363D] bg-[#0D1117] text-[#8B949E] hover:border-[#22C55E] hover:text-[#22C55E]"
         >
           {sortDir === 'asc' ? (
             <ArrowDownAZ className="h-3.5 w-3.5" strokeWidth={1.5} />
@@ -63,6 +62,14 @@ export function CloudSearchSortBar({
           )}
         </button>
       </div>
+    </>
+  );
+}
+
+export function CloudSearchSortBar(props: CloudSearchSortBarProps) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#30363D] bg-[#161B22] px-4 py-1.5">
+      <InlineSearchSortControls {...props} />
     </div>
   );
 }

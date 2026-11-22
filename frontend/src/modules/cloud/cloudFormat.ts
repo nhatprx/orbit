@@ -6,7 +6,9 @@ import type {
   CloudView,
   MoveCloudNodesRequest,
 } from '../../types/cloud.types';
-import { getFileExtension } from './editor/fileEditorRegistry';
+import { humanFileKind } from './cloudFileKind';
+
+export { humanFileKind };
 
 const UNITS = ['B', 'KB', 'MB', 'GB', 'TB'] as const;
 export const CLOUD_DRAG_MIME = 'application/x-orbit-cloud-nodes';
@@ -42,42 +44,8 @@ export function scopeTypeLabel(type: CloudScopeType): string {
   return 'Project Cloud';
 }
 
-const EXT_KIND: Record<string, string> = {
-  docx: 'Word Document',
-  xlsx: 'Spreadsheet',
-  csv: 'CSV Spreadsheet',
-  pptx: 'Presentation',
-  pdf: 'PDF Document',
-  md: 'Markdown',
-  markdown: 'Markdown',
-  txt: 'Plain Text',
-  json: 'JSON File',
-  ts: 'TypeScript',
-  tsx: 'TypeScript JSX',
-  js: 'JavaScript',
-  jsx: 'JavaScript JSX',
-  py: 'Python Script',
-  java: 'Java Source',
-  sql: 'SQL Query',
-  html: 'HTML Document',
-  css: 'Stylesheet',
-  png: 'PNG Image',
-  jpg: 'JPEG Image',
-  jpeg: 'JPEG Image',
-  gif: 'GIF Image',
-  webp: 'WebP Image',
-  svg: 'SVG Vector',
-  zip: 'ZIP Archive',
-};
-
 export function nodeTypeLabel(node: CloudNodeDto): string {
-  if (node.nodeType === 'FOLDER') return 'Folder';
-  const ext = getFileExtension(node.name);
-  if (ext && EXT_KIND[ext]) return EXT_KIND[ext];
-  if (node.mimeType?.startsWith('image/')) return 'Image';
-  if (!node.mimeType) return 'File';
-  const [, subtype] = node.mimeType.split('/');
-  return subtype ? subtype.toUpperCase() : node.mimeType;
+  return humanFileKind(node);
 }
 
 export function splitFileName(name: string, nodeType: CloudNodeType): { base: string; ext: string } {
@@ -93,20 +61,13 @@ export function isFlatCloudView(view: CloudView): boolean {
 
 export function viewDisplayTitle(view: CloudView): string {
   switch (view) {
-    case 'RECENTS':
-      return 'Recents';
-    case 'STARRED':
-      return 'Starred';
-    case 'DOCS':
-      return 'Documents';
-    case 'SHEETS':
-      return 'Spreadsheets';
-    case 'SLIDES':
-      return 'Presentations';
-    case 'TRASH':
-      return 'Trash';
-    default:
-      return 'All Files';
+    case 'RECENTS': return 'Recents';
+    case 'STARRED': return 'Starred';
+    case 'DOCS': return 'Documents';
+    case 'SHEETS': return 'Spreadsheets';
+    case 'SLIDES': return 'Presentations';
+    case 'TRASH': return 'Trash';
+    default: return 'All Files';
   }
 }
 

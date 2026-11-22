@@ -1,10 +1,11 @@
-import { Download, FolderInput, RotateCcw, Trash2, X } from 'lucide-react';
+import { Download, Eye, FolderInput, RotateCcw, Trash2, X } from 'lucide-react';
 import type { CloudNodeDto, CloudPermissions, CloudView } from '../../types/cloud.types';
 
 interface FinderSelectionBarProps {
   selectedNodes: CloudNodeDto[];
   view: CloudView;
   permissions: CloudPermissions;
+  onQuickLook?: (node: CloudNodeDto) => void;
   onMoveSelected: () => void;
   onDownloadSelected: () => void;
   onDeleteSelected: () => void;
@@ -20,6 +21,7 @@ export function FinderSelectionBar({
   selectedNodes,
   view,
   permissions,
+  onQuickLook,
   onMoveSelected,
   onDownloadSelected,
   onDeleteSelected,
@@ -30,6 +32,8 @@ export function FinderSelectionBar({
   if (selectedNodes.length === 0) return null;
 
   const hasFiles = selectedNodes.some((n) => n.nodeType === 'FILE');
+  const firstSelected = selectedNodes[0];
+  const singleFile = selectedNodes.length === 1 && firstSelected?.nodeType === 'FILE' ? firstSelected : null;
 
   return (
     <div
@@ -44,6 +48,12 @@ export function FinderSelectionBar({
       <div className="flex flex-wrap items-center gap-1.5">
         {view !== 'TRASH' ? (
           <>
+            {singleFile && onQuickLook && permissions.canRead && (
+              <button type="button" onClick={() => onQuickLook(singleFile)} className={BTN}>
+                <Eye className="h-3.5 w-3.5" strokeWidth={1.5} />
+                Quick Look
+              </button>
+            )}
             {permissions.canWrite && (
               <button type="button" onClick={onMoveSelected} className={BTN}>
                 <FolderInput className="h-3.5 w-3.5" strokeWidth={1.5} />

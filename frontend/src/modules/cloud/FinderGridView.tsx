@@ -2,7 +2,7 @@ import { useState, type DragEvent, type MouseEvent } from 'react';
 import { Star } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import type { CloudNodeDto, CloudPermissions, CloudView } from '../../types/cloud.types';
-import { formatBytes, isInternalNodeDrag, nodeTypeLabel, readDraggedNodeIds, writeDraggedNodeIds } from './cloudFormat';
+import { formatBytes, humanFileKind, isInternalNodeDrag, readDraggedNodeIds, writeDraggedNodeIds } from './cloudFormat';
 import { CloudNodeIcon } from './cloudIcons';
 import { classifyFileEditor } from './editor/fileEditorRegistry';
 
@@ -14,11 +14,13 @@ interface FinderGridViewProps {
   hasMore: boolean;
   loadingMore: boolean;
   permissions: CloudPermissions;
+  emptyTitle?: string;
+  emptyHint?: string;
   onSelect: (node: CloudNodeDto, orderedIds: string[], e: MouseEvent) => void;
   onContextMenu: (node: CloudNodeDto, e: MouseEvent) => void;
   onOpenFolder: (folderId: string) => void;
   onOpenEditor: (node: CloudNodeDto) => void;
-  onDropToFolder: (nodeIds: string[], targetFolderId: string) => void;
+  onDropToFolder?: (nodeIds: string[], targetFolderId: string) => void;
   onLoadMore: () => void;
 }
 
@@ -30,6 +32,8 @@ export function FinderGridView({
   hasMore,
   loadingMore,
   permissions,
+  emptyTitle,
+  emptyHint,
   onSelect,
   onContextMenu,
   onOpenFolder,
@@ -49,10 +53,10 @@ export function FinderGridView({
     return (
       <div className="flex flex-1 flex-col items-center justify-center p-12 text-center">
         <p className="text-sm font-medium text-[#E6EDF3]">
-          {view === 'TRASH' ? 'Trash is empty' : 'No items in this view'}
+          {emptyTitle ?? (view === 'TRASH' ? 'Trash is empty' : 'No items in this view')}
         </p>
         <p className="mt-1 text-xs text-[#7D8590]">
-          {permissions.canWrite ? 'Drop files here or create a new folder or document.' : 'No files match this filter.'}
+          {emptyHint ?? (permissions.canWrite ? 'Drop files here or create a new folder or document.' : 'No files match this filter.')}
         </p>
       </div>
     );
@@ -65,7 +69,7 @@ export function FinderGridView({
   };
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>, node: CloudNodeDto) => {
-    if (node.nodeType !== 'FOLDER' || !permissions.canWrite || !isInternalNodeDrag(e.dataTransfer)) return;
+    if (!onDropToFolder || node.nodeType !== 'FOLDER' || !permissions.canWrite || !isInternalNodeDrag(e.dataTransfer)) return;
     e.preventDefault();
     e.stopPropagation();
     e.dataTransfer.dropEffect = 'move';
@@ -73,7 +77,7 @@ export function FinderGridView({
   };
 
   const handleDrop = (e: DragEvent<HTMLDivElement>, node: CloudNodeDto) => {
-    if (node.nodeType !== 'FOLDER' || !isInternalNodeDrag(e.dataTransfer)) return;
+    if (!onDropToFolder || node.nodeType !== 'FOLDER' || !isInternalNodeDrag(e.dataTransfer)) return;
     e.preventDefault();
     e.stopPropagation();
     setDropFolderId(null);
@@ -83,11 +87,12 @@ export function FinderGridView({
 
   return (
     <div className="flex-1 overflow-auto p-4" data-testid="finder-grid-view">
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {nodes.map((node) => {
           const isSelected = selectedSet.has(node.id);
           const isFolder = node.nodeType === 'FOLDER';
           const isDropTarget = dropFolderId === node.id;
+          const caption = isFolder ? 'Folder' : `${humanFileKind(node)} - ${formatBytes(node.sizeBytes)}`;
           return (
             <div
               key={node.id}
@@ -103,23 +108,28 @@ export function FinderGridView({
                 if (isFolder) onOpenFolder(node.id);
                 else if (permissions.canRead && classifyFileEditor(node.name, node.mimeType) !== 'NONE') onOpenEditor(node);
               }}
-              className={`group relative flex cursor-pointer select-none flex-col items-center rounded-none border p-4 text-center transition-colors ${
+              className={`group relative flex cursor-pointer select-none flex-col items-center rounded-none border px-3 py-4 text-center transition-colors ${
                 isDropTarget
                   ? 'border-[#22C55E] bg-[#052E16]'
                   : isSelected
-                    ? 'border-[#22C55E] bg-[#052E16]/75'
-                    : 'border-[#30363D] bg-[#161B22] hover:border-[#3B434B] hover:bg-[#1C222B]'
+                    ? 'border-[#22C55E] bg-[#052E16]/80'
+                    : 'border-[#21262D] bg-[#0D1117] hover:border-[#30363D] hover:bg-[#161B22]'
               }`}
             >
               {node.starred && (
                 <Star className="absolute right-2 top-2 h-3 w-3 text-[#22C55E]" strokeWidth={1.5} fill="currentColor" />
               )}
-              <CloudNodeIcon node={node} className="h-9 w-9 shrink-0" />
-              <p className="mt-3 w-full truncate text-xs font-medium text-[#E6EDF3]" title={node.name}>
+              <div className="flex h-12 w-12 items-center justify-center border border-[#21262D] bg-[#161B22] group-hover:border-[#30363D]">
+                <CloudNodeIcon node={node} className="h-9 w-9 shrink-0" />
+              </div>
+              <p
+                className="mt-2.5 line-clamp-2 w-full break-words text-xs font-medium leading-snug text-[#E6EDF3]"
+                title={node.name}
+              >
                 {node.name}
               </p>
-              <p className="mt-1 w-full truncate font-mono text-[10px] text-[#7D8590]">
-                {isFolder ? 'Folder' : `${nodeTypeLabel(node)} - ${formatBytes(node.sizeBytes)}`}
+              <p className="mt-1 w-full truncate font-mono text-[10px] text-[#7D8590]" title={caption}>
+                {caption}
               </p>
             </div>
           );
