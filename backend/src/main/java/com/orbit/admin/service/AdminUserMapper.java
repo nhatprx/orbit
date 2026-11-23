@@ -7,12 +7,25 @@ import com.orbit.admin.dto.LinkedProviderDto;
 import com.orbit.admin.dto.UserStatus;
 import com.orbit.auth.entity.AccountStatus;
 import com.orbit.auth.entity.UserEntity;
+import com.orbit.storage.service.StorageService;
 import java.util.List;
 import java.util.Locale;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 @Component
 public class AdminUserMapper {
+
+    private final StorageService storageService;
+
+    @Autowired
+    public AdminUserMapper(@Autowired(required = false) StorageService storageService) {
+        this.storageService = storageService;
+    }
+
+    public AdminUserMapper() {
+        this(null);
+    }
 
     public AdminUserSummaryDto summary(UserEntity user, long workspaceCount) {
         return new AdminUserSummaryDto(
@@ -20,6 +33,7 @@ public class AdminUserMapper {
             user.getUsername(),
             user.getDisplayName(),
             user.getEmail(),
+            avatarUrlOf(user),
             roleOf(user),
             statusOf(user),
             user.isTotpEnabled(),
@@ -42,6 +56,7 @@ public class AdminUserMapper {
             user.getUsername(),
             user.getDisplayName(),
             user.getEmail(),
+            avatarUrlOf(user),
             roleOf(user),
             statusOf(user),
             user.isTotpEnabled(),
@@ -58,6 +73,10 @@ public class AdminUserMapper {
             providers,
             workspaces
         );
+    }
+
+    private String avatarUrlOf(UserEntity user) {
+        return storageService == null ? null : storageService.resolveObjectUrl(user.getAvatarKey());
     }
 
     private static String roleOf(UserEntity user) {

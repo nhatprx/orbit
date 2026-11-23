@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AuthPage } from './modules/auth/AuthPage';
+import { handleOpenRouterOAuthCallback } from './modules/ai/openRouterPkce';
 import type { AuthMode } from './modules/auth/useAuthPageLifecycle';
 import { DashboardShell } from './modules/dashboard/DashboardShell';
 import { HomePage } from './modules/home/HomePage';
@@ -53,6 +54,7 @@ export function App() {
   );
 
   useEffect(() => {
+    void handleOpenRouterOAuthCallback((msg) => setNotice(msg));
     const params = new URLSearchParams(window.location.search);
     const oauthCode = params.get('oauth_code');
     const errorParam = params.get('oauth_error');

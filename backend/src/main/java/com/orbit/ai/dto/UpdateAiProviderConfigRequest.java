@@ -1,7 +1,9 @@
 package com.orbit.ai.dto;
 
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
 
 public record UpdateAiProviderConfigRequest(
     @NotBlank(message = "Active provider is required.")
@@ -25,5 +27,26 @@ public record UpdateAiProviderConfigRequest(
     @Size(max = 160)
     String embedModel,
 
-    Boolean webSearchEnabled
-) {}
+    Boolean webSearchEnabled,
+
+    @Size(max = 512)
+    String openRouterApiKey,
+
+    @Size(max = 512)
+    String openRouterMgmtKey,
+
+    @DecimalMin(value = "0.0", message = "Default monthly budget must be non-negative.")
+    BigDecimal defaultMonthlyBudgetUsd
+) {
+    public UpdateAiProviderConfigRequest(
+        String activeProvider,
+        String bedrockRegion,
+        String fastModel,
+        String proModel,
+        String coderModel,
+        String embedModel,
+        Boolean webSearchEnabled
+    ) {
+        this(activeProvider, bedrockRegion, fastModel, proModel, coderModel, embedModel, webSearchEnabled, null, null, null);
+    }
+}

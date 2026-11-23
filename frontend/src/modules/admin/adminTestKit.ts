@@ -12,6 +12,7 @@ export function summary(patch: Partial<AdminUserSummary> = {}): AdminUserSummary
     username: 'alice',
     displayName: 'Alice Doe',
     email: 'alice@orbit.test',
+    avatarUrl: null,
     role: 'user',
     status: 'ACTIVE',
     totpEnabled: false,

@@ -1,5 +1,6 @@
 package com.orbit.ai.gateway;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -46,15 +47,39 @@ public final class LlmModels {
         List<LlmMessage> messages,
         List<LlmToolSpec> tools,
         boolean enableOnlineSearch,
-        int maxTokens
-    ) {}
+        int maxTokens,
+        String apiKeyOverride
+    ) {
+        public LlmRequest(
+            String modelId,
+            String region,
+            String systemPrompt,
+            List<LlmMessage> messages,
+            List<LlmToolSpec> tools,
+            boolean enableOnlineSearch,
+            int maxTokens
+        ) {
+            this(modelId, region, systemPrompt, messages, tools, enableOnlineSearch, maxTokens, null);
+        }
+    }
 
     public record LlmResponse(
         String content,
         List<LlmToolCall> toolCalls,
         int inputTokens,
-        int outputTokens
-    ) {}
+        int outputTokens,
+        String generationId,
+        BigDecimal costUsd
+    ) {
+        public LlmResponse(
+            String content,
+            List<LlmToolCall> toolCalls,
+            int inputTokens,
+            int outputTokens
+        ) {
+            this(content, toolCalls, inputTokens, outputTokens, null, BigDecimal.ZERO);
+        }
+    }
 
     @FunctionalInterface
     public interface LlmStreamListener {

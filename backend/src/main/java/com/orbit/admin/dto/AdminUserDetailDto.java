@@ -10,6 +10,7 @@ public record AdminUserDetailDto(
     String username,
     String displayName,
     String email,
+    String avatarUrl,
     String role,
     UserStatus status,
     boolean totpEnabled,

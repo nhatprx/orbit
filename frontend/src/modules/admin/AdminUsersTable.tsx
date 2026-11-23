@@ -1,7 +1,8 @@
 import { Check } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
+import { UserAvatar } from '../../components/ui/UserAvatar';
 import type { AdminUserSummary } from '../../types/admin.types';
-import { formatDate, initialsOf } from '../../utils/format';
+import { formatDate } from '../../utils/format';
 
 interface AdminUsersTableProps {
   users: AdminUserSummary[];
@@ -115,9 +116,12 @@ export function AdminUsersTable({
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-2.5">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center border border-[#3B434B] bg-[#0D1117] font-mono text-[11px] text-[#22C55E]">
-                      {initialsOf(user.displayName)}
-                    </span>
+                    <UserAvatar
+                      name={user.displayName}
+                      avatarUrl={user.avatarUrl}
+                      size="sm"
+                      className="border-[#3B434B] bg-[#0D1117] text-[11px]"
+                    />
                     <p className="truncate font-medium text-[#E6EDF3]">
                       {user.displayName}{' '}
                       {isSelf && <span className="text-xs text-[#7D8590]">(you)</span>}

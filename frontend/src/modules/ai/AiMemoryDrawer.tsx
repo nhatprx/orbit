@@ -104,7 +104,7 @@ export function AiMemoryDrawer({
             </Button>
           </form>
 
-          <div className="flex-1 space-y-2 overflow-y-auto p-3">
+          <div className="no-scrollbar flex-1 space-y-2 overflow-y-auto p-3">
             {memories.length === 0 ? (
               <p className="text-xs text-[#7D8590]">
                 No saved memories yet. You can also type &quot;Remember ...&quot; in chat.

@@ -36,6 +36,8 @@ export interface AiMessage {
   citations: AiCitation[];
   inputTokens?: number;
   outputTokens?: number;
+  costUsd?: number;
+  generationId?: string | null;
   timestamp: string;
 }
 
@@ -73,6 +75,10 @@ export interface AiProviderConfig {
   openRouterConfigured: boolean;
   qdrantConfigured: boolean;
   tavilyConfigured: boolean;
+  openRouterApiKeyPreview?: string | null;
+  openRouterMgmtConfigured?: boolean;
+  openRouterMgmtKeyPreview?: string | null;
+  defaultMonthlyBudgetUsd?: number;
   updatedAt: string | null;
 }
 
@@ -84,4 +90,68 @@ export interface UpdateAiProviderConfigPayload {
   coderModel: string;
   embedModel: string;
   webSearchEnabled: boolean;
+  openRouterApiKey?: string;
+  openRouterMgmtKey?: string;
+  defaultMonthlyBudgetUsd?: number;
+}
+
+export interface OpenRouterModel {
+  id: string;
+  name: string;
+  contextLength: number;
+  promptPricePerMillion: string;
+  completionPricePerMillion: string;
+}
+
+export interface OpenRouterCredits {
+  totalCreditsUsd: number;
+  totalUsageUsd: number;
+  remainingCreditsUsd: number;
+}
+
+export interface AiUsageEntry {
+  id: string;
+  threadId: string | null;
+  modelUsed: string;
+  providerUsed: string;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+  keySource: string;
+  createdAt: string;
+}
+
+export interface AiUsageSummary {
+  currentMonthCostUsd: number;
+  totalCostUsd: number;
+  monthlyBudgetUsd: number;
+  remainingBudgetUsd: number;
+  currentMonthInputTokens: number;
+  currentMonthOutputTokens: number;
+  keySource: string;
+  hasPersonalKey: boolean;
+  personalKeyPreview: string | null;
+  hasProvisionedKey: boolean;
+  recentEntries: AiUsageEntry[];
+}
+
+export interface AdminUserAiUsage {
+  userId: string;
+  fullName: string;
+  email: string;
+  currentMonthCostUsd: number;
+  currentMonthTokens: number;
+  requestCount: number;
+  monthlyBudgetUsd: number;
+  hasProvisionedKey: boolean;
+  hasPersonalKey: boolean;
+  modelsUsed?: string[];
+}
+
+export interface AdminUserAiUsagePage {
+  items: AdminUserAiUsage[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
 }

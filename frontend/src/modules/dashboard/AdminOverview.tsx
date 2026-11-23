@@ -1,20 +1,21 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, ShieldAlert, Users } from 'lucide-react';
+import { KeyRound, ShieldAlert, Users } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
-import { Button } from '../../components/ui/Button';
-import { Panel } from '../../components/ui/Panel';
 import { dashboardService } from '../../services/dashboard.service';
 import type { AuthUser } from '../../types/auth.types';
 import type { PlatformMetric } from '../../types/dashboard.types';
 import { AdminAiConfigPanel } from './AdminAiConfigPanel';
 
+type AdminTab = 'keys' | 'users';
+
 interface AdminOverviewProps {
   user: AuthUser;
-  onOpenUsers: () => void;
+  onOpenUsers?: () => void;
 }
 
-export function AdminOverview({ user, onOpenUsers }: AdminOverviewProps) {
+export function AdminOverview({ user }: AdminOverviewProps) {
   const [metrics, setMetrics] = useState<PlatformMetric[]>([]);
+  const [activeTab, setActiveTab] = useState<AdminTab>('keys');
 
   useEffect(() => {
     if (user.role !== 'admin') return;
@@ -43,47 +44,63 @@ export function AdminOverview({ user, onOpenUsers }: AdminOverviewProps) {
   }
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-4 border border-[#22C55E] bg-[#052E16] p-4">
+    <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden p-5">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 border border-[#22C55E] bg-[#052E16] px-4 py-3">
         <div>
-          <h2 className="text-base font-semibold text-[#E6EDF3]">
-            Admin Console
-          </h2>
+          <h2 className="text-base font-semibold text-[#E6EDF3]">Admin Console</h2>
           <p className="mt-0.5 text-[13px] text-[#8B949E]">
-            Platform governance, capacity targets, and user administration.
+            Platform governance, capacity targets, and AI provider controls.
           </p>
         </div>
-        <Badge tone="green" withDot>
-          ADMIN SESSION
-        </Badge>
+        <Badge tone="green" withDot>ADMIN SESSION</Badge>
       </div>
 
-      <div className="grid grid-cols-1 gap-px border border-[#30363D] bg-[#30363D] sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid shrink-0 grid-cols-1 gap-px border border-[#30363D] bg-[#30363D] sm:grid-cols-2 lg:grid-cols-4">
         {metrics.map((metric) => (
-          <div key={metric.id} className="bg-[#161B22] p-4">
-            <div className="mb-1.5 flex items-center justify-between">
+          <div key={metric.id} className="bg-[#161B22] px-4 py-3">
+            <div className="mb-1 flex items-center justify-between">
               <span className="text-xs text-[#8B949E]">{metric.label}</span>
               <span className="h-1.5 w-1.5 bg-[#22C55E]" />
             </div>
-            <div className="font-mono text-lg font-semibold text-[#E6EDF3]">
-              {metric.value}
-            </div>
+            <div className="font-mono text-lg font-semibold text-[#E6EDF3]">{metric.value}</div>
           </div>
         ))}
       </div>
 
-      <Panel
-        title="User Management"
-        description="Search accounts, change roles, disable access, and end sessions."
-        actions={<Users className="h-4 w-4 text-[#22C55E]" strokeWidth={1.5} />}
-      >
-        <Button type="button" variant="primary" onClick={onOpenUsers}>
-          Open user management
-          <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} />
-        </Button>
-      </Panel>
+      <div role="tablist" aria-label="Admin Console sections" className="flex shrink-0 border-b border-[#30363D]">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'keys'}
+          onClick={() => setActiveTab('keys')}
+          className={`inline-flex items-center gap-2 border-b-2 px-4 py-2 font-mono text-xs uppercase tracking-wider transition-colors ${
+            activeTab === 'keys'
+              ? 'border-[#22C55E] bg-[#052E16]/40 text-[#22C55E]'
+              : 'border-transparent text-[#8B949E] hover:text-[#E6EDF3]'
+          }`}
+        >
+          <KeyRound className="h-3.5 w-3.5" strokeWidth={1.5} />
+          AI Keys &amp; Models
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'users'}
+          onClick={() => setActiveTab('users')}
+          className={`inline-flex items-center gap-2 border-b-2 px-4 py-2 font-mono text-xs uppercase tracking-wider transition-colors ${
+            activeTab === 'users'
+              ? 'border-[#22C55E] bg-[#052E16]/40 text-[#22C55E]'
+              : 'border-transparent text-[#8B949E] hover:text-[#E6EDF3]'
+          }`}
+        >
+          <Users className="h-3.5 w-3.5" strokeWidth={1.5} />
+          AI User Budgets
+        </button>
+      </div>
 
-      <AdminAiConfigPanel />
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <AdminAiConfigPanel section={activeTab} />
+      </div>
     </div>
   );
 }

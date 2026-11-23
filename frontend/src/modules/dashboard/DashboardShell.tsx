@@ -111,7 +111,7 @@ export function DashboardShell({
           onCreateProject={() => setProjectOpen(true)}
         />
 
-        <main className={fullHeight ? 'flex-1 overflow-hidden' : 'flex-1 overflow-y-auto p-5'}>
+        <main className={fullHeight ? 'flex-1 overflow-hidden' : 'flex-1 overflow-y-auto no-scrollbar p-5'}>
           <div className={fullHeight ? 'h-full' : 'mx-auto max-w-6xl'}>
             {userId && (
               <DashboardContent

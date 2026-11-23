@@ -23,19 +23,22 @@ public class AiProviderConfigService {
     private final BedrockLlmGateway bedrockGateway;
     private final OpenRouterLlmGateway openRouterGateway;
     private final VectorStoreClient vectorStoreClient;
+    private final AiSecretCipher secretCipher;
 
     public AiProviderConfigService(
         AiProviderConfigRepository repository,
         AiProperties properties,
         BedrockLlmGateway bedrockGateway,
         OpenRouterLlmGateway openRouterGateway,
-        VectorStoreClient vectorStoreClient
+        VectorStoreClient vectorStoreClient,
+        AiSecretCipher secretCipher
     ) {
         this.repository = repository;
         this.properties = properties;
         this.bedrockGateway = bedrockGateway;
         this.openRouterGateway = openRouterGateway;
         this.vectorStoreClient = vectorStoreClient;
+        this.secretCipher = secretCipher;
     }
 
     @Transactional(readOnly = true)
@@ -64,6 +67,15 @@ public class AiProviderConfigService {
         }
         if (request.webSearchEnabled() != null) {
             entity.setWebSearchEnabled(request.webSearchEnabled());
+        }
+        if (request.openRouterApiKey() != null && !request.openRouterApiKey().isBlank()) {
+            entity.setOpenrouterApiKeyEnc(secretCipher.encrypt(request.openRouterApiKey()));
+        }
+        if (request.openRouterMgmtKey() != null && !request.openRouterMgmtKey().isBlank()) {
+            entity.setOpenrouterMgmtKeyEnc(secretCipher.encrypt(request.openRouterMgmtKey()));
+        }
+        if (request.defaultMonthlyBudgetUsd() != null) {
+            entity.setDefaultMonthlyBudgetUsd(request.defaultMonthlyBudgetUsd());
         }
         entity.setUpdatedBy(adminUserId);
         return toDto(repository.save(entity));
@@ -114,12 +126,19 @@ public class AiProviderConfigService {
 
     private AiProviderConfigDto toDto(AiProviderConfigEntity entity) {
         boolean tavilyReady = properties.getTavily().getApiKey() != null && !properties.getTavily().getApiKey().isBlank();
+        String sysKey = secretCipher.decrypt(entity.getOpenrouterApiKeyEnc());
+        if (sysKey == null || sysKey.isBlank()) sysKey = properties.getOpenrouter().getApiKey();
+        String mgmtKey = secretCipher.decrypt(entity.getOpenrouterMgmtKeyEnc());
+        boolean openRouterReady = openRouterGateway.isConfigured() || (sysKey != null && !sysKey.isBlank());
         return AiProviderConfigDto.from(
             entity,
             bedrockGateway.isConfigured(),
-            openRouterGateway.isConfigured(),
+            openRouterReady,
             vectorStoreClient.isAvailable(),
-            tavilyReady
+            tavilyReady,
+            secretCipher.mask(sysKey),
+            mgmtKey != null && !mgmtKey.isBlank(),
+            secretCipher.mask(mgmtKey)
         );
     }
 }

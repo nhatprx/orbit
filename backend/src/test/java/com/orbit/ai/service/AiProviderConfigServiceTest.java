@@ -39,7 +39,8 @@ class AiProviderConfigServiceTest {
     @BeforeEach
     void setUp() {
         service = new AiProviderConfigService(
-            repository, new AiProperties(), bedrockGateway, openRouterGateway, vectorStoreClient
+            repository, new AiProperties(), bedrockGateway, openRouterGateway, vectorStoreClient,
+            new AiSecretCipher("test-secret-key")
         );
     }
 

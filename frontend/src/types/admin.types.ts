@@ -8,6 +8,7 @@ export interface AdminUserSummary {
   username: string;
   displayName: string;
   email: string;
+  avatarUrl?: string | null;
   role: AdminUserRole;
   status: AdminUserStatus;
   totpEnabled: boolean;

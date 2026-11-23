@@ -40,6 +40,15 @@ public class AiProviderConfigEntity {
     @Column(name = "web_search_enabled", nullable = false)
     private boolean webSearchEnabled = true;
 
+    @Column(name = "openrouter_api_key_enc", columnDefinition = "TEXT")
+    private String openrouterApiKeyEnc;
+
+    @Column(name = "openrouter_mgmt_key_enc", columnDefinition = "TEXT")
+    private String openrouterMgmtKeyEnc;
+
+    @Column(name = "default_monthly_budget_usd", nullable = false, precision = 12, scale = 6)
+    private java.math.BigDecimal defaultMonthlyBudgetUsd = new java.math.BigDecimal("10.000000");
+
     @Column(name = "updated_by")
     private UUID updatedBy;
 
@@ -69,6 +78,12 @@ public class AiProviderConfigEntity {
     public void setEmbedModel(String embedModel) { this.embedModel = embedModel; }
     public boolean isWebSearchEnabled() { return webSearchEnabled; }
     public void setWebSearchEnabled(boolean webSearchEnabled) { this.webSearchEnabled = webSearchEnabled; }
+    public String getOpenrouterApiKeyEnc() { return openrouterApiKeyEnc; }
+    public void setOpenrouterApiKeyEnc(String openrouterApiKeyEnc) { this.openrouterApiKeyEnc = openrouterApiKeyEnc; }
+    public String getOpenrouterMgmtKeyEnc() { return openrouterMgmtKeyEnc; }
+    public void setOpenrouterMgmtKeyEnc(String openrouterMgmtKeyEnc) { this.openrouterMgmtKeyEnc = openrouterMgmtKeyEnc; }
+    public java.math.BigDecimal getDefaultMonthlyBudgetUsd() { return defaultMonthlyBudgetUsd; }
+    public void setDefaultMonthlyBudgetUsd(java.math.BigDecimal defaultMonthlyBudgetUsd) { this.defaultMonthlyBudgetUsd = defaultMonthlyBudgetUsd; }
     public UUID getUpdatedBy() { return updatedBy; }
     public void setUpdatedBy(UUID updatedBy) { this.updatedBy = updatedBy; }
     public Instant getUpdatedAt() { return updatedAt; }

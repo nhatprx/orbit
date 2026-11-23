@@ -42,6 +42,12 @@ public class AiMessageEntity {
     @Column(name = "output_tokens", nullable = false)
     private int outputTokens;
 
+    @Column(name = "cost_usd", nullable = false, precision = 14, scale = 8)
+    private java.math.BigDecimal costUsd = java.math.BigDecimal.ZERO;
+
+    @Column(name = "generation_id", length = 128)
+    private String generationId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -71,5 +77,9 @@ public class AiMessageEntity {
     public void setInputTokens(int inputTokens) { this.inputTokens = inputTokens; }
     public int getOutputTokens() { return outputTokens; }
     public void setOutputTokens(int outputTokens) { this.outputTokens = outputTokens; }
+    public java.math.BigDecimal getCostUsd() { return costUsd; }
+    public void setCostUsd(java.math.BigDecimal costUsd) { this.costUsd = costUsd; }
+    public String getGenerationId() { return generationId; }
+    public void setGenerationId(String generationId) { this.generationId = generationId; }
     public Instant getCreatedAt() { return createdAt; }
 }

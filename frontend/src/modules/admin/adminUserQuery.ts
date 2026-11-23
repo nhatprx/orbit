@@ -72,6 +72,7 @@ export function summaryOf(detail: AdminUserDetail): AdminUserSummary {
     username: detail.username,
     displayName: detail.displayName,
     email: detail.email,
+    avatarUrl: detail.avatarUrl ?? null,
     role: detail.role,
     status: detail.status,
     totpEnabled: detail.totpEnabled,

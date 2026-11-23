@@ -1,6 +1,7 @@
 package com.orbit.ai.dto;
 
 import com.orbit.ai.entity.AiProviderConfigEntity;
+import java.math.BigDecimal;
 
 public record AiProviderConfigDto(
     String activeProvider,
@@ -14,6 +15,10 @@ public record AiProviderConfigDto(
     boolean openRouterConfigured,
     boolean qdrantConfigured,
     boolean tavilyConfigured,
+    String openRouterApiKeyPreview,
+    boolean openRouterMgmtConfigured,
+    String openRouterMgmtKeyPreview,
+    BigDecimal defaultMonthlyBudgetUsd,
     String updatedAt
 ) {
 
@@ -22,7 +27,10 @@ public record AiProviderConfigDto(
         boolean bedrockConfigured,
         boolean openRouterConfigured,
         boolean qdrantConfigured,
-        boolean tavilyConfigured
+        boolean tavilyConfigured,
+        String openRouterApiKeyPreview,
+        boolean openRouterMgmtConfigured,
+        String openRouterMgmtKeyPreview
     ) {
         return new AiProviderConfigDto(
             entity.getActiveProvider().name(),
@@ -36,6 +44,10 @@ public record AiProviderConfigDto(
             openRouterConfigured,
             qdrantConfigured,
             tavilyConfigured,
+            openRouterApiKeyPreview,
+            openRouterMgmtConfigured,
+            openRouterMgmtKeyPreview,
+            entity.getDefaultMonthlyBudgetUsd(),
             entity.getUpdatedAt() != null ? entity.getUpdatedAt().toString() : null
         );
     }

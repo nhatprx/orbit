@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { Badge } from '../../components/ui/Badge';
+import { UserAvatar } from '../../components/ui/UserAvatar';
 import type { AdminUserDetail } from '../../types/admin.types';
-import { formatDateTime, initialsOf } from '../../utils/format';
+import { formatDateTime } from '../../utils/format';
 import { RoleBadge, StatusBadge } from './AdminUsersTable';
 
 interface AdminUserProfileProps {
@@ -22,9 +23,12 @@ export function AdminUserProfile({ detail, self }: AdminUserProfileProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center border border-[#22C55E] bg-[#052E16] font-mono text-sm font-semibold text-[#22C55E]">
-          {initialsOf(detail.displayName)}
-        </span>
+        <UserAvatar
+          name={detail.displayName}
+          avatarUrl={detail.avatarUrl}
+          size="sm"
+          className="h-11 w-11 text-sm"
+        />
         <div className="min-w-0">
           <p className="truncate text-base font-semibold text-[#E6EDF3]">
             {detail.displayName} {self && <span className="text-xs font-normal text-[#7D8590]">(you)</span>}

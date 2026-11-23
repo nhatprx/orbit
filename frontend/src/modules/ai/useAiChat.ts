@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { aiChatService } from '../../services/ai.service';
-import type { AiDocumentIndex, AiMemory, AiMessage, AiModelId, AiScopeType, AiThread, AiToolTrace } from '../../types/ai.types';
+import { aiOpenRouterService } from '../../services/aiOpenRouter.service';
+import type { AiDocumentIndex, AiMemory, AiMessage, AiModelId, AiScopeType, AiThread, AiToolTrace, AiUsageSummary } from '../../types/ai.types';
 
 export function useAiChat(workspaceId?: string | null, projectId?: string | null) {
   const [scopeType, setScopeType] = useState<AiScopeType>(
@@ -16,7 +17,13 @@ export function useAiChat(workspaceId?: string | null, projectId?: string | null
   const [sending, setSending] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [liveTools, setLiveTools] = useState<AiToolTrace[]>([]);
+  const [usage, setUsage] = useState<AiUsageSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const loadUsage = useCallback(async () => {
+    const summary = await aiOpenRouterService.getMyUsage().catch(() => null);
+    setUsage(summary);
+  }, []);
 
   const loadThreads = useCallback(async () => {
     const list = await aiChatService.listThreads();
@@ -35,7 +42,8 @@ export function useAiChat(workspaceId?: string | null, projectId?: string | null
 
   useEffect(() => {
     void loadThreads();
-  }, [loadThreads]);
+    void loadUsage();
+  }, [loadThreads, loadUsage]);
 
   useEffect(() => {
     void loadMemories();
@@ -99,6 +107,7 @@ export function useAiChat(workspaceId?: string | null, projectId?: string | null
             setLiveTools([]);
             void loadThreads();
             void loadMemories();
+            void loadUsage();
           },
           onError: (msg) => setError(msg),
         }
@@ -125,13 +134,24 @@ export function useAiChat(workspaceId?: string | null, projectId?: string | null
     await loadMemories();
   }
 
+  async function savePersonalKey(apiKey: string) {
+    const updated = await aiOpenRouterService.savePersonalKey(apiKey);
+    setUsage(updated);
+  }
+
+  async function clearPersonalKey() {
+    const updated = await aiOpenRouterService.clearPersonalKey();
+    setUsage(updated);
+  }
+
   return {
     scopeType, setScopeType,
     threads, activeId, setActiveId,
     messages, memories, indexedFiles,
     model, setModel,
     webSearch, setWebSearch,
-    sending, streamingText, liveTools, error,
+    sending, streamingText, liveTools, usage, error,
     createNewThread, deleteThread, sendPrompt, addMemory, deleteMemory, reindexFile,
+    savePersonalKey, clearPersonalKey,
   };
 }
