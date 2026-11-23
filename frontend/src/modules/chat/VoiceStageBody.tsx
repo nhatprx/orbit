@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 import { Users } from 'lucide-react';
 import type { VoiceParticipantDto } from '../../types/workspace.types';
 import type { VoiceSessionState } from './chatVoiceTypes';
-import { VoiceCallToolbar } from './VoiceCallToolbar';
 import { VoiceParticipantTile } from './VoiceParticipantTile';
 import { VoiceScreenStage, type ActiveScreenShare } from './VoiceScreenStage';
 
@@ -12,8 +11,6 @@ interface VoiceStageBodyProps {
   participants: VoiceParticipantDto[];
   voice: VoiceSessionState;
   currentUserId: string | null;
-  showSideChat: boolean;
-  onToggleSideChat: () => void;
 }
 
 function resolveGridClass(tileCount: number, hasScreenShare: boolean): string {
@@ -29,8 +26,6 @@ export function VoiceStageBody({
   participants,
   voice,
   currentUserId,
-  showSideChat,
-  onToggleSideChat,
 }: VoiceStageBodyProps) {
   const [pinnedScreenId, setPinnedScreenId] = useState<string | null>(null);
   const [showAllParticipants, setShowAllParticipants] = useState(false);
@@ -74,18 +69,28 @@ export function VoiceStageBody({
     <>
       <div
         className={
-          activeShare || showAllParticipants
-            ? 'min-h-0 flex-1 space-y-4 overflow-y-auto p-4'
-            : 'flex min-h-0 flex-1 flex-col p-4'
+          activeShare && !showAllParticipants
+            ? 'flex min-h-0 flex-1 flex-col gap-2.5 overflow-hidden p-3 lg:flex-row lg:items-stretch'
+            : showAllParticipants
+              ? 'min-h-0 flex-1 space-y-4 overflow-y-auto p-4'
+              : 'flex min-h-0 flex-1 flex-col p-4'
         }
       >
         {activeShare && (
-          <VoiceScreenStage
-            shares={screenShares}
-            activeShare={activeShare}
-            onSelectShare={setPinnedScreenId}
-            onStopLocalShare={() => void voice.toggleScreenShare()}
-          />
+          <div
+            className={
+              showAllParticipants
+                ? 'flex h-[55vh] items-center justify-center border border-[#30363D] bg-[#090C10] p-2'
+                : 'flex min-h-0 min-w-0 flex-1 items-center justify-center border border-[#30363D] bg-[#090C10] p-2'
+            }
+          >
+            <VoiceScreenStage
+              shares={screenShares}
+              activeShare={activeShare}
+              onSelectShare={setPinnedScreenId}
+              onStopLocalShare={() => void voice.toggleScreenShare()}
+            />
+          </div>
         )}
 
         {showAllParticipants && participants.length > MAX_VISIBLE_TILES && (
@@ -102,11 +107,15 @@ export function VoiceStageBody({
         )}
 
         <div
-          className={`grid min-h-0 flex-1 gap-3 ${
-            showAllParticipants
-              ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
-              : resolveGridClass(totalSlots, Boolean(activeShare))
-          }`}
+          className={
+            activeShare && !showAllParticipants
+              ? 'flex shrink-0 flex-row gap-2 overflow-x-auto border border-[#30363D] bg-[#0B0F14] p-2 lg:w-52 lg:flex-col lg:overflow-x-visible lg:overflow-y-auto'
+              : `grid min-h-0 flex-1 gap-3 ${
+                  showAllParticipants
+                    ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4'
+                    : resolveGridClass(totalSlots, false)
+                }`
+          }
         >
           {visibleParticipants.map((participant) => {
             const isLocal = participant.userId === currentUserId;
@@ -117,15 +126,19 @@ export function VoiceStageBody({
               : participant.screenSharing || Boolean(media?.screenStream);
 
             return (
-              <VoiceParticipantTile
+              <div
                 key={participant.userId}
-                participant={participant}
-                isLocal={isLocal}
-                videoStream={videoStream}
-                isScreenSharing={sharing}
-                compact={Boolean(activeShare)}
-                solo={isSolo}
-              />
+                className={activeShare && !showAllParticipants ? 'w-40 shrink-0 lg:w-full' : 'min-h-0'}
+              >
+                <VoiceParticipantTile
+                  participant={participant}
+                  isLocal={isLocal}
+                  videoStream={videoStream}
+                  isScreenSharing={sharing}
+                  compact={Boolean(activeShare)}
+                  solo={isSolo}
+                />
+              </div>
             );
           })}
 
@@ -150,12 +163,6 @@ export function VoiceStageBody({
           )}
         </div>
       </div>
-
-      <VoiceCallToolbar
-        voice={voice}
-        showSideChat={showSideChat}
-        onToggleSideChat={onToggleSideChat}
-      />
     </>
   );
 }

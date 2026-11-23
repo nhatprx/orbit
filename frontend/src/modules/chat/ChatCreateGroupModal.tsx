@@ -31,8 +31,9 @@ export function ChatCreateGroupModal({ open, onClose, onCreate }: ChatCreateGrou
   return (
     <Modal
       open={open}
+      size="sm"
       title="Create Channel"
-      subtitle="Create an empty channel group. Add sub-channels from its Settings menu."
+      subtitle="Add sub-channels later from Settings."
       onClose={onClose}
     >
       <form onSubmit={handleSubmit} className="space-y-4">

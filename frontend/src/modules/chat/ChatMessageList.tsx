@@ -1,11 +1,14 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '../../components/ui/Button';
-import type { ChatMessageDto, ChatReactionKey, MemberDto } from '../../types/workspace.types';
+import type { ChatChannelDto, ChatMessageDto, ChatReactionKey, MemberDto } from '../../types/workspace.types';
+import { ChatEmptyChannelCard } from './ChatEmptyChannelCard';
 import type { PreviewImageItem } from './ChatImageLightbox';
 import { groupChatMessages } from './chatMessageGrouping';
 import { ChatMessageRow } from './ChatMessageRow';
 
 interface ChatMessageListProps {
+  channel?: ChatChannelDto;
+  scopeLabel?: string;
   messages: ChatMessageDto[];
   members?: MemberDto[];
   currentUserId: string | null;
@@ -29,6 +32,8 @@ interface ChatMessageListProps {
 
 export function ChatMessageList(props: ChatMessageListProps) {
   const scroller = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const query = props.searchQuery?.trim().toLowerCase() ?? '';
   const messages = useMemo(
@@ -50,16 +55,40 @@ export function ChatMessageList(props: ChatMessageListProps) {
   );
 
   useLayoutEffect(() => {
-    if (scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight;
+    if (scroller.current) {
+      stickToBottomRef.current = true;
+      scroller.current.scrollTop = scroller.current.scrollHeight;
+    }
   }, [lastId]);
+
+  useEffect(() => {
+    const el = scroller.current;
+    const content = contentRef.current;
+    if (!el || !content || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      if (stickToBottomRef.current) {
+        el.scrollTop = el.scrollHeight;
+      }
+    });
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, []);
+
+  function handleScroll() {
+    const el = scroller.current;
+    if (!el) return;
+    stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+  }
 
   return (
     <div
       ref={scroller}
+      onScroll={handleScroll}
       className="min-h-0 flex-1 overflow-y-auto px-5 py-4"
       aria-live="polite"
       aria-label="Messages"
     >
+      <div ref={contentRef}>
       {props.hasOlder && !query && (
         <div className="mb-3 text-center">
           <Button
@@ -74,9 +103,17 @@ export function ChatMessageList(props: ChatMessageListProps) {
       )}
 
       {grouped.length === 0 && (
-        <p className="py-12 text-center text-sm text-[#8A8A8A]">
-          {query ? 'No messages match your search.' : 'No messages yet. Start the conversation below.'}
-        </p>
+        query || !props.channel ? (
+          <p className="py-12 text-center text-sm text-[#8A8A8A]">
+            {query ? 'No messages match your search.' : 'No messages yet. Start the conversation below.'}
+          </p>
+        ) : (
+          <ChatEmptyChannelCard
+            channel={props.channel}
+            scopeLabel={props.scopeLabel}
+            memberCount={props.members?.length || 1}
+          />
+        )
       )}
 
       {grouped.map(({ message, dateLabel, isFirstInGroup, isLastInGroup }) => (
@@ -114,6 +151,7 @@ export function ChatMessageList(props: ChatMessageListProps) {
           />
         </div>
       ))}
+      </div>
     </div>
   );
 }

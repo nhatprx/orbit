@@ -84,6 +84,7 @@ export interface VoiceParticipantDto {
   userId: string;
   username: string;
   displayName: string;
+  avatarUrl?: string | null;
   muted: boolean;
   deafened: boolean;
   cameraOn: boolean;

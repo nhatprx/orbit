@@ -128,13 +128,15 @@ export function ChatChannelModal({
           placeholder={channelType === 'VOICE' ? 'e.g. standup-room' : channelType === 'FORUM' ? 'e.g. product-feedback' : 'e.g. announcements'}
           autoFocus
         />
-        <TextField
-          label="Description"
-          value={description}
-          maxLength={255}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Optional channel topic"
-        />
+        {mode === 'edit' && (
+          <TextField
+            label="Description"
+            value={description}
+            maxLength={255}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Optional channel topic"
+          />
+        )}
 
         {error && <p role="alert" className="text-xs text-[#EF4444]">{error}</p>}
 

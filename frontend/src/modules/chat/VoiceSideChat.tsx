@@ -47,7 +47,7 @@ export function VoiceSideChat({
       aria-label="Voice room text chat"
       className="flex w-80 shrink-0 flex-col border-l border-[#30363D] bg-[#0D1117]"
     >
-      <div className="flex items-center justify-between border-b border-[#30363D] bg-[#161B22] px-3 py-2.5">
+      <div className="flex h-12 shrink-0 items-center justify-between border-b border-[#30363D] bg-[#161B22] px-3">
         <div className="flex items-center gap-1.5 text-xs font-semibold text-[#E6EDF3]">
           <MessageSquare className="h-3.5 w-3.5 text-[#22C55E]" strokeWidth={1.5} />
           <span>Voice Chat</span>
@@ -56,9 +56,9 @@ export function VoiceSideChat({
           type="button"
           aria-label="Close side chat"
           onClick={onClose}
-          className="text-[#8A8A8A] hover:text-[#E6EDF3]"
+          className="flex h-7 w-7 items-center justify-center border border-[#30363D] bg-[#161B22] text-[#8B949E] transition-colors hover:border-[#22C55E] hover:text-[#E6EDF3]"
         >
-          <X className="h-4 w-4" strokeWidth={1.5} />
+          <X className="h-3.5 w-3.5" strokeWidth={1.5} />
         </button>
       </div>
 
@@ -91,6 +91,7 @@ export function VoiceSideChat({
         mentionMembers={mentionMembers}
         placeholder={canWriteChat ? `Message ${channel.name}` : 'Read-only access'}
         disabled={!canWriteChat}
+        textOnly
         readOnlyNotice={canWriteChat ? null : 'Read-only access: you cannot send messages.'}
         replyTo={activeReplyTo}
         onClearReply={() => setReplyTo(null)}

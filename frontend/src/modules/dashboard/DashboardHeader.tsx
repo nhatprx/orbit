@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Cloud, Inbox, Menu, Orbit, Search } from 'lucide-react';
+import { Cloud, Inbox, Menu, Orbit, PanelLeft, PanelRight, Search } from 'lucide-react';
 import type { AuthUser } from '../../types/auth.types';
 import type { WorkspaceAreaId } from '../../types/dashboard.types';
+import { useChatLayout } from '../chat/chatLayoutStore';
 import { HeaderBreadcrumb } from './HeaderBreadcrumb';
 import { HeaderProfileMenu } from './HeaderProfileMenu';
 import { HeaderCreateMenu } from './HeaderUserMenu';
@@ -43,6 +44,8 @@ export function DashboardHeader({
 }: DashboardHeaderProps) {
   const searchRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState('');
+  const chatLayout = useChatLayout();
+  const isChat = nav.active === 'chat';
   const select = (area: WorkspaceAreaId) => nav.go(area);
 
   useEffect(() => {
@@ -89,6 +92,37 @@ export function DashboardHeader({
           />
           <kbd className="border border-[#30363D] px-1 font-mono text-[10px] text-[#7D8590]">/</kbd>
         </div>
+
+        {isChat && (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              aria-label="Toggle channels sidebar"
+              aria-pressed={chatLayout.showLeftSidebar}
+              title={chatLayout.showLeftSidebar ? 'Collapse channels sidebar' : 'Expand channels sidebar'}
+              onClick={chatLayout.toggleLeftSidebar}
+              className={`${ICON_BTN} ${chatLayout.showLeftSidebar ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]' : ''}`}
+            >
+              <PanelLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
+            </button>
+            {chatLayout.activeChannelMode !== 'none' && (
+              <button
+                type="button"
+                aria-label={`Toggle ${chatLayout.rightPanelLabel}`}
+                aria-pressed={chatLayout.isRightPanelOpen}
+                title={
+                  chatLayout.isRightPanelOpen
+                    ? `Collapse ${chatLayout.rightPanelLabel}`
+                    : `Expand ${chatLayout.rightPanelLabel}`
+                }
+                onClick={chatLayout.toggleActiveRightPanel}
+                className={`${ICON_BTN} ${chatLayout.isRightPanelOpen ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]' : ''}`}
+              >
+                <PanelRight className="h-3.5 w-3.5" strokeWidth={1.5} />
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="hidden h-4 w-px bg-[#30363D] sm:block" />
 

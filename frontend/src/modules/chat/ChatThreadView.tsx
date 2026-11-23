@@ -7,6 +7,7 @@ import { ChatComposer } from './ChatComposer';
 import { ChatImageLightbox, type PreviewImageItem } from './ChatImageLightbox';
 import { useChatFileDrop } from './useChatFileDrop';
 import { ChatInfoSidebar } from './ChatInfoSidebar';
+import { useChatLayout } from './chatLayoutStore';
 import { ChatMessageList } from './ChatMessageList';
 import { ChatPinnedBanner } from './ChatPinnedBanner';
 import { ChatSelectionBar } from './ChatSelectionBar';
@@ -22,21 +23,19 @@ interface ChatThreadViewProps {
   canWriteChat?: boolean;
   onlineCount: number;
   mentionMembers?: MemberDto[];
-  showLeftSidebar?: boolean;
-  onToggleLeftSidebar?: () => void;
   onEditChannel?: (channel: ChatChannelDto) => void;
   onDeleteChannel?: (channel: ChatChannelDto) => void;
 }
 
 export function ChatThreadView({
   channel, scopeLabel, currentUserId, canManageChannels,
-  canWriteChat = true, mentionMembers = [], showLeftSidebar = true, onToggleLeftSidebar, onEditChannel, onDeleteChannel,
+  canWriteChat = true, onlineCount, mentionMembers = [], onEditChannel, onDeleteChannel,
 }: ChatThreadViewProps) {
   const chat = useChatChannel(channel.id, currentUserId);
   const [replyTo, setReplyTo] = useState<ChatMessageDto | null>(null);
   const [editingMessage, setEditingMessage] = useState<ChatMessageDto | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
-  const [showInfo, setShowInfo] = useState(true);
+  const { showRightSidebar: showInfo, setRightSidebar: setShowInfo } = useChatLayout();
   const [searchQuery, setSearchQuery] = useState('');
   const [previewImage, setPreviewImage] = useState<PreviewImageItem | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -106,10 +105,6 @@ export function ChatThreadView({
           scopeLabel={scopeLabel}
           members={mentionMembers}
           messages={chat.messages}
-          showLeftSidebar={showLeftSidebar}
-          onToggleLeftSidebar={onToggleLeftSidebar}
-          showInfo={showInfo}
-          onToggleInfo={() => setShowInfo((v) => !v)}
           onOpenInfo={() => setShowInfo(true)}
         />
 
@@ -123,6 +118,8 @@ export function ChatThreadView({
           <LoadingView label="Loading messages..." />
         ) : (
           <ChatMessageList
+            channel={channel}
+            scopeLabel={scopeLabel}
             messages={chat.messages}
             members={mentionMembers}
             currentUserId={currentUserId}
@@ -173,6 +170,7 @@ export function ChatThreadView({
           channel={channel}
           scopeLabel={scopeLabel}
           members={mentionMembers}
+          onlineCount={onlineCount}
           messages={chat.messages}
           pinnedMessages={pinnedMessages}
           canManageChannels={canManageChannels}

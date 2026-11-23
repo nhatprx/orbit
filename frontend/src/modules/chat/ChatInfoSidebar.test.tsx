@@ -100,6 +100,11 @@ describe('ChatInfoSidebar & extractChannelMedia', () => {
     expect(screen.getByText('Files (1)')).toBeTruthy();
     expect(screen.getByText('Links (1)')).toBeTruthy();
     expect(screen.getByAltText('arch.png')).toBeTruthy();
+    expect(screen.queryByText('spec.pdf')).toBeNull();
+    expect(screen.queryByText('meet.google.com')).toBeNull();
+
+    fireEvent.click(screen.getByText('Files (1)'));
+    fireEvent.click(screen.getByText('Links (1)'));
     expect(screen.getByText('spec.pdf')).toBeTruthy();
     expect(screen.getByText('meet.google.com')).toBeTruthy();
 

@@ -1,0 +1,2 @@
+ALTER TABLE workspace_members ADD COLUMN IF NOT EXISTS sub_role VARCHAR(64);
+ALTER TABLE project_members ADD COLUMN IF NOT EXISTS sub_role VARCHAR(64);

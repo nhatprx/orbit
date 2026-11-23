@@ -47,6 +47,14 @@ public class ModuleCatalog {
             .orElseThrow(() -> ApiException.notFound("MODULE_NOT_FOUND", "Unknown module."));
     }
 
+    /** Validates, de-duplicates and orders module keys by catalog order; allows empty selection. */
+    public List<String> validKeysAllowEmpty(Collection<String> keys) {
+        if (keys == null || keys.isEmpty()) {
+            return List.of();
+        }
+        return requireValidKeys(keys);
+    }
+
     /** Validates, de-duplicates and orders module keys by catalog order. */
     public List<String> requireValidKeys(Collection<String> keys) {
         if (keys == null || keys.isEmpty()) {

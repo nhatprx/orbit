@@ -101,11 +101,11 @@ export function ChatSidebarChannels({
   }
 
   return (
-    <div className="space-y-3 p-2">
+    <div className="space-y-0.5 p-2">
       {grouped.map(([category, items]) => {
         const isCollapsed = Boolean(collapsed[category]);
         return (
-          <div key={category}>
+          <div key={category} className={isCollapsed ? '' : 'pb-1.5'}>
             <ChatCategoryHeader
               category={category}
               isCollapsed={isCollapsed}

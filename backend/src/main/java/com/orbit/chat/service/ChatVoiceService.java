@@ -10,6 +10,7 @@ import com.orbit.chat.entity.ChatChannelEntity;
 import com.orbit.chat.entity.ChatChannelType;
 import com.orbit.chat.service.VoicePresenceStore.ScopeKey;
 import com.orbit.common.ApiException;
+import com.orbit.storage.service.StorageService;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
@@ -28,8 +29,8 @@ public class ChatVoiceService {
     private final ChatBroadcaster broadcaster;
     private final ChatRateLimiter rateLimiter;
     private final VoicePresenceStore presence;
+    private final StorageService storage;
 
-    @Autowired
     public ChatVoiceService(
         ChatAccessGuard guard,
         UserRepository users,
@@ -37,11 +38,24 @@ public class ChatVoiceService {
         ChatRateLimiter rateLimiter,
         VoicePresenceStore presence
     ) {
+        this(guard, users, broadcaster, rateLimiter, presence, null);
+    }
+
+    @Autowired
+    public ChatVoiceService(
+        ChatAccessGuard guard,
+        UserRepository users,
+        ChatBroadcaster broadcaster,
+        ChatRateLimiter rateLimiter,
+        VoicePresenceStore presence,
+        @Autowired(required = false) StorageService storage
+    ) {
         this.guard = guard;
         this.users = users;
         this.broadcaster = broadcaster;
         this.rateLimiter = rateLimiter;
         this.presence = presence;
+        this.storage = storage;
     }
 
     public int participantCount(UUID channelId) {
@@ -70,7 +84,8 @@ public class ChatVoiceService {
             : request;
         VoiceParticipantDto existing = presence.get(channelId, userId);
         Instant joinedAt = existing != null ? existing.joinedAt() : Instant.now();
-        presence.put(channelId, scope, toParticipant(userId, user.getUsername(), user.getDisplayName(), state, joinedAt));
+        String avatarUrl = storage != null ? storage.resolveObjectUrl(user.getAvatarKey()) : null;
+        presence.put(channelId, scope, toParticipant(userId, user.getUsername(), user.getDisplayName(), avatarUrl, state, joinedAt));
 
         List<VoiceParticipantDto> participants = presence.list(channelId);
         broadcastParticipants(channelId, userId, user.getDisplayName(), user.getUsername(), participants);
@@ -88,7 +103,7 @@ public class ChatVoiceService {
         }
         ScopeKey scope = new ScopeKey(channel.getScopeType(), channel.getScopeId());
         presence.put(channelId, scope, toParticipant(
-            current.userId(), current.username(), current.displayName(), request, current.joinedAt()
+            current.userId(), current.username(), current.displayName(), current.avatarUrl(), request, current.joinedAt()
         ));
 
         List<VoiceParticipantDto> participants = presence.list(channelId);
@@ -152,11 +167,11 @@ public class ChatVoiceService {
     }
 
     private static VoiceParticipantDto toParticipant(
-        UUID userId, String username, String displayName, VoiceStateRequest state, Instant joinedAt
+        UUID userId, String username, String displayName, String avatarUrl, VoiceStateRequest state, Instant joinedAt
     ) {
         boolean deafened = state.deafened();
         return new VoiceParticipantDto(
-            userId, username, displayName, deafened || state.muted(),
+            userId, username, displayName, avatarUrl, deafened || state.muted(),
             deafened, state.cameraOn(), state.screenSharing(), state.speaking(), joinedAt
         );
     }

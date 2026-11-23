@@ -3,6 +3,7 @@ package com.orbit.access.controller;
 import com.orbit.access.dto.AddProjectMemberRequest;
 import com.orbit.access.dto.AssignMemberRoleRequest;
 import com.orbit.access.dto.MemberDto;
+import com.orbit.access.dto.UpdateMemberSubRoleRequest;
 import com.orbit.access.service.ProjectMemberService;
 import com.orbit.access.service.WorkspaceMemberService;
 import com.orbit.auth.security.AuthenticatedUserPrincipal;
@@ -55,6 +56,16 @@ public class MemberController {
         return workspaceMembers.assignRole(principal.userId(), workspaceId, userId, request);
     }
 
+    @PatchMapping("/members/{userId}/sub-role")
+    public MemberDto updateWorkspaceMemberSubRole(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+        @PathVariable UUID workspaceId,
+        @PathVariable UUID userId,
+        @Valid @RequestBody UpdateMemberSubRoleRequest request
+    ) {
+        return workspaceMembers.updateSubRole(principal.userId(), workspaceId, userId, request.subRole());
+    }
+
     @DeleteMapping("/members/{userId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeWorkspaceMember(
@@ -96,6 +107,17 @@ public class MemberController {
         @Valid @RequestBody AssignMemberRoleRequest request
     ) {
         return projectMembers.assignRole(principal.userId(), workspaceId, projectId, userId, request);
+    }
+
+    @PatchMapping("/projects/{projectId}/members/{userId}/sub-role")
+    public MemberDto updateProjectMemberSubRole(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+        @PathVariable UUID workspaceId,
+        @PathVariable UUID projectId,
+        @PathVariable UUID userId,
+        @Valid @RequestBody UpdateMemberSubRoleRequest request
+    ) {
+        return projectMembers.updateSubRole(principal.userId(), workspaceId, projectId, userId, request.subRole());
     }
 
     @DeleteMapping("/projects/{projectId}/members/{userId}")

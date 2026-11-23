@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { AlertTriangle, MessageSquare, PanelLeft, Users, Volume2, X } from 'lucide-react';
+import { AlertTriangle, Volume2, X } from 'lucide-react';
 import type { ChatChannelDto, MemberDto } from '../../types/workspace.types';
+import { useChatLayout } from './chatLayoutStore';
 import type { VoiceSessionState } from './chatVoiceTypes';
 import { VoicePreJoinCard } from './VoicePreJoinCard';
 import { VoiceSideChat } from './VoiceSideChat';
@@ -12,10 +12,8 @@ interface ChatVoiceRoomProps {
   currentUserId: string | null;
   canManageChannels: boolean;
   canWriteChat?: boolean;
-  onlineCount: number;
+  onlineCount?: number;
   mentionMembers?: MemberDto[];
-  showLeftSidebar?: boolean;
-  onToggleLeftSidebar?: () => void;
 }
 
 export function ChatVoiceRoom({
@@ -24,12 +22,9 @@ export function ChatVoiceRoom({
   currentUserId,
   canManageChannels,
   canWriteChat = true,
-  onlineCount,
   mentionMembers = [],
-  showLeftSidebar = true,
-  onToggleLeftSidebar,
 }: ChatVoiceRoomProps) {
-  const [showSideChat, setShowSideChat] = useState(false);
+  const { showVoiceChat: showSideChat, setVoiceChat } = useChatLayout();
   const isJoined = voice.activeChannelId === channel.id;
   const participants = voice.participantsByChannel[channel.id] ?? [];
 
@@ -42,54 +37,9 @@ export function ChatVoiceRoom({
   return (
     <div className="flex min-w-0 flex-1 bg-[#0D1117]">
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-[#30363D] bg-[#161B22] px-4">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 text-sm font-semibold text-[#E6EDF3]">
-              <Volume2 className="h-3.5 w-3.5 shrink-0 text-[#22C55E]" strokeWidth={1.5} />
-              <span className="truncate">{channel.name}</span>
-              <span className="border border-[#30363D] bg-[#21262D] px-1.5 py-0.5 font-mono text-[10px] font-medium text-[#BDBDBD]">
-                {participants.length} in call
-              </span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            {onToggleLeftSidebar && (
-              <button
-                type="button"
-                aria-label="Toggle channels sidebar"
-                aria-pressed={showLeftSidebar}
-                title={showLeftSidebar ? 'Collapse channels sidebar' : 'Expand channels sidebar'}
-                onClick={onToggleLeftSidebar}
-                className={`flex h-7 w-7 items-center justify-center border transition-colors ${
-                  showLeftSidebar
-                    ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]'
-                    : 'border-[#30363D] bg-[#161B22] text-[#8B949E] hover:border-[#22C55E] hover:text-[#E6EDF3]'
-                }`}
-              >
-                <PanelLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
-              </button>
-            )}
-            <button
-              type="button"
-              aria-label="Toggle voice text chat"
-              aria-pressed={showSideChat}
-              onClick={() => setShowSideChat((prev) => !prev)}
-              className={`flex h-7 items-center gap-1.5 border px-2 text-xs font-medium ${
-                showSideChat
-                  ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]'
-                  : 'border-[#30363D] bg-[#21262D] text-[#BDBDBD] hover:border-[#22C55E] hover:text-[#E6EDF3]'
-              }`}
-            >
-              <MessageSquare className="h-3.5 w-3.5" strokeWidth={1.5} />
-              Chat
-            </button>
-
-            <span className="flex h-7 items-center gap-1.5 border border-[#30363D] bg-[#0D1117] px-2 font-mono text-[11px] text-[#8A8A8A]" role="status" aria-label={`${onlineCount} people online`}>
-              <Users className="h-3.5 w-3.5 text-[#22C55E]" strokeWidth={1.5} />
-              <span className="text-[#22C55E]">{onlineCount}</span> online
-            </span>
-          </div>
+        <header className="flex h-12 shrink-0 items-center gap-2 border-b border-[#30363D] bg-[#161B22] px-4">
+          <Volume2 className="h-3.5 w-3.5 shrink-0 text-[#22C55E]" strokeWidth={1.5} />
+          <span className="truncate text-sm font-semibold text-[#E6EDF3]">{channel.name}</span>
         </header>
 
         {voice.mediaNotice && (
@@ -129,8 +79,6 @@ export function ChatVoiceRoom({
             participants={participants}
             voice={voice}
             currentUserId={currentUserId}
-            showSideChat={showSideChat}
-            onToggleSideChat={() => setShowSideChat((prev) => !prev)}
           />
         )}
       </div>
@@ -142,7 +90,7 @@ export function ChatVoiceRoom({
           canManageChannels={canManageChannels}
           canWriteChat={canWriteChat}
           mentionMembers={mentionMembers}
-          onClose={() => setShowSideChat(false)}
+          onClose={() => setVoiceChat(false)}
         />
       )}
     </div>

@@ -6,6 +6,7 @@ import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { CONTROL_CLASS } from '../../components/ui/Field';
 import type { MemberDto, RoleDto } from '../../types/workspace.types';
 import { formatDate, initialsOf } from '../../utils/format';
+import { MemberSubRoleCell } from './MemberSubRoleCell';
 
 interface MembersTableProps {
   members: MemberDto[];
@@ -17,6 +18,7 @@ interface MembersTableProps {
   totalPages: number;
   onPage: (page: number) => void;
   onAssign: (member: MemberDto, roleId: string) => Promise<void>;
+  onUpdateSubRole?: (member: MemberDto, subRole: string) => Promise<void>;
   onRemove: (member: MemberDto) => Promise<void>;
 }
 
@@ -30,10 +32,11 @@ export function MembersTable({
   totalPages,
   onPage,
   onAssign,
+  onUpdateSubRole,
   onRemove,
 }: MembersTableProps) {
   const [target, setTarget] = useState<MemberDto | null>(null);
-  const assignable = roles.filter((r) => !r.immutable);
+  const assignable = roles.filter((r) => !r.immutable && !(r.system && r.name.toLowerCase() === 'admin'));
   const leaving = target?.userId === currentUserId;
 
   return (
@@ -44,6 +47,7 @@ export function MembersTable({
             <tr className="border-b border-[#30363D] bg-[#0D1117] text-left text-[#8B949E]">
               <th scope="col" className="px-3 py-2 font-medium">Member</th>
               <th scope="col" className="px-3 py-2 font-medium">Role</th>
+              <th scope="col" className="px-3 py-2 font-medium">Sub-role</th>
               <th scope="col" className="px-3 py-2 font-medium">Joined</th>
               <th scope="col" className="px-3 py-2 text-right font-medium">Actions</th>
             </tr>
@@ -89,6 +93,13 @@ export function MembersTable({
                         ))}
                       </select>
                     )}
+                  </td>
+                  <td className="px-3 py-2">
+                    <MemberSubRoleCell
+                      member={member}
+                      canEdit={self || canAssign}
+                      onSave={onUpdateSubRole}
+                    />
                   </td>
                   <td className="px-3 py-2 font-mono text-xs text-[#8B949E]">{formatDate(member.joinedAt)}</td>
                   <td className="px-3 py-2 text-right">

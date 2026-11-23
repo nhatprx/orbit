@@ -19,10 +19,12 @@ export function WorkspaceRolesTab({ workspace }: { workspace: WorkspaceDto }) {
   if (roles.loading && !roles.data) return <LoadingView label="Loading roles..." />;
   if (roles.error) return <ErrorView message={roles.error} onRetry={roles.reload} />;
 
+  const visibleRoles = (roles.data ?? []).filter((r) => !(r.system && r.name.toLowerCase() === 'admin'));
+
   return (
-    <Panel title="Workspace roles" description="Custom roles for this workspace. Project roles are managed separately.">
+    <Panel title="Workspace roles" description="Primary roles are Owner and Member. Create custom roles if needed.">
       <RolesManager
-        roles={roles.data ?? []}
+        roles={visibleRoles}
         definitions={WORKSPACE_PERMISSIONS}
         callerPermissions={perms}
         canCreate={can(perms, 'role.create')}

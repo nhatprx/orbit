@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { EmptyView, ErrorView, LoadingView } from '../../components/ui/StateViews';
 import { authService } from '../../services/auth.service';
 import type {
@@ -9,6 +9,7 @@ import type {
   WorkspaceDto,
 } from '../../types/workspace.types';
 import { resolveCategory } from './chatCategoryGrouping';
+import { useChatLayout } from './chatLayoutStore';
 import { ChatPageDialogs } from './ChatPageDialogs';
 import { ChatSidebar } from './ChatSidebar';
 import { ChatThreadView } from './ChatThreadView';
@@ -33,7 +34,8 @@ export function ChatPage({ workspace, project }: ChatPageProps) {
   const currentUser = useMemo(() => {
     const user = authService.getSession()?.user ?? null;
     if (!user) return null;
-    return { id: user.id, username: user.username ?? user.email.split('@')[0] ?? 'member', displayName: user.name };
+    const username = user.username ?? user.email.split('@')[0] ?? 'member';
+    return { id: user.id, username, displayName: user.name, avatarUrl: user.avatarUrl ?? null };
   }, []);
 
   const chatChannels = useChatChannels(workspace.id, project?.id ?? null);
@@ -47,10 +49,14 @@ export function ChatPage({ workspace, project }: ChatPageProps) {
   const [targetCategory, setTargetCategory] = useState<string | null>(null);
   const [deletingChannel, setDeletingChannel] = useState<ChatChannelDto | null>(null);
   const [deletingCategory, setDeletingCategory] = useState<string | null>(null);
-  const [showLeftSidebar, setShowLeftSidebar] = useState(true);
+  const { showLeftSidebar, setActiveChannelMode } = useChatLayout();
 
   const selectedChannel =
     chatChannels.channels.find((c) => c.id === selectedId) ?? chatChannels.channels[0] ?? null;
+
+  useEffect(() => {
+    setActiveChannelMode(!selectedChannel ? 'none' : selectedChannel.channelType === 'VOICE' ? 'voice' : 'text');
+  }, [selectedChannel, setActiveChannelMode]);
   const scopeName = project ? project.name : workspace.name;
   const scopeType = project ? 'PROJECT' : 'WORKSPACE';
   const scopeId = project?.id ?? workspace.id;
@@ -152,8 +158,6 @@ export function ChatPage({ workspace, project }: ChatPageProps) {
           canWriteChat={canWriteChat}
           onlineCount={onlineCount}
           mentionMembers={mentionMembers}
-          showLeftSidebar={showLeftSidebar}
-          onToggleLeftSidebar={() => setShowLeftSidebar((v) => !v)}
         />
       ) : (
         <ChatThreadView
@@ -165,8 +169,6 @@ export function ChatPage({ workspace, project }: ChatPageProps) {
           canWriteChat={canWriteChat}
           onlineCount={onlineCount}
           mentionMembers={mentionMembers}
-          showLeftSidebar={showLeftSidebar}
-          onToggleLeftSidebar={() => setShowLeftSidebar((v) => !v)}
           onEditChannel={(channel) => { setEditingChannel(channel); setModalMode('edit'); }}
           onDeleteChannel={setDeletingChannel}
         />

@@ -19,8 +19,8 @@ export function ChatInfoMediaSections({
 }: ChatInfoMediaSectionsProps) {
   const [photosOpen, setPhotosOpen] = useState(true);
   const [showAllPhotos, setShowAllPhotos] = useState(false);
-  const [filesOpen, setFilesOpen] = useState(true);
-  const [linksOpen, setLinksOpen] = useState(true);
+  const [filesOpen, setFilesOpen] = useState(false);
+  const [linksOpen, setLinksOpen] = useState(false);
 
   const visibleImages = showAllPhotos ? images : images.slice(0, 8);
 

@@ -5,7 +5,7 @@ import { SelectField, TextField } from '../../components/ui/Field';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { invitationService } from '../../services/workspace/services';
 import type { RoleDto } from '../../types/workspace.types';
-import { isValidEmail } from '../workspace/wizard/wizardValidation';
+import { isValidInvitee } from '../workspace/wizard/wizardValidation';
 
 interface InviteCreatorsProps {
   workspaceId: string;
@@ -16,7 +16,7 @@ interface InviteCreatorsProps {
 
 /** Email invite and reusable link forms (D-14). Links last 7 days and default to Member (BR-10). */
 export function InviteCreators({ workspaceId, roles, onCreated }: InviteCreatorsProps) {
-  const grantable = roles.filter((r) => !r.immutable);
+  const grantable = roles.filter((r) => !r.immutable && !(r.system && r.name.toLowerCase() === 'admin'));
   const defaultRole = grantable.find((r) => r.name === 'Member')?.id ?? grantable[0]?.id ?? '';
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -38,7 +38,8 @@ export function InviteCreators({ workspaceId, roles, onCreated }: InviteCreators
 
   async function handleEmail(event: FormEvent) {
     event.preventDefault();
-    if (!isValidEmail(email.trim().toLowerCase())) return setEmailError('Enter a valid email address.');
+    const target = email.trim().toLowerCase();
+    if (!isValidInvitee(target)) return setEmailError('Enter a valid email address or username.');
     setEmailError(null);
     await sendEmail.run();
   }
@@ -46,13 +47,13 @@ export function InviteCreators({ workspaceId, roles, onCreated }: InviteCreators
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <form onSubmit={(e) => void handleEmail(e)} className="space-y-3 border border-[#30363D] p-4">
-        <h3 className="text-[13px] font-semibold text-[#E6EDF3]">Invite by email</h3>
+        <h3 className="text-[13px] font-semibold text-[#E6EDF3]">Invite by email or username</h3>
         <TextField
-          label="Email address"
-          type="email"
+          label="Email or username"
+          type="text"
           value={email}
           error={emailError ?? sendEmail.error}
-          placeholder="teammate@example.com"
+          placeholder="teammate@example.com or username"
           onChange={(e) => setEmail(e.target.value)}
         />
         <SelectField label="Role" value={chosenRole} onChange={(e) => setRoleId(e.target.value)}>

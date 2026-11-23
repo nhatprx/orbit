@@ -53,20 +53,12 @@ describe('ChatPage', () => {
     render(<ChatPage workspace={makeTestWorkspace(['chat.read', 'chat.write', 'chat.manage'])} project={null} />);
     expect(screen.getByText('TEXT CHANNELS')).toBeTruthy();
     expect(screen.getByText('VOICE CHANNELS')).toBeTruthy();
-    expect(screen.getByText('1 LIVE')).toBeTruthy();
     expect(screen.getAllByText('Bob Smith').length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('button', { name: 'TEXT CHANNELS' }));
     expect(screen.queryByRole('button', { name: 'general' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'TEXT CHANNELS' }));
     expect(screen.getByRole('button', { name: 'general' })).toBeTruthy();
-
-    fireEvent.change(screen.getByLabelText('Filter channels'), { target: { value: 'lounge' } });
-    expect(screen.queryByRole('button', { name: 'general' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'lounge' })).toBeTruthy();
-
-    fireEvent.change(screen.getByLabelText('Filter channels'), { target: { value: 'nonexistent' } });
-    expect(screen.getByText('No matching channels.')).toBeTruthy();
   });
 
   it('creates and deletes channels with chat.manage and hides manage controls without permission', async () => {

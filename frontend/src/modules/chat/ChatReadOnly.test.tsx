@@ -87,11 +87,6 @@ describe('ChatPage read-only RBAC enforcement', () => {
     expect(screen.getByText(/Read-only access: you do not have permission to join voice channels/i)).toBeTruthy();
     expect((screen.getByRole('button', { name: 'Join Voice Channel' }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: /Join & Share Screen/i }) as HTMLButtonElement).disabled).toBe(true);
-
-    // Side chat inside voice room is also read-only.
-    fireEvent.click(screen.getByLabelText('Toggle voice text chat'));
-    const sideChat = screen.getByLabelText('Voice room text chat');
-    expect((sideChat.querySelector('input[aria-label="Message"]') as HTMLInputElement).disabled).toBe(true);
   });
 
   it('enforces pchat.write in project scope', () => {

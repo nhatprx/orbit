@@ -75,6 +75,7 @@ export interface MemberDto {
   email: string;
   roleId: string;
   roleName: string;
+  subRole?: string | null;
   isOwner: boolean;
   joinedAt: string;
 }

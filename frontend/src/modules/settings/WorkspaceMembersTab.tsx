@@ -8,6 +8,7 @@ import type { AuthUser } from '../../types/auth.types';
 import type { MemberDto, WorkspaceDto } from '../../types/workspace.types';
 import { MembersTable } from './MembersTable';
 import { can } from './permissionCatalog';
+import { WorkspaceInvitesTab } from './WorkspaceInvitesTab';
 
 const PAGE_SIZE = 25;
 
@@ -21,7 +22,12 @@ interface WorkspaceMembersTabProps {
 export function WorkspaceMembersTab({ workspace, user, onChanged, onLeft }: WorkspaceMembersTabProps) {
   const [page, setPage] = useState(0);
   const perms = workspace.myPermissions;
-  const members = useResource(() => memberService.listWorkspaceMembers(workspace.id, page, PAGE_SIZE), [workspace.id, page]);
+  const canViewMembers = can(perms, 'member.view');
+  const canInvite = can(perms, 'member.invite');
+  const members = useResource(
+    async () => (canViewMembers ? memberService.listWorkspaceMembers(workspace.id, page, PAGE_SIZE) : null),
+    [workspace.id, page, canViewMembers]
+  );
   const roles = useResource(
     async () => (can(perms, 'role.view') ? roleService.listWorkspaceRoles(workspace.id) : []),
     [workspace.id]
@@ -29,6 +35,11 @@ export function WorkspaceMembersTab({ workspace, user, onChanged, onLeft }: Work
 
   const assign = useAsyncAction(async (member: MemberDto, roleId: string) => {
     await memberService.assignWorkspaceMemberRole(workspace.id, member.userId, { roleId });
+    members.reload();
+  });
+
+  const updateSubRole = useAsyncAction(async (member: MemberDto, subRole: string) => {
+    await memberService.updateWorkspaceMemberSubRole(workspace.id, member.userId, subRole);
     members.reload();
   });
 
@@ -42,30 +53,38 @@ export function WorkspaceMembersTab({ workspace, user, onChanged, onLeft }: Work
     }
   }
 
-  if (members.loading && !members.data) return <LoadingView label="Loading members..." />;
-  if (members.error) return <ErrorView message={members.error} onRetry={members.reload} />;
-  const data = members.data;
-  if (!data) return null;
-
   return (
-    <Panel title={`Members (${data.totalElements})`} description="People with access to this workspace.">
-      {assign.error && (
-        <p role="alert" className="mb-3 text-xs text-[#EF4444]">
-          {assign.error}
-        </p>
+    <div className="space-y-5">
+      {canViewMembers && (
+        members.loading && !members.data ? (
+          <LoadingView label="Loading members..." />
+        ) : members.error ? (
+          <ErrorView message={members.error} onRetry={members.reload} />
+        ) : members.data ? (
+          <Panel title={`Members (${members.data.totalElements})`} description="People with access to this workspace.">
+            {assign.error && (
+              <p role="alert" className="mb-3 text-xs text-[#EF4444]">
+                {assign.error}
+              </p>
+            )}
+            <MembersTable
+              members={members.data.items}
+              roles={roles.data ?? []}
+              currentUserId={user.id}
+              canAssign={can(perms, 'member.assign_role')}
+              canRemove={can(perms, 'member.remove')}
+              page={members.data.page}
+              totalPages={members.data.totalPages}
+              onPage={setPage}
+              onAssign={async (member, roleId) => void (await assign.run(member, roleId))}
+              onUpdateSubRole={async (member, subRole) => void (await updateSubRole.run(member, subRole))}
+              onRemove={handleRemove}
+            />
+          </Panel>
+        ) : null
       )}
-      <MembersTable
-        members={data.items}
-        roles={roles.data ?? []}
-        currentUserId={user.id}
-        canAssign={can(perms, 'member.assign_role')}
-        canRemove={can(perms, 'member.remove')}
-        page={data.page}
-        totalPages={data.totalPages}
-        onPage={setPage}
-        onAssign={async (member, roleId) => void (await assign.run(member, roleId))}
-        onRemove={handleRemove}
-      />
-    </Panel>
+
+      {canInvite && <WorkspaceInvitesTab workspace={workspace} />}
+    </div>
   );
 }

@@ -91,6 +91,20 @@ public class ProjectMemberService {
         return queries.findMember(projectId, targetUserId).orElseThrow();
     }
 
+    @Transactional
+    public MemberDto updateSubRole(UUID userId, UUID workspaceId, UUID projectId, UUID targetUserId, String rawSubRole) {
+        if (userId.equals(targetUserId)) {
+            evaluator.requireProjectAccess(userId, workspaceId, projectId);
+        } else {
+            evaluator.requireProjectPermission(userId, workspaceId, projectId, Permissions.PMEMBER_ASSIGN_ROLE);
+        }
+        ProjectMemberEntity target = requireMember(projectId, targetUserId);
+        String trimmed = rawSubRole == null ? "" : rawSubRole.trim();
+        target.setSubRole(trimmed.isEmpty() ? null : trimmed.substring(0, Math.min(trimmed.length(), 64)));
+        members.save(target);
+        return queries.findMember(projectId, targetUserId).orElseThrow();
+    }
+
     /** Removes a member or lets one leave; the last project Owner can never go. */
     @Transactional
     public void remove(UUID userId, UUID workspaceId, UUID projectId, UUID targetUserId) {

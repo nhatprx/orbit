@@ -120,6 +120,10 @@ export function ProjectMembersTab({ workspace, project, user, onChanged, onLeft 
           totalPages={data.totalPages}
           onPage={setPage}
           onAssign={async (member, nextRoleId) => void (await assign.run(member, nextRoleId))}
+          onUpdateSubRole={async (member, subRole) => {
+            await memberService.updateProjectMemberSubRole(workspace.id, project.id, member.userId, subRole);
+            members.reload();
+          }}
           onRemove={async (member) => {
             await memberService.removeProjectMember(workspace.id, project.id, member.userId);
             if (member.userId === user.id) {

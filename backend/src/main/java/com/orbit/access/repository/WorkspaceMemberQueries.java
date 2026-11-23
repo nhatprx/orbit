@@ -16,7 +16,7 @@ public interface WorkspaceMemberQueries extends Repository<WorkspaceMemberEntity
     @Query(
         value = """
             select new com.orbit.access.dto.MemberDto(
-                u.id, u.username, u.displayName, u.email, r.id, r.name,
+                u.id, u.username, u.displayName, u.email, r.id, r.name, m.subRole,
                 case when w.ownerId = u.id then true else false end, m.joinedAt)
             from WorkspaceMemberEntity m
             join UserEntity u on u.id = m.id.userId
@@ -31,7 +31,7 @@ public interface WorkspaceMemberQueries extends Repository<WorkspaceMemberEntity
 
     @Query("""
         select new com.orbit.access.dto.MemberDto(
-            u.id, u.username, u.displayName, u.email, r.id, r.name,
+            u.id, u.username, u.displayName, u.email, r.id, r.name, m.subRole,
             case when w.ownerId = u.id then true else false end, m.joinedAt)
         from WorkspaceMemberEntity m
         join UserEntity u on u.id = m.id.userId

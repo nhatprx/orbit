@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Headphones, Maximize2, Mic, MicOff, MonitorOff, MonitorUp, PhoneOff, Video, VideoOff, VolumeX } from 'lucide-react';
+import { Headphones, MessageSquare, Mic, MicOff, MonitorOff, MonitorUp, PhoneOff, Video, VideoOff, VolumeX } from 'lucide-react';
+import { useChatLayout } from './chatLayoutStore';
 import type { VoiceSessionState } from './chatVoiceTypes';
 
 interface ChatVoiceControlBarProps {
@@ -31,6 +32,7 @@ function VoiceControl({ label, active, danger = false, onClick, children }: Voic
 
 export function ChatVoiceControlBar({ voice, onOpenStage }: ChatVoiceControlBarProps) {
   const [elapsed, setElapsed] = useState(0);
+  const { showVoiceChat, toggleVoiceChat } = useChatLayout();
   useEffect(() => {
     const connectedAt = voice.connectedAt;
     if (!voice.activeChannelId || connectedAt === null) { setElapsed(0); return; }
@@ -53,12 +55,9 @@ export function ChatVoiceControlBar({ voice, onOpenStage }: ChatVoiceControlBarP
           </button>
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-1.5">
-        <span className="font-mono text-[10px] text-[#8A8A8A]">{formatDuration(elapsed)}</span>
-        <VoiceControl label="Open voice stage" active={false} onClick={() => onOpenStage(id)}><Maximize2 className="h-3.5 w-3.5" /></VoiceControl>
-      </div>
+      <span className="shrink-0 font-mono text-[10px] text-[#8A8A8A]">{formatDuration(elapsed)}</span>
     </div>
-    <div className="mt-2 grid grid-cols-5 gap-1">
+    <div className="mt-2 grid grid-cols-6 gap-1">
       <VoiceControl label={voice.muted ? 'Unmute microphone' : 'Mute microphone'} active={voice.muted} onClick={() => void voice.toggleMute()}>
         {voice.muted ? <MicOff className="h-3.5 w-3.5" /> : <Mic className="h-3.5 w-3.5" />}
       </VoiceControl>
@@ -70,6 +69,16 @@ export function ChatVoiceControlBar({ voice, onOpenStage }: ChatVoiceControlBarP
       </VoiceControl>
       <VoiceControl label={voice.screenSharing ? 'Stop screen share' : 'Share screen'} active={voice.screenSharing} onClick={() => void voice.toggleScreenShare()}>
         {voice.screenSharing ? <MonitorOff className="h-3.5 w-3.5" /> : <MonitorUp className="h-3.5 w-3.5" />}
+      </VoiceControl>
+      <VoiceControl
+        label="Toggle voice text chat"
+        active={showVoiceChat}
+        onClick={() => {
+          onOpenStage(id);
+          toggleVoiceChat();
+        }}
+      >
+        <MessageSquare className="h-3.5 w-3.5" />
       </VoiceControl>
       <VoiceControl label="Disconnect voice" active={false} danger onClick={() => void voice.leaveChannel()}>
         <PhoneOff className="h-3.5 w-3.5" />

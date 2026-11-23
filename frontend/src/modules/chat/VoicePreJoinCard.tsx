@@ -60,9 +60,17 @@ export function VoicePreJoinCard({
                   key={p.userId}
                   className="inline-flex items-center gap-1.5 border border-[#30363D] bg-[#161B22] px-2 py-1 text-xs text-[#E6EDF3]"
                 >
-                  <span className="font-mono text-[10px] text-[#22C55E]">
-                    {initialsOf(p.displayName)}
-                  </span>
+                  {p.avatarUrl ? (
+                    <img
+                      src={p.avatarUrl}
+                      alt={p.displayName}
+                      className="h-4 w-4 shrink-0 border border-[#30363D] object-cover"
+                    />
+                  ) : (
+                    <span className="font-mono text-[10px] text-[#22C55E]">
+                      {initialsOf(p.displayName)}
+                    </span>
+                  )}
                   {p.displayName}
                 </span>
               ))}

@@ -16,6 +16,7 @@ interface ChatComposerProps {
   mentionMembers?: MemberDto[];
   placeholder: string;
   disabled?: boolean;
+  textOnly?: boolean;
   readOnlyNotice?: string | null;
   replyTo?: ChatMessageDto | null;
   editingMessage?: ChatMessageDto | null;
@@ -34,7 +35,7 @@ const isValidUrl = (url: string) => {
 };
 
 export function ChatComposer({
-  channelId, mentionMembers = [], placeholder, disabled = false, readOnlyNotice = null,
+  channelId, mentionMembers = [], placeholder, disabled = false, textOnly = false, readOnlyNotice = null,
   replyTo = null, editingMessage = null, droppedFiles = null, onClearDroppedFiles, onClearReply, onCancelEdit, onSaveEdit, onSend, onTyping,
 }: ChatComposerProps) {
   const [draft, setDraft] = useState('');
@@ -92,7 +93,7 @@ export function ChatComposer({
     if (trimmedUrl && !isValidUrl(trimmedUrl)) {
       return setError('Attachment URL must start with https://, http://, or /api/.');
     }
-    const hasMedia = Boolean(files.pendingFiles.length > 0 || trimmedUrl);
+    const hasMedia = !textOnly && Boolean(files.pendingFiles.length > 0 || trimmedUrl);
     let content = draft.trim();
     if (!hasMedia) {
       const check = checkDraft(draft);
@@ -104,7 +105,7 @@ export function ChatComposer({
     setError(null);
     setPending(true);
     try {
-      if (files.pendingFiles.length > 0) {
+      if (!textOnly && files.pendingFiles.length > 0) {
         if (!channelId) throw new Error('File upload requires an active channel.');
         const uploaded = await Promise.all(files.pendingFiles.map((item) => uploadChatFile(channelId, item.file)));
         const first = uploaded[0];
@@ -152,29 +153,33 @@ export function ChatComposer({
         onCloseAttachment={() => { setShowAttachment(false); setAttachmentName(''); setAttachmentUrl(''); }}
       />
       <div className="flex items-center gap-2">
-        <input ref={files.imageInputRef} type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif" aria-label="Upload image" className="hidden" onChange={(e) => files.addFiles(e.target.files)} />
-        <input ref={files.fileInputRef} type="file" multiple aria-label="Upload files" className="hidden" onChange={(e) => files.addFiles(e.target.files)} />
-        {channelId && !editingMessage && (
+        {!textOnly && (
           <>
-            <button type="button" aria-label="Send image" title="Upload images" disabled={disabled || pending} onClick={() => files.imageInputRef.current?.click()}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center border transition-colors disabled:opacity-50 ${files.pendingFiles.some((f) => f.isImage) ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]' : 'border-[#3B434B] bg-[#0D1117] text-[#BDBDBD] hover:border-[#22C55E] hover:text-[#E6EDF3]'}`}>
-              <ImagePlus className="h-4 w-4" strokeWidth={1.5} />
-            </button>
-            <button type="button" aria-label="Upload file" title="Upload files" disabled={disabled || pending} onClick={() => files.fileInputRef.current?.click()}
-              className={`flex h-10 w-10 shrink-0 items-center justify-center border transition-colors disabled:opacity-50 ${files.pendingFiles.some((f) => !f.isImage) ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]' : 'border-[#3B434B] bg-[#0D1117] text-[#BDBDBD] hover:border-[#22C55E] hover:text-[#E6EDF3]'}`}>
-              <FileUp className="h-4 w-4" strokeWidth={1.5} />
-            </button>
+            <input ref={files.imageInputRef} type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif" aria-label="Upload image" className="hidden" onChange={(e) => files.addFiles(e.target.files)} />
+            <input ref={files.fileInputRef} type="file" multiple aria-label="Upload files" className="hidden" onChange={(e) => files.addFiles(e.target.files)} />
+            {channelId && !editingMessage && (
+              <>
+                <button type="button" aria-label="Send image" title="Upload images" disabled={disabled || pending} onClick={() => files.imageInputRef.current?.click()}
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center border transition-colors disabled:opacity-50 ${files.pendingFiles.some((f) => f.isImage) ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]' : 'border-[#3B434B] bg-[#0D1117] text-[#BDBDBD] hover:border-[#22C55E] hover:text-[#E6EDF3]'}`}>
+                  <ImagePlus className="h-4 w-4" strokeWidth={1.5} />
+                </button>
+                <button type="button" aria-label="Upload file" title="Upload files" disabled={disabled || pending} onClick={() => files.fileInputRef.current?.click()}
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center border transition-colors disabled:opacity-50 ${files.pendingFiles.some((f) => !f.isImage) ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]' : 'border-[#3B434B] bg-[#0D1117] text-[#BDBDBD] hover:border-[#22C55E] hover:text-[#E6EDF3]'}`}>
+                  <FileUp className="h-4 w-4" strokeWidth={1.5} />
+                </button>
+              </>
+            )}
+            {!editingMessage && (
+              <button type="button" aria-label="Attach link" aria-pressed={showAttachment} title="Attach link" disabled={disabled} onClick={() => setShowAttachment((prev) => !prev)}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center border transition-colors disabled:opacity-50 ${showAttachment || attachmentUrl.trim() ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]' : 'border-[#3B434B] bg-[#0D1117] text-[#BDBDBD] hover:border-[#22C55E] hover:text-[#E6EDF3]'}`}>
+                <Paperclip className="h-4 w-4" strokeWidth={1.5} />
+              </button>
+            )}
           </>
-        )}
-        {!editingMessage && (
-          <button type="button" aria-label="Attach link" aria-pressed={showAttachment} title="Attach link" disabled={disabled} onClick={() => setShowAttachment((prev) => !prev)}
-            className={`flex h-10 w-10 shrink-0 items-center justify-center border transition-colors disabled:opacity-50 ${showAttachment || attachmentUrl.trim() ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]' : 'border-[#3B434B] bg-[#0D1117] text-[#BDBDBD] hover:border-[#22C55E] hover:text-[#E6EDF3]'}`}>
-            <Paperclip className="h-4 w-4" strokeWidth={1.5} />
-          </button>
         )}
         <input
           ref={inputRef} type="text" aria-label="Message" value={draft} maxLength={MAX_MESSAGE_LENGTH + 100} disabled={disabled}
-          onKeyDown={mention.handleKeyDown} onPaste={files.handlePaste}
+          onKeyDown={mention.handleKeyDown} onPaste={textOnly ? undefined : files.handlePaste}
           onClick={(e) => mention.setCursor(e.currentTarget.selectionStart ?? draft.length)}
           onChange={(e) => { const v = e.target.value; setDraft(v); mention.setCursor(e.currentTarget.selectionStart ?? v.length); mention.resetSelection(); updateTyping(v); }}
           placeholder={placeholder}

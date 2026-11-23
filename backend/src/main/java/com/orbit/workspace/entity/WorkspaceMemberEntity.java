@@ -22,6 +22,9 @@ public class WorkspaceMemberEntity implements Persistable<WorkspaceMemberId> {
     @Column(name = "role_id", nullable = false)
     private UUID roleId;
 
+    @Column(name = "sub_role", length = 64)
+    private String subRole;
+
     @Column(name = "joined_at", nullable = false, updatable = false)
     private Instant joinedAt;
 
@@ -49,6 +52,9 @@ public class WorkspaceMemberEntity implements Persistable<WorkspaceMemberId> {
 
     public UUID getRoleId() { return roleId; }
     public void setRoleId(UUID roleId) { this.roleId = roleId; }
+
+    public String getSubRole() { return subRole; }
+    public void setSubRole(String subRole) { this.subRole = subRole; }
 
     public Instant getJoinedAt() { return joinedAt; }
 }

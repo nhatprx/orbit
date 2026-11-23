@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
-import { TextAreaField, TextField } from '../../../components/ui/Field';
+import { TextField } from '../../../components/ui/Field';
 import { SocialAccountsPanel } from '../../integrations/SocialAccountsPanel';
 import { MODULE_META, MODULE_ORDER } from '../moduleMeta';
 import { MAX_INVITES, type InfoErrors, type WizardValues } from './wizardValidation';
@@ -24,23 +24,6 @@ export function StepInfo(props: {
         error={errors.name}
         placeholder="Acme Engineering"
         onChange={(e) => onChange({ name: e.target.value })}
-      />
-      <TextAreaField
-        label="Description (optional)"
-        rows={3}
-        maxLength={500}
-        value={values.description}
-        error={errors.description}
-        placeholder="What does this workspace hold?"
-        onChange={(e) => onChange({ description: e.target.value })}
-      />
-      <TextField
-        label="Avatar URL (optional)"
-        type="url"
-        value={values.avatarUrl}
-        error={errors.avatarUrl}
-        placeholder="https://example.com/logo.png"
-        onChange={(e) => onChange({ avatarUrl: e.target.value })}
       />
     </div>
   );
@@ -114,16 +97,16 @@ export function StepInvites(props: {
   return (
     <div className="space-y-3">
       <p className="text-[13px] text-[#BDBDBD]">
-        Optional. Invite teammates by email now, or create invite links later under Settings, Invites.
+        Optional. Invite teammates by email or username now, or create invite links later under Settings, Members.
       </p>
       <div className="flex items-end gap-2">
         <div className="flex-1">
           <TextField
-            label="Email address"
-            type="email"
+            label="Email or username"
+            type="text"
             value={draft}
             error={props.error}
-            placeholder="teammate@example.com"
+            placeholder="teammate@example.com or username"
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -138,7 +121,7 @@ export function StepInvites(props: {
           Add
         </Button>
       </div>
-      <ul className="flex flex-wrap gap-1.5" aria-label="Invited emails">
+      <ul className="flex flex-wrap gap-1.5" aria-label="Invited teammates">
         {props.emails.map((email) => (
           <li key={email} className="flex items-center gap-1.5 border border-[#30363D] bg-[#0D1117] px-2 py-1 text-xs text-[#E6EDF3]">
             {email}
@@ -158,9 +141,8 @@ export function StepInvites(props: {
 export function StepReview({ values }: { values: WizardValues }) {
   const rows: [string, string][] = [
     ['Name', values.name.trim()],
-    ['Description', values.description.trim() || 'None'],
-    ['Modules', values.modules.map((m) => MODULE_META[m].label).join(', ')],
-    ['Invitations', values.emails.length === 0 ? 'None' : `${values.emails.length} email invitation(s)`],
+    ['Modules', values.modules.length === 0 ? 'None (configure later)' : values.modules.map((m) => MODULE_META[m].label).join(', ')],
+    ['Invitations', values.emails.length === 0 ? 'None' : `${values.emails.length} invitation(s)`],
   ];
   return (
     <div className="space-y-3">

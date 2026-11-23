@@ -41,24 +41,25 @@ describe('validateInfo', () => {
   });
 });
 
-describe('validateModules (BR-03)', () => {
-  it('requires at least one module', () => {
-    expect(validateModules(values())).toBe('Select at least one module.');
+describe('validateModules', () => {
+  it('allows zero or more modules', () => {
+    expect(validateModules(values())).toBeNull();
     expect(validateModules(values({ modules: ['git'] }))).toBeNull();
   });
 });
 
 describe('addEmail', () => {
-  it('normalizes and appends a valid address', () => {
-    const result = addEmail([], '  Alice@Example.COM ');
-    expect(result).toEqual({ ok: true, emails: ['alice@example.com'] });
+  it('normalizes and appends valid emails and usernames', () => {
+    expect(addEmail([], '  Alice@Example.COM ')).toEqual({ ok: true, emails: ['alice@example.com'] });
+    expect(addEmail([], '  @DuyNN ')).toEqual({ ok: true, emails: ['duynn'] });
+    expect(addEmail([], 'nhatprx')).toEqual({ ok: true, emails: ['nhatprx'] });
   });
 
-  it('rejects malformed and duplicate addresses', () => {
-    for (const bad of ['', 'plain', 'a@b', '@x.com', 'a b@x.com']) {
+  it('rejects malformed and duplicate invitees', () => {
+    for (const bad of ['', 'a', 'a@b', 'a b@x.com', 'has space']) {
       expect(addEmail([], bad).ok, bad).toBe(false);
     }
-    expect(addEmail(['a@x.com'], 'A@x.com')).toEqual({ ok: false, error: 'This email is already in the list.' });
+    expect(addEmail(['a@x.com'], 'A@x.com')).toEqual({ ok: false, error: 'This teammate is already in the list.' });
   });
 
   it('caps the list at the invitation limit', () => {

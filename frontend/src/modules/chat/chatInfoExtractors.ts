@@ -1,7 +1,7 @@
 import type { ChatMessageDto } from '../../types/workspace.types';
+import { extractAllUrls } from './chatLinkUtils';
 
 const IMAGE_EXT_RE = /\.(png|jpe?g|webp|gif)(\?|$)/i;
-const URL_RE = /https?:\/\/[^\s<>()]+/gi;
 
 export interface SharedMediaItem {
   id: string;
@@ -62,9 +62,8 @@ export function extractChannelMedia(messages: ChatMessageDto[]): {
       else files.push(item);
     });
 
-    const matches = msg.content.match(URL_RE) ?? [];
-    for (const raw of matches) {
-      const cleaned = raw.replace(/[.,;!?]+$/, '');
+    const matches = extractAllUrls(msg.content);
+    for (const cleaned of matches) {
       if (!isSafeUrl(cleaned) || seenLinks.has(cleaned)) continue;
       seenLinks.add(cleaned);
       let host = cleaned;

@@ -61,7 +61,7 @@ public class WorkspaceService {
     /** Wizard submit: the only point where a Workspace is persisted (no partial state, WS-01). */
     @Transactional
     public WorkspaceDto create(UUID userId, CreateWorkspaceRequest request) {
-        List<String> moduleKeys = catalog.requireValidKeys(request.moduleKeys());
+        List<String> moduleKeys = catalog.validKeysAllowEmpty(request.moduleKeys());
 
         WorkspaceEntity workspace = new WorkspaceEntity();
         workspace.setName(request.name().trim());

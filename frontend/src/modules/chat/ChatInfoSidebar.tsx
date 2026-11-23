@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { UserAvatar } from '../../components/ui/UserAvatar';
 import type { ChatChannelDto, ChatMessageDto, MemberDto } from '../../types/workspace.types';
+import { ChatChannelIcon } from './ChatChannelIcon';
 import type { PreviewImageItem } from './ChatImageLightbox';
 import { ChatInfoDangerActions } from './ChatInfoDangerActions';
 import { extractChannelMedia } from './chatInfoExtractors';
@@ -13,6 +14,7 @@ interface ChatInfoSidebarProps {
   channel: ChatChannelDto;
   scopeLabel: string;
   members: MemberDto[];
+  onlineCount?: number;
   messages: ChatMessageDto[];
   pinnedMessages: ChatMessageDto[];
   canManageChannels: boolean;
@@ -27,17 +29,16 @@ interface ChatInfoSidebarProps {
 }
 
 export function ChatInfoSidebar({
-  channel, scopeLabel, members, messages, pinnedMessages,
+  channel, scopeLabel, members, onlineCount = 0, messages, pinnedMessages,
   canManageChannels, canWriteChat, searchQuery, onChangeSearch,
   onEditChannel, onDeleteChannel, onUnpin, onPreviewImage, onClose,
 }: ChatInfoSidebarProps) {
   const [muted, setMuted] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [membersOpen, setMembersOpen] = useState(true);
-  const [pinsOpen, setPinsOpen] = useState(true);
+  const [pinsOpen, setPinsOpen] = useState(false);
 
   const { images, files, links } = useMemo(() => extractChannelMedia(messages), [messages]);
-  const mosaicMembers = members.slice(0, 3);
 
   return (
     <aside aria-label="Channel info panel" className="flex w-96 shrink-0 flex-col border-l border-[#30363D] bg-[#0D1117]">
@@ -54,60 +55,16 @@ export function ChatInfoSidebar({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="border-b border-[#21262D] px-4 py-4 text-center">
-          <div className="mx-auto grid h-14 w-14 grid-cols-2 gap-0.5 border border-[#30363D] bg-[#161B22] p-0.5">
-            {mosaicMembers.map((m) => (
-              <div key={m.userId} className="flex items-center justify-center bg-[#052E16] font-mono text-[10px] font-semibold text-[#4ADE80]">
-                {m.displayName.slice(0, 1).toUpperCase()}
-              </div>
-            ))}
-            <div className="flex items-center justify-center bg-[#21262D] font-mono text-[10px] font-semibold text-[#E6EDF3]">
-              {members.length || 1}
-            </div>
-          </div>
-
-          <h3 className="mt-2.5 truncate text-sm font-semibold text-[#E6EDF3]">{channel.name}</h3>
-          <p className="mt-0.5 truncate text-[11px] text-[#7D8590]">{channel.description || scopeLabel}</p>
-
-          <div className="mt-4 grid grid-cols-4 gap-1.5">
-            <button type="button" onClick={() => setMuted((v) => !v)}
-              className={`flex flex-col items-center gap-1 border px-1 py-2 text-[10px] ${muted ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]' : 'border-[#30363D] bg-[#161B22] text-[#BDBDBD] hover:border-[#22C55E]'}`}>
-              {muted ? <BellOff className="h-3.5 w-3.5" strokeWidth={1.5} /> : <Bell className="h-3.5 w-3.5" strokeWidth={1.5} />}
-              <span>{muted ? 'Muted' : 'Mute'}</span>
-            </button>
-            <button type="button" onClick={() => setPinsOpen(true)}
-              className="flex flex-col items-center gap-1 border border-[#30363D] bg-[#161B22] px-1 py-2 text-[10px] text-[#BDBDBD] hover:border-[#22C55E]">
-              <Pin className="h-3.5 w-3.5" strokeWidth={1.5} />
-              <span>Pinned</span>
-            </button>
-            <button type="button" onClick={() => setShowSearch((v) => !v)}
-              className={`flex flex-col items-center gap-1 border px-1 py-2 text-[10px] ${showSearch || searchQuery ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]' : 'border-[#30363D] bg-[#161B22] text-[#BDBDBD] hover:border-[#22C55E]'}`}>
-              <Search className="h-3.5 w-3.5" strokeWidth={1.5} />
-              <span>Search</span>
-            </button>
-            <button type="button" disabled={!canManageChannels || !onEditChannel} onClick={() => onEditChannel?.(channel)}
-              className="flex flex-col items-center gap-1 border border-[#30363D] bg-[#161B22] px-1 py-2 text-[10px] text-[#BDBDBD] hover:border-[#22C55E] disabled:opacity-40">
-              <Settings className="h-3.5 w-3.5" strokeWidth={1.5} />
-              <span>Manage</span>
-            </button>
-          </div>
-
-          {showSearch && (
-            <div className="mt-3 flex items-center gap-1">
-              <input type="text" aria-label="Filter channel messages" value={searchQuery} onChange={(e) => onChangeSearch(e.target.value)} placeholder="Search in conversation..."
-                className="h-8 min-w-0 flex-1 border border-[#30363D] bg-[#161B22] px-2.5 text-xs text-[#E6EDF3] placeholder-[#7D8590] focus:border-[#22C55E] focus:outline-none" />
-              {searchQuery && (
-                <button type="button" aria-label="Clear search" onClick={() => onChangeSearch('')} className="flex h-8 w-8 items-center justify-center border border-[#30363D] bg-[#161B22] text-[#8B949E] hover:text-[#E6EDF3]">
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
         <section className="border-b border-[#21262D] px-4 py-3">
           <button type="button" onClick={() => setMembersOpen((v) => !v)} className="flex w-full items-center justify-between text-left text-xs font-semibold text-[#E6EDF3]">
-            <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5 text-[#22C55E]" strokeWidth={1.5} /><span>Members ({members.length})</span></span>
+            <span className="flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5 text-[#22C55E]" strokeWidth={1.5} />
+              <span>Members ({members.length})</span>
+              <span className="ml-1 inline-flex items-center gap-1 border border-[#1E5631] bg-[#052E16] px-1.5 py-0.5 font-mono text-[10px] font-medium text-[#4ADE80]">
+                <span className="inline-block h-1.5 w-1.5 bg-[#22C55E]" aria-hidden="true" />
+                {onlineCount} online
+              </span>
+            </span>
             {membersOpen ? <ChevronDown className="h-3.5 w-3.5 text-[#8B949E]" /> : <ChevronRight className="h-3.5 w-3.5 text-[#8B949E]" />}
           </button>
           {membersOpen && (
@@ -119,7 +76,16 @@ export function ChatInfoSidebar({
                     <p className="truncate font-medium text-[#E6EDF3]">{member.displayName}</p>
                     <p className="truncate font-mono text-[10px] text-[#7D8590]">@{member.username}</p>
                   </div>
-                  <span className="border border-[#30363D] bg-[#161B22] px-1.5 py-0.5 font-mono text-[9px] text-[#8B949E]">{member.roleName}</span>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {member.subRole && (
+                      <span className="border border-[#1E5631] bg-[#052E16]/70 px-1.5 py-0.5 font-mono text-[9px] text-[#4ADE80]">
+                        {member.subRole}
+                      </span>
+                    )}
+                    <span className="border border-[#30363D] bg-[#161B22] px-1.5 py-0.5 font-mono text-[9px] text-[#8B949E]">
+                      {member.roleName}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -157,11 +123,54 @@ export function ChatInfoSidebar({
         <ChatInfoMediaSections images={images} files={files} links={links} onPreviewImage={onPreviewImage} />
       </div>
 
-      <ChatInfoDangerActions
-        channel={channel}
-        canManageChannels={canManageChannels}
-        onDeleteChannel={onDeleteChannel}
-      />
+      <div className="shrink-0 border-t border-[#21262D] bg-[#0D1117] px-4 py-3">
+        <div className="flex items-center gap-1.5">
+          <ChatChannelIcon type={channel.channelType} className="h-4 w-4 shrink-0 text-[#22C55E]" />
+          <h3 className="truncate text-sm font-semibold text-[#E6EDF3]">{channel.name}</h3>
+        </div>
+        <p className="mt-0.5 truncate text-[11px] text-[#7D8590]">{channel.description || scopeLabel}</p>
+
+        {showSearch && (
+          <div className="mt-2.5 flex items-center gap-1">
+            <input type="text" aria-label="Filter channel messages" value={searchQuery} onChange={(e) => onChangeSearch(e.target.value)} placeholder="Search in conversation..."
+              className="h-8 min-w-0 flex-1 border border-[#30363D] bg-[#161B22] px-2.5 text-xs text-[#E6EDF3] placeholder-[#7D8590] focus:border-[#22C55E] focus:outline-none" />
+            {searchQuery && (
+              <button type="button" aria-label="Clear search" onClick={() => onChangeSearch('')} className="flex h-8 w-8 items-center justify-center border border-[#30363D] bg-[#161B22] text-[#8B949E] hover:text-[#E6EDF3]">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className="mt-2.5 grid grid-cols-2 gap-1.5">
+          <button type="button" onClick={() => setMuted((v) => !v)}
+            className={`flex h-8 items-center justify-center gap-1.5 border px-2 text-xs font-medium transition-colors ${muted ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]' : 'border-[#30363D] bg-[#161B22] text-[#BDBDBD] hover:border-[#22C55E] hover:text-[#E6EDF3]'}`}>
+            {muted ? <BellOff className="h-3.5 w-3.5" strokeWidth={1.5} /> : <Bell className="h-3.5 w-3.5" strokeWidth={1.5} />}
+            <span>{muted ? 'Muted' : 'Mute'}</span>
+          </button>
+          <button type="button" onClick={() => setPinsOpen((v) => !v)}
+            className={`flex h-8 items-center justify-center gap-1.5 border px-2 text-xs font-medium transition-colors ${pinsOpen ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]' : 'border-[#30363D] bg-[#161B22] text-[#BDBDBD] hover:border-[#22C55E] hover:text-[#E6EDF3]'}`}>
+            <Pin className="h-3.5 w-3.5" strokeWidth={1.5} />
+            <span>Pinned</span>
+          </button>
+          <button type="button" onClick={() => setShowSearch((v) => !v)}
+            className={`flex h-8 items-center justify-center gap-1.5 border px-2 text-xs font-medium transition-colors ${showSearch || searchQuery ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]' : 'border-[#30363D] bg-[#161B22] text-[#BDBDBD] hover:border-[#22C55E] hover:text-[#E6EDF3]'}`}>
+            <Search className="h-3.5 w-3.5" strokeWidth={1.5} />
+            <span>Search</span>
+          </button>
+          <button type="button" disabled={!canManageChannels || !onEditChannel} onClick={() => onEditChannel?.(channel)}
+            className="flex h-8 items-center justify-center gap-1.5 border border-[#30363D] bg-[#161B22] px-2 text-xs font-medium text-[#BDBDBD] transition-colors hover:border-[#22C55E] hover:text-[#E6EDF3] disabled:opacity-40">
+            <Settings className="h-3.5 w-3.5" strokeWidth={1.5} />
+            <span>Manage</span>
+          </button>
+        </div>
+
+        <ChatInfoDangerActions
+          channel={channel}
+          canManageChannels={canManageChannels}
+          onDeleteChannel={onDeleteChannel}
+        />
+      </div>
     </aside>
   );
 }

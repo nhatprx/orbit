@@ -16,10 +16,10 @@ export type WizardStep = 'info' | 'modules' | 'integrations' | 'invites' | 'revi
 
 export const WIZARD_STEPS: { id: WizardStep; label: string; optional: boolean }[] = [
   { id: 'info', label: 'Information', optional: false },
-  { id: 'modules', label: 'Modules', optional: false },
-  { id: 'integrations', label: 'Integrations', optional: true },
+  { id: 'modules', label: 'Modules', optional: true },
   { id: 'invites', label: 'Teammates', optional: true },
-  { id: 'review', label: 'Initialize', optional: false },
+  { id: 'review', label: 'Review', optional: false },
+  { id: 'integrations', label: 'Integrations', optional: true },
 ];
 
 /** Nothing is persisted until the final submit, so abandoning the wizard leaves no partial Workspace. */
@@ -74,8 +74,9 @@ export function useWizardState(onCreate: (request: CreateWorkspaceRequest) => Pr
       setTouched(true);
       if (currentStepValid()) goTo(index + 1);
     },
-    /** Skipping the optional invite step also discards any half-typed list. */
+    /** Skipping an optional step discards any half-typed selection on that step. */
     skip: () => {
+      if (step.id === 'modules') setValues((v) => ({ ...v, modules: [] }));
       if (step.id === 'invites') setValues((v) => ({ ...v, emails: [] }));
       goTo(index + 1);
     },

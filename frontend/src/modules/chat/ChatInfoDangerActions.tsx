@@ -47,25 +47,25 @@ export function ChatInfoDangerActions({
 
   return (
     <>
-      <div className="shrink-0 space-y-1.5 border-t border-[#21262D] bg-[#0D1117] px-4 py-3">
+      <div className="mt-1.5 grid shrink-0 grid-cols-2 gap-1.5">
         <button
           type="button"
           disabled={!canDelete}
           title={deleteTitle}
           onClick={() => onDeleteChannel?.(channel)}
-          className="flex w-full items-center gap-2 border border-[#30363D] bg-[#161B22] px-3 py-2 text-left text-xs font-medium text-[#EF4444] transition-colors hover:border-[#EF4444] hover:bg-[#EF4444]/10 disabled:cursor-not-allowed disabled:opacity-45"
+          className="flex h-8 items-center justify-center gap-1.5 border border-[#30363D] bg-[#161B22] px-2 text-xs font-medium text-[#EF4444] transition-colors hover:border-[#EF4444] hover:bg-[#EF4444]/10 disabled:cursor-not-allowed disabled:opacity-45"
         >
           <Trash2 className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
-          <span>Delete conversation</span>
+          <span className="truncate">Delete</span>
         </button>
 
         <button
           type="button"
           onClick={handleOpenReport}
-          className="flex w-full items-center gap-2 border border-[#30363D] bg-[#161B22] px-3 py-2 text-left text-xs font-medium text-[#BDBDBD] transition-colors hover:border-[#EF4444] hover:text-[#EF4444]"
+          className="flex h-8 items-center justify-center gap-1.5 border border-[#30363D] bg-[#161B22] px-2 text-xs font-medium text-[#BDBDBD] transition-colors hover:border-[#EF4444] hover:text-[#EF4444]"
         >
           <Flag className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
-          <span>Report</span>
+          <span className="truncate">Report</span>
         </button>
       </div>
 
@@ -95,11 +95,10 @@ export function ChatInfoDangerActions({
                 {REPORT_REASONS.map((option) => (
                   <label
                     key={option}
-                    className={`flex cursor-pointer items-center gap-2 border px-2.5 py-2 text-xs transition-colors ${
-                      reason === option
+                    className={`flex cursor-pointer items-center gap-2 border px-2.5 py-2 text-xs transition-colors ${reason === option
                         ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]'
                         : 'border-[#30363D] bg-[#0D1117] text-[#BDBDBD] hover:border-[#3B434B]'
-                    }`}
+                      }`}
                   >
                     <input
                       type="radio"

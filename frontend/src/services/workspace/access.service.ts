@@ -49,6 +49,11 @@ export interface MemberService {
     userId: string,
     request: AssignMemberRoleRequest
   ): Promise<MemberDto>;
+  updateWorkspaceMemberSubRole(
+    workspaceId: string,
+    userId: string,
+    subRole: string
+  ): Promise<MemberDto>;
   removeWorkspaceMember(workspaceId: string, userId: string): Promise<void>;
   listProjectMembers(
     workspaceId: string,
@@ -66,6 +71,12 @@ export interface MemberService {
     projectId: string,
     userId: string,
     request: AssignMemberRoleRequest
+  ): Promise<MemberDto>;
+  updateProjectMemberSubRole(
+    workspaceId: string,
+    projectId: string,
+    userId: string,
+    subRole: string
   ): Promise<MemberDto>;
   removeProjectMember(workspaceId: string, projectId: string, userId: string): Promise<void>;
 }

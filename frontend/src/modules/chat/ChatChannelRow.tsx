@@ -93,12 +93,6 @@ export function ChatChannelRow({
           {isForum && <span className="shrink-0 font-mono text-[9px] text-[#7D8590]">FORUM</span>}
         </button>
 
-        {isVoice && participants.length > 0 && (
-          <span className="shrink-0 border border-[#22C55E] bg-[#052E16] px-1 py-0.5 font-mono text-[10px] font-semibold text-[#4ADE80]">
-            {participants.length} LIVE
-          </span>
-        )}
-
         {canManageChannels && (
           <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
             <button

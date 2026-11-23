@@ -1,7 +1,8 @@
 import type { ChatMessageDto } from '../../types/workspace.types';
-import { formatDate } from '../../utils/format';
+import { formatDate, formatTime } from '../../utils/format';
 
 const GROUP_WINDOW_MS = 5 * 60 * 1000;
+const TIME_BREAK_WINDOW_MS = 60 * 60 * 1000;
 
 export interface GroupedChatItem {
   message: ChatMessageDto;
@@ -42,12 +43,20 @@ export function groupChatMessages(messages: ChatMessageDto[], now: Date = new Da
   return messages.map((message, index) => {
     const prev = index > 0 ? messages[index - 1] : undefined;
     const next = index < messages.length - 1 ? messages[index + 1] : undefined;
-    const showDate = !prev || dayKey(prev.createdAt) !== dayKey(message.createdAt);
+    const dayChanged = !prev || dayKey(prev.createdAt) !== dayKey(message.createdAt);
+    const prevMs = prev ? new Date(prev.createdAt).getTime() : Number.NaN;
+    const currMs = new Date(message.createdAt).getTime();
+    const longGap = !dayChanged && !Number.isNaN(prevMs) && !Number.isNaN(currMs) && currMs - prevMs >= TIME_BREAK_WINDOW_MS;
     const sameAsPrev = prev ? isSameGroup(prev, message) : false;
     const sameAsNext = next ? isSameGroup(message, next) : false;
+    const dateLabel = dayChanged
+      ? formatDayDivider(message.createdAt, now)
+      : longGap
+        ? `${formatDayDivider(message.createdAt, now)}, ${formatTime(message.createdAt)}`
+        : null;
     return {
       message,
-      dateLabel: showDate ? formatDayDivider(message.createdAt, now) : null,
+      dateLabel,
       isFirstInGroup: !sameAsPrev,
       isLastInGroup: !sameAsNext,
     };

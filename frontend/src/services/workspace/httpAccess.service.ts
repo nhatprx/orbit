@@ -71,6 +71,12 @@ class HttpMemberService implements MemberService {
     });
   }
 
+  updateWorkspaceMemberSubRole(workspaceId: string, userId: string, subRole: string) {
+    return apiRequest<MemberDto>('PATCH', `${WS}/${seg(workspaceId)}/members/${seg(userId)}/sub-role`, {
+      body: { subRole },
+    });
+  }
+
   removeWorkspaceMember(workspaceId: string, userId: string) {
     return apiRequest<void>('DELETE', `${WS}/${seg(workspaceId)}/members/${seg(userId)}`);
   }
@@ -97,6 +103,19 @@ class HttpMemberService implements MemberService {
       'PATCH',
       `${project(workspaceId, projectId)}/members/${seg(userId)}/role`,
       { body: request }
+    );
+  }
+
+  updateProjectMemberSubRole(
+    workspaceId: string,
+    projectId: string,
+    userId: string,
+    subRole: string
+  ) {
+    return apiRequest<MemberDto>(
+      'PATCH',
+      `${project(workspaceId, projectId)}/members/${seg(userId)}/sub-role`,
+      { body: { subRole } }
     );
   }
 

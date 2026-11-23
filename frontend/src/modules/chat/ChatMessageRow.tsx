@@ -4,8 +4,11 @@ import type { ChatMessageDto, ChatReactionKey } from '../../types/workspace.type
 import { formatTime } from '../../utils/format';
 import { ChatMessageActions } from './ChatMessageActions';
 import type { PreviewImageItem } from './ChatImageLightbox';
+import { ChatLinkPreviewCard } from './ChatLinkPreviewCard';
+import { extractFirstUrl } from './chatLinkUtils';
 import { ChatMessageAttachment, isImageAttachment, resolveMessageAttachments } from './ChatMessageAttachment';
 import { ChatMessageReadReceipt } from './ChatMessageReadReceipt';
+import { ChatMessageText } from './ChatMessageText';
 import { ChatReactionDock } from './ChatReactionDock';
 
 interface ChatMessageRowProps {
@@ -31,23 +34,6 @@ interface ChatMessageRowProps {
   onPreviewImage?: (image: PreviewImageItem) => void;
 }
 
-const MENTION_SPLIT = /(@[A-Za-z0-9_.-]{1,64})/g;
-
-function renderContent(text: string) {
-  return text.split(MENTION_SPLIT).map((part, idx) => {
-    if (!part.startsWith('@') || part.length <= 1) return part;
-    const isAll = part.toLowerCase() === '@all';
-    return (
-      <span
-        key={idx}
-        className={isAll ? 'border border-[#1E5631] bg-[#052E16] px-1 font-semibold text-[#4ADE80]' : 'font-medium text-[#4ADE80]'}
-      >
-        {part}
-      </span>
-    );
-  });
-}
-
 export function ChatMessageRow({
   message, mine, canDelete, canWriteChat,
   isFirstInGroup = true, isLastInGroup = true, showReadReceipt = false, seenByNames = [],
@@ -58,6 +44,7 @@ export function ChatMessageRow({
   const hasReply = !isDeleted && Boolean(message.replyToSenderName || message.replyToSnippet);
   const reactions = isDeleted ? [] : (message.reactions ?? []);
   const hasText = !isDeleted && message.content.trim().length > 0;
+  const firstUrl = hasText ? extractFirstUrl(message.content) : null;
   const resolvedAtts = isDeleted ? [] : resolveMessageAttachments(message.attachments, message.attachmentName, message.attachmentUrl);
   const isImageOnly =
     !isDeleted && !hasText && !hasReply && !message.pinned &&
@@ -155,11 +142,8 @@ export function ChatMessageRow({
             </p>
           ) : (
             <>
-              {hasText && (
-                <p className="whitespace-pre-wrap break-words text-[13.5px] leading-[1.45] text-[#E6EDF3]">
-                  {renderContent(message.content)}
-                </p>
-              )}
+              {hasText && <ChatMessageText text={message.content} />}
+              {firstUrl && <ChatLinkPreviewCard url={firstUrl} mine={mine} />}
               <ChatMessageAttachment
                 attachments={message.attachments}
                 attachmentName={message.attachmentName}

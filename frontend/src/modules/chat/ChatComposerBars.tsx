@@ -90,30 +90,34 @@ export function ChatComposerBars({
               </button>
             )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            {pendingFiles.map((item) => (
-              <div key={item.id} className="relative flex items-center gap-2 border border-[#30363D] bg-[#161B22] p-1.5 pr-7">
-                {item.isImage && item.previewUrl ? (
-                  <img src={item.previewUrl} alt={item.file.name} className="h-12 w-12 shrink-0 object-cover" />
-                ) : (
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center border border-[#1E5631] bg-[#052E16] text-[#22C55E]">
-                    <FileText className="h-4 w-4" strokeWidth={1.5} />
-                  </span>
-                )}
-                <div className="max-w-[140px] text-xs">
-                  <p className="truncate font-mono text-[11px] text-[#E6EDF3]">{item.file.name}</p>
-                  <p className="text-[10px] text-[#7D8590]">{Math.max(1, Math.round(item.file.size / 1024))} KB</p>
-                </div>
-                <button
-                  type="button"
-                  aria-label={`Remove ${item.file.name}`}
-                  onClick={() => onRemoveFile(item.id)}
-                  className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center text-[#8A8A8A] hover:text-[#EF4444]"
+          <div className="flex flex-nowrap gap-1.5 overflow-x-auto pb-1">
+            {pendingFiles.map((item) => {
+              const ext = item.file.name.includes('.') ? item.file.name.split('.').pop()?.slice(0, 4).toUpperCase() : 'FILE';
+              return (
+                <div
+                  key={item.id}
+                  title={item.file.name}
+                  className="relative h-16 w-16 shrink-0 overflow-hidden border border-[#30363D] bg-[#161B22]"
                 >
-                  <X className="h-3 w-3" strokeWidth={1.5} />
-                </button>
-              </div>
-            ))}
+                  {item.isImage && item.previewUrl ? (
+                    <img src={item.previewUrl} alt={item.file.name} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-[#052E16]/50 text-[#22C55E]">
+                      <FileText className="h-5 w-5" strokeWidth={1.5} />
+                      <span className="font-mono text-[9px] font-semibold tracking-wider text-[#4ADE80]">{ext}</span>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    aria-label={`Remove ${item.file.name}`}
+                    onClick={() => onRemoveFile(item.id)}
+                    className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center border border-[#30363D] bg-[#0D1117]/90 text-[#E6EDF3] hover:border-[#EF4444] hover:text-[#EF4444]"
+                  >
+                    <X className="h-2.5 w-2.5" strokeWidth={1.75} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

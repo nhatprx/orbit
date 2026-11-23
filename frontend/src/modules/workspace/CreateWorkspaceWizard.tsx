@@ -80,7 +80,7 @@ export function CreateWorkspaceWizard({ open, onClose, onCreate }: CreateWorkspa
           Back
         </Button>
         <div className="flex items-center gap-2">
-          {step.optional && (
+          {step.optional && !wizard.isLast && (
             <Button type="button" variant="secondary" onClick={wizard.skip}>
               <SkipForward className="h-3.5 w-3.5" strokeWidth={1.5} />
               Skip

@@ -18,9 +18,20 @@ export const EMPTY_WIZARD_VALUES: WizardValues = {
 };
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const USERNAME_PATTERN = /^[a-zA-Z0-9_.-]{2,64}$/;
 
 export function isValidEmail(value: string): boolean {
   return value.length <= 255 && EMAIL_PATTERN.test(value);
+}
+
+export function isValidUsername(value: string): boolean {
+  const clean = value.startsWith('@') ? value.slice(1) : value;
+  return USERNAME_PATTERN.test(clean);
+}
+
+export function isValidInvitee(value: string): boolean {
+  if (value.includes('@') && !value.startsWith('@')) return isValidEmail(value);
+  return isValidUsername(value);
 }
 
 export function isHttpUrl(value: string): boolean {
@@ -51,21 +62,22 @@ export function validateInfo(values: WizardValues): InfoErrors {
   return errors;
 }
 
-/** BR-03: at least one module is mandatory. */
-export function validateModules(values: WizardValues): string | null {
-  return values.modules.length === 0 ? 'Select at least one module.' : null;
+/** Modules are optional during workspace creation. */
+export function validateModules(_values: WizardValues): string | null {
+  return null;
 }
 
 export type AddEmailResult = { ok: true; emails: string[] } | { ok: false; error: string };
 
 export function addEmail(current: string[], raw: string): AddEmailResult {
-  const email = raw.trim().toLowerCase();
-  if (!isValidEmail(email)) return { ok: false, error: 'Enter a valid email address.' };
-  if (current.includes(email)) return { ok: false, error: 'This email is already in the list.' };
+  const trimmed = raw.trim().toLowerCase();
+  if (!isValidInvitee(trimmed)) return { ok: false, error: 'Enter a valid email address or username.' };
+  const normalized = trimmed.startsWith('@') ? trimmed.slice(1) : trimmed;
+  if (current.includes(normalized)) return { ok: false, error: 'This teammate is already in the list.' };
   if (current.length >= MAX_INVITES) {
     return { ok: false, error: `You can invite at most ${MAX_INVITES} people here.` };
   }
-  return { ok: true, emails: [...current, email] };
+  return { ok: true, emails: [...current, normalized] };
 }
 
 export function buildCreateRequest(values: WizardValues): CreateWorkspaceRequest {

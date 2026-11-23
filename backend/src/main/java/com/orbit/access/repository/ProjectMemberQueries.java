@@ -16,7 +16,7 @@ public interface ProjectMemberQueries extends Repository<ProjectMemberEntity, Pr
     @Query(
         value = """
             select new com.orbit.access.dto.MemberDto(
-                u.id, u.username, u.displayName, u.email, r.id, r.name,
+                u.id, u.username, u.displayName, u.email, r.id, r.name, pm.subRole,
                 case when (r.system = true and r.immutable = true) then true else false end,
                 pm.joinedAt)
             from ProjectMemberEntity pm
@@ -31,7 +31,7 @@ public interface ProjectMemberQueries extends Repository<ProjectMemberEntity, Pr
 
     @Query("""
         select new com.orbit.access.dto.MemberDto(
-            u.id, u.username, u.displayName, u.email, r.id, r.name,
+            u.id, u.username, u.displayName, u.email, r.id, r.name, pm.subRole,
             case when (r.system = true and r.immutable = true) then true else false end,
             pm.joinedAt)
         from ProjectMemberEntity pm

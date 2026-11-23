@@ -83,6 +83,22 @@ public class WorkspaceMemberService {
         return queries.findMember(workspaceId, targetUserId).orElseThrow();
     }
 
+    @Transactional
+    public MemberDto updateSubRole(UUID userId, UUID workspaceId, UUID targetUserId, String rawSubRole) {
+        if (userId.equals(targetUserId)) {
+            evaluator.requireWorkspaceAccess(userId, workspaceId);
+        } else {
+            evaluator.requireWorkspacePermission(userId, workspaceId, Permissions.MEMBER_ASSIGN_ROLE);
+        }
+        loadActive(workspaceId);
+        WorkspaceMemberEntity target = members.findById(new WorkspaceMemberId(workspaceId, targetUserId))
+            .orElseThrow(() -> ApiException.notFound("MEMBER_NOT_FOUND", "Member not found."));
+        String trimmed = rawSubRole == null ? "" : rawSubRole.trim();
+        target.setSubRole(trimmed.isEmpty() ? null : trimmed.substring(0, Math.min(trimmed.length(), 64)));
+        members.save(target);
+        return queries.findMember(workspaceId, targetUserId).orElseThrow();
+    }
+
     /** Removes a member, or lets a member leave. The Owner can never be removed (BR-07). */
     @Transactional
     public void remove(UUID userId, UUID workspaceId, UUID targetUserId) {

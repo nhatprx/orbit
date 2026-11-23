@@ -9,6 +9,7 @@ import com.orbit.access.entity.InvitationType;
 import com.orbit.access.repository.InvitationRepository;
 import com.orbit.access.repository.ProjectMemberQueries;
 import com.orbit.access.repository.WorkspaceMemberQueries;
+import com.orbit.auth.repository.UserRepository;
 import com.orbit.common.ApiException;
 import com.orbit.common.PageParams;
 import com.orbit.common.PageResponse;
@@ -40,6 +41,7 @@ public class InvitationService {
     private final InvitationMapper mapper;
     private final InvitationNotifier notifier;
     private final WorkspacePermissionEvaluator evaluator;
+    private final UserRepository users;
     private final Duration expiry;
 
     InvitationService(
@@ -50,6 +52,7 @@ public class InvitationService {
         InvitationMapper mapper,
         InvitationNotifier notifier,
         WorkspacePermissionEvaluator evaluator,
+        UserRepository users,
         @Value("${orbit.invitation.expiry-days:7}") long expiryDays
     ) {
         this.invitations = invitations;
@@ -59,6 +62,7 @@ public class InvitationService {
         this.mapper = mapper;
         this.notifier = notifier;
         this.evaluator = evaluator;
+        this.users = users;
         this.expiry = Duration.ofDays(expiryDays);
     }
 
@@ -74,7 +78,7 @@ public class InvitationService {
     public InvitationDto createEmail(UUID userId, UUID workspaceId, CreateEmailInvitationRequest request) {
         evaluator.requireWorkspacePermission(userId, workspaceId, Permissions.MEMBER_INVITE);
         UUID roleId = roles.resolveForCreate(userId, workspaceId, request.projectId(), request.roleId());
-        String email = request.email().trim().toLowerCase(Locale.ROOT);
+        String email = resolveInviteeEmail(request.email());
         assertInvitable(workspaceId, request.projectId(), email);
         InvitationEntity saved = persist(workspaceId, request.projectId(), InvitationType.EMAIL, email, roleId, userId);
         notifier.invitationCreated(saved.getId(), workspaceId, email);
@@ -101,13 +105,29 @@ public class InvitationService {
 
     /** Invitations submitted with the creation wizard; the creator is the Owner so no checks apply. */
     @Transactional
-    public void createInitial(UUID workspaceId, UUID inviterId, Collection<String> emails) {
-        if (emails.isEmpty()) return;
+    public void createInitial(UUID workspaceId, UUID inviterId, Collection<String> targets) {
+        if (targets.isEmpty()) return;
         UUID memberRoleId = roles.defaultWorkspaceRoleId(workspaceId);
-        for (String email : emails) {
+        for (String target : targets) {
+            String email = resolveInviteeEmail(target);
             InvitationEntity saved = persist(workspaceId, null, InvitationType.EMAIL, email, memberRoleId, inviterId);
             notifier.invitationCreated(saved.getId(), workspaceId, email);
         }
+    }
+
+    private String resolveInviteeEmail(String raw) {
+        String trimmed = raw == null ? "" : raw.trim();
+        if (trimmed.isEmpty()) {
+            throw ApiException.badRequest("VALIDATION_ERROR", "Email or username is required.");
+        }
+        int at = trimmed.indexOf('@');
+        if (at > 0 && trimmed.indexOf('.', at) > at + 1 && !trimmed.contains(" ")) {
+            return trimmed.toLowerCase(Locale.ROOT);
+        }
+        String username = trimmed.startsWith("@") ? trimmed.substring(1).trim() : trimmed;
+        return users.findByUsernameIgnoreCase(username)
+            .map(u -> u.getEmail().toLowerCase(Locale.ROOT))
+            .orElseThrow(() -> ApiException.notFound("USER_NOT_FOUND", "No user found with username \"" + username + "\"."));
     }
 
     private void assertInvitable(UUID workspaceId, UUID projectId, String email) {
