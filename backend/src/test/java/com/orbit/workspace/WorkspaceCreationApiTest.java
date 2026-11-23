@@ -68,12 +68,12 @@ class WorkspaceCreationApiTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void createRejectsMissingOrUnknownModulesAndBadInput() {
+    void createAllowsEmptyModulesAndRejectsUnknownModulesAndBadInput() {
         ApiClient api = api(newUser("owner"));
 
         Result none = api.post("/api/v1/workspaces", "{\"name\":\"Empty\",\"moduleKeys\":[]}");
-        assertEquals(400, none.status());
-        assertEquals("VALIDATION_ERROR", none.<String>json("$.code"));
+        assertEquals(201, none.status());
+        assertEquals(List.of(), none.<List<String>>json("$.enabledModules"));
 
         Result unknown = Fixtures.createWorkspace(api, Fixtures.unique("Bad"), "git", "ppt");
         assertEquals(400, unknown.status());

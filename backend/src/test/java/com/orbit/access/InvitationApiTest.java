@@ -55,7 +55,8 @@ class InvitationApiTest extends AbstractIntegrationTest {
         assertEquals(409, duplicate.status());
         assertEquals("INVITATION_ALREADY_PENDING", duplicate.<String>json("$.code"));
         assertEquals(409, api(owner).post(url, emailBody(owner.getEmail())).status());
-        assertEquals(400, api(owner).post(url, emailBody("not-an-email")).status());
+        assertEquals(404, api(owner).post(url, emailBody("not-an-email")).status());
+        assertEquals(400, api(owner).post(url, emailBody("   ")).status());
     }
 
     @Test
@@ -172,8 +173,10 @@ class InvitationApiTest extends AbstractIntegrationTest {
 
         Result list = api(owner).get(Fixtures.workspaceUrl(ws) + "/invitations");
         assertEquals(2, list.<Integer>json("$.totalElements"));
-        assertEquals(400, api(owner).post("/api/v1/workspaces", """
+        Result unknown = api(owner).post("/api/v1/workspaces", """
             {"name":"Bad","moduleKeys":["git"],"inviteEmails":["nope"]}
-            """).status());
+            """);
+        assertEquals(404, unknown.status());
+        assertEquals("USER_NOT_FOUND", unknown.<String>json("$.code"));
     }
 }
