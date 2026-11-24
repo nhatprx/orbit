@@ -3,6 +3,7 @@ import { Save } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { TextAreaField, TextField } from '../../components/ui/Field';
 import { Panel } from '../../components/ui/Panel';
+import { toast } from '../../components/ui/toastStore';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { workspaceService } from '../../services/workspace/services';
 import type { WorkspaceDto } from '../../types/workspace.types';
@@ -20,7 +21,6 @@ export function WorkspaceGeneralTab({ workspace, onChanged }: WorkspaceGeneralTa
   const [description, setDescription] = useState(workspace.description ?? '');
   const [avatarUrl, setAvatarUrl] = useState(workspace.avatarUrl ?? '');
   const [fieldError, setFieldError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
 
   const save = useAsyncAction(async () => {
     await workspaceService.updateWorkspace(workspace.id, {
@@ -29,12 +29,11 @@ export function WorkspaceGeneralTab({ workspace, onChanged }: WorkspaceGeneralTa
       avatarUrl: avatarUrl.trim(),
     });
     await onChanged();
-    setSaved(true);
+    toast.success('Workspace changes saved.');
   });
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    setSaved(false);
     if (!name.trim()) return setFieldError('Workspace name is required.');
     if (avatarUrl.trim() && !isHttpUrl(avatarUrl.trim())) return setFieldError('Avatar must be an http or https URL.');
     setFieldError(null);
@@ -50,11 +49,6 @@ export function WorkspaceGeneralTab({ workspace, onChanged }: WorkspaceGeneralTa
         {save.error && (
           <p role="alert" className="text-xs text-[#EF4444]">
             {save.error}
-          </p>
-        )}
-        {saved && !save.error && (
-          <p role="status" className="text-xs text-[#22C55E]">
-            Changes saved.
           </p>
         )}
         {editable ? (

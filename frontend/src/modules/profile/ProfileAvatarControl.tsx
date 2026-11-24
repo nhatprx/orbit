@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Camera, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { UserAvatar } from '../../components/ui/UserAvatar';
+import { toast } from '../../components/ui/toastStore';
 import { avatarService } from '../../services/avatar.service';
 import type { AccountStatus, AuthUser } from '../../types/auth.types';
 import { getStatusMeta } from './activeStatus';
@@ -25,8 +26,6 @@ export function ProfileAvatarControl({
   const [menuOpen, setMenuOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -51,12 +50,10 @@ export function ProfileAvatarControl({
     if (!file) return;
 
     setMenuOpen(false);
-    setError(null);
-    setStatusMessage(null);
 
     const validationError = avatarService.validateAvatarFile(file);
     if (validationError) {
-      setError(validationError);
+      toast.error(validationError);
       return;
     }
 
@@ -67,9 +64,9 @@ export function ProfileAvatarControl({
     try {
       const updatedUser = await avatarService.uploadAvatar(file);
       onUserUpdated?.(updatedUser);
-      setStatusMessage('Avatar updated.');
+      toast.success('Avatar updated.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to upload avatar.');
+      toast.error(err instanceof Error ? err.message : 'Failed to upload avatar.');
     } finally {
       setBusy(false);
       setPreviewUrl((current) => {
@@ -81,15 +78,13 @@ export function ProfileAvatarControl({
 
   async function handleRemove() {
     setMenuOpen(false);
-    setError(null);
-    setStatusMessage(null);
     setBusy(true);
     try {
       const updatedUser = await avatarService.removeAvatar();
       onUserUpdated?.(updatedUser);
-      setStatusMessage('Avatar removed.');
+      toast.success('Avatar removed.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to remove avatar.');
+      toast.error(err instanceof Error ? err.message : 'Failed to remove avatar.');
     } finally {
       setBusy(false);
     }
@@ -174,18 +169,6 @@ export function ProfileAvatarControl({
         onChange={(e) => void handleFileChange(e)}
         className="hidden"
       />
-
-      {error && (
-        <p role="alert" className="max-w-[260px] border border-[#EF4444] bg-[#161B22] px-2.5 py-1.5 text-xs text-[#EF4444]">
-          {error}
-        </p>
-      )}
-
-      {statusMessage && (
-        <p role="status" className="max-w-[260px] border border-[#22C55E] bg-[#052E16] px-2.5 py-1.5 text-xs text-[#22C55E]">
-          {statusMessage}
-        </p>
-      )}
     </div>
   );
 }

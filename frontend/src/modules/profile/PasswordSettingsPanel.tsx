@@ -3,6 +3,7 @@ import { KeyRound } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { CollapsibleCard } from '../../components/ui/CollapsibleCard';
+import { toast } from '../../components/ui/toastStore';
 import { accountSecurityService } from '../../services/accountSecurity.service';
 import { errorMessage } from '../../services/workspace/httpClient';
 import { PasswordInput } from '../auth/PasswordInput';
@@ -20,14 +21,12 @@ export function PasswordSettingsPanel({ hasPassword, onUpdated }: PasswordSettin
   const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const rules = evaluatePasswordRules(newPassword);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
-    setSuccess(null);
 
     if (hasPassword && !currentPassword) {
       setError('Current password is required.');
@@ -52,7 +51,7 @@ export function PasswordSettingsPanel({ hasPassword, onUpdated }: PasswordSettin
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      setSuccess(res.message);
+      toast.success(res.message);
       onUpdated();
     } catch (err) {
       setError(errorMessage(err, 'Failed to update password.'));
@@ -126,11 +125,6 @@ export function PasswordSettingsPanel({ hasPassword, onUpdated }: PasswordSettin
         {error && (
           <p role="alert" className="border border-[#EF4444] bg-[#21262D] px-3 py-2 text-xs text-[#EF4444]">
             {error}
-          </p>
-        )}
-        {success && (
-          <p role="status" className="border border-[#22C55E] bg-[#052E16] px-3 py-2 text-xs text-[#22C55E]">
-            {success}
           </p>
         )}
 

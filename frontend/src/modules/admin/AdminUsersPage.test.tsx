@@ -1,10 +1,14 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { ToastViewport } from '../../components/ui/ToastViewport';
+import { clearToasts } from '../../components/ui/toastStore';
 import { AdminUsersPage } from './AdminUsersPage';
 import { ME, fakeService, pageOf, summary } from './adminTestKit';
 
+afterEach(() => clearToasts());
+
 function renderPage(service = fakeService(), user = ME) {
-  render(<AdminUsersPage currentUser={user} service={service} />);
+  render(<><AdminUsersPage currentUser={user} service={service} /><ToastViewport /></>);
   return service;
 }
 
@@ -83,10 +87,7 @@ describe('AdminUsersPage', () => {
     const service = fakeService();
     service.list.mockImplementation(async (p) =>
       pageOf(hundred.slice(p.page * p.size, (p.page + 1) * p.size), {
-        page: p.page,
-        size: p.size,
-        totalElements: 100,
-        totalPages: Math.ceil(100 / p.size),
+        page: p.page, size: p.size, totalElements: 100, totalPages: Math.ceil(100 / p.size),
       })
     );
     renderPage(service);

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNoticeToast } from '../../components/ui/useNoticeToast';
 import { avatarService } from '../../services/avatar.service';
 import { workspaceActions } from '../../store/workspaceActions';
 import { useStore } from '../../store/createStore';
@@ -65,6 +66,8 @@ export function DashboardShell({
     }
   }, [initialProfileSection]);
 
+  useNoticeToast(notice, 'info');
+
   const canCreateProject = workspace?.myPermissions.includes('project.create') ?? false;
   const fullHeight = (FULL_HEIGHT_AREAS as readonly string[]).includes(nav.active);
 
@@ -95,12 +98,6 @@ export function DashboardShell({
         onInviteAccepted={handleInviteAccepted}
         onOpenIssue={handleOpenIssue}
       />
-
-      {notice && (
-        <p role="status" className="border-b border-[#EAB308] bg-[#161B22] px-4 py-2 text-xs text-[#EAB308]">
-          {notice}
-        </p>
-      )}
 
       <div className="flex flex-1 overflow-hidden">
         <DashboardSidebar

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { ToastViewport } from './components/ui/ToastViewport';
+import { toast } from './components/ui/toastStore';
 import { AuthPage } from './modules/auth/AuthPage';
 import { handleOpenRouterOAuthCallback } from './modules/ai/openRouterPkce';
 import type { AuthMode } from './modules/auth/useAuthPageLifecycle';
@@ -46,7 +48,8 @@ export function App() {
       setSession(nextSession);
       const outcome = await acceptPendingInvite(invitationService);
       if (outcome.status === 'joined') setJoinedWorkspaceId(outcome.workspaceId);
-      setNotice(outcome.status === 'failed' ? outcome.message : null);
+      if (outcome.status === 'failed' && outcome.message) toast.warning(outcome.message);
+      setNotice(null);
       leaveInviteUrl();
       setRoute('dashboard');
     },
@@ -54,7 +57,7 @@ export function App() {
   );
 
   useEffect(() => {
-    void handleOpenRouterOAuthCallback((msg) => setNotice(msg));
+    void handleOpenRouterOAuthCallback((msg) => toast.info(msg));
     const params = new URLSearchParams(window.location.search);
     const oauthCode = params.get('oauth_code');
     const errorParam = params.get('oauth_error');
@@ -66,11 +69,11 @@ export function App() {
 
     if (oauthLinked || oauthLinkError) {
       setInitialProfileSection('settings');
-      setNotice(
-        oauthLinked
-          ? `Connected ${oauthLinked.charAt(0).toUpperCase() + oauthLinked.slice(1)} account successfully.`
-          : oauthLinkError
-      );
+      if (oauthLinked) {
+        toast.success(`Connected ${oauthLinked.charAt(0).toUpperCase() + oauthLinked.slice(1)} account successfully.`);
+      } else if (oauthLinkError) {
+        toast.error(oauthLinkError);
+      }
       if (authService.getSession()) setRoute('dashboard');
       return;
     }
@@ -130,58 +133,59 @@ export function App() {
 
   if (route === 'invite' && inviteToken) {
     return (
-      <InviteAcceptPage
-        token={inviteToken}
-        session={session}
-        onJoined={(workspaceId) => {
-          setJoinedWorkspaceId(workspaceId);
-          leaveInviteUrl();
-          setRoute('dashboard');
-        }}
-        onNeedAuth={(mode) => {
-          savePendingInvite(inviteToken);
-          setAuthMode(mode);
-          setRoute('auth');
-        }}
-        onClose={() => {
-          leaveInviteUrl();
-          setRoute(session ? 'dashboard' : 'home');
-        }}
-      />
+      <>
+        <InviteAcceptPage
+          token={inviteToken}
+          session={session}
+          onJoined={(workspaceId) => { setJoinedWorkspaceId(workspaceId); leaveInviteUrl(); setRoute('dashboard'); }}
+          onNeedAuth={(mode) => { savePendingInvite(inviteToken); setAuthMode(mode); setRoute('auth'); }}
+          onClose={() => { leaveInviteUrl(); setRoute(session ? 'dashboard' : 'home'); }}
+        />
+        <ToastViewport />
+      </>
     );
   }
 
   if (route === 'auth') {
     return (
-      <AuthPage
-        initialError={oauthError ?? notice}
-        initialMode={authMode}
-        initialMfaToken={pendingMfaToken}
-        onSuccess={(next) => void completeSignIn(next)}
-        onBackHome={() => { setPendingMfaToken(null); setRoute('home'); }}
-      />
+      <>
+        <AuthPage
+          initialError={oauthError ?? notice}
+          initialMode={authMode}
+          initialMfaToken={pendingMfaToken}
+          onSuccess={(next) => void completeSignIn(next)}
+          onBackHome={() => { setPendingMfaToken(null); setRoute('home'); }}
+        />
+        <ToastViewport />
+      </>
     );
   }
 
   if (route === 'dashboard' && session) {
     return (
-      <DashboardShell
-        session={session}
-        initialWorkspaceId={joinedWorkspaceId}
-        initialProfileSection={initialProfileSection}
-        notice={notice}
-        onUserUpdated={handleUserUpdated}
-        onNavigateHome={() => setRoute('home')}
-        onLogout={() => void handleLogout()}
-      />
+      <>
+        <DashboardShell
+          session={session}
+          initialWorkspaceId={joinedWorkspaceId}
+          initialProfileSection={initialProfileSection}
+          notice={notice}
+          onUserUpdated={handleUserUpdated}
+          onNavigateHome={() => setRoute('home')}
+          onLogout={() => void handleLogout()}
+        />
+        <ToastViewport />
+      </>
     );
   }
 
   return (
-    <HomePage
-      session={session}
-      onNavigateAuth={() => setRoute('auth')}
-      onNavigateDashboard={() => setRoute(session ? 'dashboard' : 'auth')}
-    />
+    <>
+      <HomePage
+        session={session}
+        onNavigateAuth={() => setRoute('auth')}
+        onNavigateDashboard={() => setRoute(session ? 'dashboard' : 'auth')}
+      />
+      <ToastViewport />
+    </>
   );
 }

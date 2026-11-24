@@ -3,6 +3,7 @@ import { Save } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { TextAreaField, TextField } from '../../components/ui/Field';
 import { Panel } from '../../components/ui/Panel';
+import { toast } from '../../components/ui/toastStore';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { projectService } from '../../services/workspace/services';
 import type { ProjectDto, WorkspaceDto } from '../../types/workspace.types';
@@ -19,7 +20,6 @@ export function ProjectGeneralTab({ workspace, project, onChanged }: ProjectGene
   const [name, setName] = useState(project.name);
   const [description, setDescription] = useState(project.description ?? '');
   const [nameError, setNameError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
 
   const save = useAsyncAction(async () => {
     await projectService.updateProject(workspace.id, project.id, {
@@ -27,12 +27,11 @@ export function ProjectGeneralTab({ workspace, project, onChanged }: ProjectGene
       description: description.trim(),
     });
     await onChanged();
-    setSaved(true);
+    toast.success('Project changes saved.');
   });
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    setSaved(false);
     if (!name.trim()) return setNameError('Project name is required.');
     setNameError(null);
     await save.run();
@@ -46,11 +45,6 @@ export function ProjectGeneralTab({ workspace, project, onChanged }: ProjectGene
         {save.error && (
           <p role="alert" className="text-xs text-[#EF4444]">
             {save.error}
-          </p>
-        )}
-        {saved && !save.error && (
-          <p role="status" className="text-xs text-[#22C55E]">
-            Changes saved.
           </p>
         )}
         {editable ? (

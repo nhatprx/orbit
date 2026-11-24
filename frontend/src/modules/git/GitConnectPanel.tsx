@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, FolderGit2, Plus, ShieldAlert } from 'lucide-react';
+import { toast } from '../../components/ui/toastStore';
 import type {
   ConnectGitRepoRequest,
   CreateGitRepoRequest,
@@ -58,12 +59,14 @@ export function GitConnectPanel({
     try {
       const info = await onInspectToken(rawToken);
       setTokenInfo(info); setCachedGitOAuthSession({ token: rawToken, info });
+      toast.success(`Authenticated with GitHub as @${info.username}.`);
       const first = info.repositories[0];
       if (first && !repoOwner && !repoName) {
         setRepoOwner(first.owner); setRepoName(first.name); setDefaultBranch(first.defaultBranch || 'main');
       }
     } catch (err) {
-      setTokenInfo(null); setLocalError(err instanceof Error ? err.message : 'Failed to verify GitHub token');
+      const msg = err instanceof Error ? err.message : 'Failed to verify GitHub token';
+      setTokenInfo(null); setLocalError(msg); toast.error(msg);
     } finally { setVerifying(false); }
   }
 
@@ -73,7 +76,10 @@ export function GitConnectPanel({
     try {
       const fetched = (await onAutoFetchToken()).trim();
       setToken(fetched); await verifyRawToken(fetched);
-    } catch (err) { setLocalError(err instanceof Error ? err.message : 'Failed to auto-fetch GitHub token'); }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to auto-fetch GitHub token';
+      setLocalError(msg); toast.error(msg);
+    }
     finally { setAutoFetching(false); }
   }
 

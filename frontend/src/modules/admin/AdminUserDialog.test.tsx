@@ -1,11 +1,20 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { ToastViewport } from '../../components/ui/ToastViewport';
+import { clearToasts } from '../../components/ui/toastStore';
 import { ApiError } from '../../services/workspace/httpClient';
 import { AdminUsersPage } from './AdminUsersPage';
 import { ME, detail, fakeService, pageOf, summary } from './adminTestKit';
 
+afterEach(() => clearToasts());
+
 async function openAlice(service = fakeService()) {
-  render(<AdminUsersPage currentUser={ME} service={service} />);
+  render(
+    <>
+      <AdminUsersPage currentUser={ME} service={service} />
+      <ToastViewport />
+    </>
+  );
   fireEvent.click(await screen.findByText('Alice Doe'));
   const dialog = await screen.findByRole('dialog', { name: 'User details' });
   await within(dialog).findByText('Platform role');
@@ -85,7 +94,7 @@ describe('AdminUserDialog: role', () => {
     fireEvent.click(confirmBtn);
 
     await waitFor(() => expect(service.changeRole).toHaveBeenCalledWith('u-alice', 'admin'));
-    expect((await within(dialog).findByRole('status')).textContent).toContain('Role changed to admin');
+    expect((await screen.findByRole('status')).textContent).toContain('Role changed to admin');
     await waitFor(() => expect(within(screen.getAllByRole('row')[1]!).getByText('admin')).toBeTruthy());
   });
 
@@ -107,7 +116,7 @@ describe('AdminUserDialog: role', () => {
     const alert = await within(confirm).findByRole('alert');
     expect(alert.textContent).toContain('Cannot promote this account right now.');
     expect(within(screen.getAllByRole('row')[1]!).getByText('user')).toBeTruthy();
-    expect(within(dialog).queryByRole('status')).toBeNull();
+    expect(screen.queryByRole('status')).toBeNull();
   });
 });
 

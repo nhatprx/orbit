@@ -1,11 +1,20 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { ToastViewport } from '../../components/ui/ToastViewport';
+import { clearToasts } from '../../components/ui/toastStore';
 import { ApiError } from '../../services/workspace/httpClient';
 import { AdminUsersPage } from './AdminUsersPage';
 import { ME, detail, fakeService, pageOf, summary } from './adminTestKit';
 
+afterEach(() => clearToasts());
+
 async function open(service: ReturnType<typeof fakeService>) {
-  render(<AdminUsersPage currentUser={ME} service={service} />);
+  render(
+    <>
+      <AdminUsersPage currentUser={ME} service={service} />
+      <ToastViewport />
+    </>
+  );
   fireEvent.click(await screen.findByText('Alice Doe'));
   const dialog = await screen.findByRole('dialog', { name: 'User details' });
   await within(dialog).findByText('Platform role');
@@ -33,7 +42,7 @@ describe('disabling an account', () => {
 
     await waitFor(() => expect(service.disable).toHaveBeenCalledWith('u-alice', '  Spam  '));
     expect(await within(dialog).findByRole('button', { name: 'Enable account' })).toBeTruthy();
-    expect(within(dialog).getByRole('status').textContent).toContain('@alice was disabled');
+    expect((await screen.findByRole('status')).textContent).toContain('@alice was disabled');
     expect(within(screen.getAllByRole('row')[1]!).getByText('Disabled')).toBeTruthy();
     expect(screen.queryByRole('dialog', { name: 'Disable account' })).toBeNull();
   });
@@ -93,7 +102,7 @@ describe('signing out everywhere', () => {
     fireEvent.click(within(screen.getByRole('dialog', { name: 'Sign out everywhere' })).getByRole('button', { name: 'Sign out' }));
 
     await waitFor(() => expect(service.revokeSessions).toHaveBeenCalledWith('u-alice'));
-    expect((await within(dialog).findByRole('status')).textContent).toContain('All sessions of @alice were ended.');
+    expect((await screen.findByRole('status')).textContent).toContain('All sessions of @alice were ended.');
   });
 
   it('reports a failure and leaves the confirmation open', async () => {
@@ -106,6 +115,6 @@ describe('signing out everywhere', () => {
     fireEvent.click(within(confirm).getByRole('button', { name: 'Sign out' }));
 
     expect((await within(confirm).findByRole('alert')).textContent).toContain('User not found.');
-    expect(within(dialog).queryByRole('status')).toBeNull();
+    expect(screen.queryByRole('status')).toBeNull();
   });
 });

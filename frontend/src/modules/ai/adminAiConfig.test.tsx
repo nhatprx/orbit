@@ -1,5 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ToastViewport } from '../../components/ui/ToastViewport';
+import { clearToasts } from '../../components/ui/toastStore';
 import { aiChatService } from '../../services/ai.service';
 import { aiOpenRouterService } from '../../services/aiOpenRouter.service';
 import type { AiProviderConfig } from '../../types/ai.types';
@@ -58,6 +60,7 @@ describe('Admin AI Configuration and Overview', () => {
   });
 
   afterEach(() => {
+    clearToasts();
     cleanup();
   });
 
@@ -77,7 +80,7 @@ describe('Admin AI Configuration and Overview', () => {
       updatedAt: new Date().toISOString(),
     });
 
-    render(<AdminAiConfigPanel />);
+    render(<><AdminAiConfigPanel /><ToastViewport /></>);
     await waitFor(() => expect(screen.getByText(/AWS Bedrock Ready/i)).toBeTruthy());
 
     fireEvent.change(screen.getByDisplayValue(/AWS Bedrock/i), { target: { value: 'OPENROUTER' } });
@@ -108,7 +111,7 @@ describe('Admin AI Configuration and Overview', () => {
       },
     ]);
 
-    render(<AdminAiConfigPanel />);
+    render(<><AdminAiConfigPanel /><ToastViewport /></>);
     await waitFor(() => expect(screen.getByText(/\$37\.50/i)).toBeTruthy());
 
     fireEvent.click(screen.getByRole('button', { name: /Sync OpenRouter Models/i }));
@@ -138,7 +141,7 @@ describe('Admin AI Configuration and Overview', () => {
       totalPages: 3,
     });
 
-    render(<AdminAiConfigPanel />);
+    render(<><AdminAiConfigPanel /><ToastViewport /></>);
     expect(await screen.findByText('Alice Orbit')).toBeTruthy();
     expect(screen.getByText(/Page 1 of 3/i)).toBeTruthy();
 

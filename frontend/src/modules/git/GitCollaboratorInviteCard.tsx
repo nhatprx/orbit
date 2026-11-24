@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Check, Send, UserPlus, Users } from 'lucide-react';
 import { UserAvatar } from '../../components/ui/UserAvatar';
+import { toast } from '../../components/ui/toastStore';
 import { gitBasePath } from '../../services/git/gitApi';
 import { apiRequest } from '../../services/workspace/httpClient';
 import type {
@@ -46,8 +47,11 @@ export function GitCollaboratorInviteCard({
         body: { githubUsername, permission },
       });
       setInvitedSet((prev) => new Set(prev).add(githubUsername.toLowerCase()));
+      toast.success(`Invited @${githubUsername} (${permission}).`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : `Failed to invite @${githubUsername}`);
+      const msg = err instanceof Error ? err.message : `Failed to invite @${githubUsername}`;
+      setError(msg);
+      toast.error(msg);
     } finally {
       setInvitingUser(null);
     }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from '../../components/ui/toastStore';
 import { createHttpGitApi, type GitApi } from '../../services/git/gitApi';
 import { errorMessage } from '../../services/workspace/httpClient';
 import {
@@ -90,20 +91,20 @@ export function useGitWorkspace(scope: GitScope, apiOverride?: GitApi) {
   }, [reloadAll]);
   const runAction = useCallback(async <T,>(task: () => Promise<T>, fallback: string, okMsg?: string): Promise<T> => {
     setError(null); setNotice(null);
-    try { const result = await task(); if (okMsg) setNotice(okMsg); return result; }
-    catch (err) { setError(errorMessage(err, fallback)); throw err; }
+    try { const result = await task(); if (okMsg) { setNotice(okMsg); toast.success(okMsg); } return result; }
+    catch (err) { const msg = errorMessage(err, fallback); setError(msg); toast.error(msg); throw err; }
   }, []);
 
   const setActiveBranch = (branch: string) => {
     if (!repo) { setActiveBranchState(branch); return; }
     setError(null);
-    void switchToBranchRoot(branch).catch((err) => setError(errorMessage(err, 'Failed to switch branch.')));
+    void switchToBranchRoot(branch).catch((err) => { const msg = errorMessage(err, 'Failed to switch branch.'); setError(msg); toast.error(msg); });
   };
   const setPrFilter = (next: GitPrFilter) => {
     setPrFilterState(next);
     if (!repo) return;
     setError(null);
-    void api.listPullRequests(next).then(setPullRequests).catch((err) => setError(errorMessage(err, 'Failed to load pull requests.')));
+    void api.listPullRequests(next).then(setPullRequests).catch((err) => { const msg = errorMessage(err, 'Failed to load pull requests.'); setError(msg); toast.error(msg); });
   };
   const navigateDir = async (dirPath: string) => {
     if (!activeBranch) return;
@@ -169,7 +170,7 @@ export function useGitWorkspace(scope: GitScope, apiOverride?: GitApi) {
   const inspectCommit = (sha: string): Promise<GitCommitDetailDto> => runAction(() => api.getCommitDetail(sha), 'Failed to load commit diff.');
   const createPr = (req: CreateGitPullRequest) => runAction(async () => {
     const created = await api.createPullRequest(req); setPullRequests(await api.listPullRequests(prFilterRef.current));
-    setNotice(`Pull request #${created.number} created.`); return created;
+    const msg = `Pull request #${created.number} created.`; setNotice(msg); toast.success(msg); return created;
   }, 'Failed to create pull request.');
   const mergePr = (pullNumber: number, body?: MergeGitPullRequest) => runAction(async () => {
     const merged = await api.mergePullRequest(pullNumber, body);

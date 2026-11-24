@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AtSign, Bell, Check, CheckCheck, ExternalLink, Users, X } from 'lucide-react';
+import { toast } from '../../components/ui/toastStore';
 import { getStoredSession } from '../../services/auth.storage';
 import { chatConnection } from '../../services/workspace/httpChat.service';
 import { invitationService } from '../../services/workspace/services';
@@ -50,6 +51,7 @@ export function DashboardNotificationsMenu({ onInviteAccepted, onOpenIssue }: Da
             setItems((current) => {
               if (current.some((n) => n.id === incoming.id)) return current;
               setUnreadCount((count) => count + 1);
+              toast.info(incoming.message ? `${incoming.title}: ${incoming.message}` : incoming.title);
               return [incoming, ...current].slice(0, 20);
             });
           } catch { /* ignore malformed notification frame */ }
@@ -84,24 +86,23 @@ export function DashboardNotificationsMenu({ onInviteAccepted, onOpenIssue }: Da
       await invitationService.acceptInvitation(invite.token);
       setInvites((current) => current.filter((item) => item.id !== invite.id));
       await onInviteAccepted(invite.workspaceId, invite.projectId);
+      toast.success(`Joined ${invite.projectName ?? invite.workspaceName}.`);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not accept invitation.');
-    } finally {
-      setBusyId(null);
-    }
+      const msg = cause instanceof Error ? cause.message : 'Could not accept invitation.';
+      setError(msg); toast.error(msg);
+    } finally { setBusyId(null); }
   }
 
   async function declineInvite(invite: InvitationInboxDto) {
-    setBusyId(invite.id);
-    setError(null);
+    setBusyId(invite.id); setError(null);
     try {
       await invitationService.declineInvitation(invite.token);
       setInvites((current) => current.filter((item) => item.id !== invite.id));
+      toast.info('Invitation declined.');
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not decline invitation.');
-    } finally {
-      setBusyId(null);
-    }
+      const msg = cause instanceof Error ? cause.message : 'Could not decline invitation.';
+      setError(msg); toast.error(msg);
+    } finally { setBusyId(null); }
   }
 
   async function openNotification(item: NotificationDto) {
@@ -129,8 +130,10 @@ export function DashboardNotificationsMenu({ onInviteAccepted, onOpenIssue }: Da
       await notificationService.markAllRead();
       setUnreadCount(0);
       setItems((current) => current.map((item) => ({ ...item, readAt: item.readAt ?? new Date().toISOString() })));
+      toast.success('All notifications marked as read.');
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not mark notifications read.');
+      const msg = cause instanceof Error ? cause.message : 'Could not mark notifications read.';
+      setError(msg); toast.error(msg);
     }
   }
 

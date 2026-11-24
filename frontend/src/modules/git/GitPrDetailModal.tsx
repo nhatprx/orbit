@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Bot, Check, ExternalLink, FileCode2, MessageSquare, Share2, X } from 'lucide-react';
+import { Bot, ExternalLink, FileCode2, MessageSquare, Share2, X } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { useNoticeToast } from '../../components/ui/useNoticeToast';
 import { fetchPrDetail, requestAiPrReview, submitPrReview } from '../../services/git/gitInsightsApi';
 import { errorMessage } from '../../services/workspace/httpClient';
 import type { GitAiAnalysisDto, GitPrDetailDto } from '../../types/git-insights.types';
@@ -38,6 +39,9 @@ export function GitPrDetailModal({ scope, pullNumber, canWrite, onClose, onShare
       .finally(() => { if (!ctrl.signal.aborted) setLoading(false); });
     return () => ctrl.abort();
   }, [scope, pullNumber]);
+
+  useNoticeToast(notice, 'success', () => setNotice(null));
+  useNoticeToast(error, 'error', () => setError(null));
 
   if (pullNumber === null) return null;
 
@@ -112,9 +116,6 @@ export function GitPrDetailModal({ scope, pullNumber, canWrite, onClose, onShare
         </div>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
-          {error && <div role="alert" className="border border-[#EF4444] bg-[#0D1117] px-3 py-2 text-xs text-[#EF4444]">{error}</div>}
-          {notice && <div className="flex items-center gap-1.5 border border-[#22C55E] bg-[#052E16] px-3 py-2 text-xs text-[#4ADE80]"><Check className="h-3.5 w-3.5" />{notice}</div>}
-
           {aiReview && (
             <div className="border border-[#22C55E] bg-[#052E16]/30 p-4">
               <div className="mb-2 flex items-center justify-between text-xs font-semibold text-[#4ADE80]">

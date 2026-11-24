@@ -3,6 +3,7 @@ import { Lock, ShieldCheck } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { CollapsibleCard } from '../../components/ui/CollapsibleCard';
+import { useNoticeToast } from '../../components/ui/useNoticeToast';
 import { accountSecurityService } from '../../services/accountSecurity.service';
 import { errorMessage } from '../../services/workspace/httpClient';
 import type { TwoFactorSetupResponse } from '../../types/auth.types';
@@ -31,6 +32,7 @@ export function TwoFactorSettingsPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  useNoticeToast(notice, 'success');
 
   async function handleConfirmPassword(event: FormEvent) {
     event.preventDefault();
@@ -161,11 +163,6 @@ export function TwoFactorSettingsPanel({
         {error && (
           <p role="alert" className="border border-[#EF4444] bg-[#21262D] px-3 py-2 text-xs text-[#EF4444]">
             {error}
-          </p>
-        )}
-        {notice && (
-          <p role="status" className="border border-[#22C55E] bg-[#052E16] px-3 py-2 text-xs text-[#22C55E]">
-            {notice}
           </p>
         )}
       </div>

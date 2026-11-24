@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Ban, LogOut, ShieldCheck, UserCheck, X } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { toast } from '../../components/ui/toastStore';
 import type { AdminUserService } from '../../services/admin/adminUser.service';
 import type { AdminUserDetail, AdminUserRole } from '../../types/admin.types';
 import { AdminDisableDialog } from './AdminDisableDialog';
@@ -23,10 +24,10 @@ export function AdminBulkActionsBar({
 }: AdminBulkActionsBarProps) {
   const [pending, setPending] = useState<BulkActionKind>(null);
   const [disabling, setDisabling] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const setNotice = (msg: string | null) => { if (msg) toast.success(msg); };
   const count = selectedIds.length;
 
-  if (count === 0 && !notice) return null;
+  if (count === 0) return null;
 
   const targetText = count === 1 ? '1 selected user' : `${count} selected users`;
 
@@ -82,15 +83,6 @@ export function AdminBulkActionsBar({
               Clear selection
             </Button>
           </div>
-        </div>
-      )}
-
-      {notice && (
-        <div role="status" className="flex items-center justify-between gap-2 text-xs text-[#4ADE80]">
-          <span>{notice}</span>
-          <button type="button" onClick={() => setNotice(null)} className="text-[#8B949E] hover:text-[#E6EDF3]">
-            Dismiss
-          </button>
         </div>
       )}
 

@@ -1,6 +1,6 @@
-import { useState } from 'react';
 import { X } from 'lucide-react';
 import { ErrorView, LoadingView } from '../../components/ui/StateViews';
+import { toast } from '../../components/ui/toastStore';
 import { useResource } from '../../hooks/useResource';
 import type { AdminUserService } from '../../services/admin/adminUser.service';
 import type { AdminUserDetail } from '../../types/admin.types';
@@ -24,7 +24,6 @@ export function AdminUserDialog({ userId, ...rest }: AdminUserDialogProps) {
 
 function DialogBody({ userId, currentUserId, service, onClose, onChanged }: AdminUserDialogProps & { userId: string }) {
   const detail = useResource(() => service.get(userId), [userId, service]);
-  const [notice, setNotice] = useState<string | null>(null);
   const { data } = detail;
 
   function handleUpdated(updated: AdminUserDetail) {
@@ -59,17 +58,12 @@ function DialogBody({ userId, currentUserId, service, onClose, onChanged }: Admi
         {data && (
           <div className="space-y-5">
             <AdminUserProfile detail={data} self={data.id === currentUserId} />
-            {notice && (
-              <p role="status" className="border border-[#22C55E] bg-[#052E16] px-3 py-2 text-xs text-[#4ADE80]">
-                {notice}
-              </p>
-            )}
             <AdminUserActions
               detail={data}
               self={data.id === currentUserId}
               service={service}
               onUpdated={handleUpdated}
-              onNotice={setNotice}
+              onNotice={(msg) => { if (msg) toast.success(msg); }}
             />
           </div>
         )}

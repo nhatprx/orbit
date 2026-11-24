@@ -1,5 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ToastViewport } from '../../components/ui/ToastViewport';
+import { clearToasts } from '../../components/ui/toastStore';
 import { avatarService } from '../../services/avatar.service';
 import type { AuthUser } from '../../types/auth.types';
 import { ProfileAvatarControl } from './ProfileAvatarControl';
@@ -16,6 +18,7 @@ const BASE_USER: AuthUser = {
 
 describe('ProfileAvatarControl', () => {
   afterEach(() => {
+    clearToasts();
     cleanup();
     vi.restoreAllMocks();
   });
@@ -31,12 +34,15 @@ describe('ProfileAvatarControl', () => {
     const onUserUpdated = vi.fn();
 
     render(
-      <ProfileAvatarControl
-        user={BASE_USER}
-        displayName="Alice Nguyen"
-        status="ONLINE"
-        onUserUpdated={onUserUpdated}
-      />
+      <>
+        <ProfileAvatarControl
+          user={BASE_USER}
+          displayName="Alice Nguyen"
+          status="ONLINE"
+          onUserUpdated={onUserUpdated}
+        />
+        <ToastViewport />
+      </>
     );
 
     expect(screen.getByText('AN')).toBeTruthy();
@@ -57,7 +63,12 @@ describe('ProfileAvatarControl', () => {
   it('shows validation error for unsupported file type without calling upload', () => {
     const uploadSpy = vi.spyOn(avatarService, 'uploadAvatar');
 
-    render(<ProfileAvatarControl user={BASE_USER} displayName="Alice Nguyen" status="BUSY" />);
+    render(
+      <>
+        <ProfileAvatarControl user={BASE_USER} displayName="Alice Nguyen" status="BUSY" />
+        <ToastViewport />
+      </>
+    );
     expect(screen.getByLabelText('Account busy')).toBeTruthy();
 
     const input = screen.getByLabelText('Upload profile avatar') as HTMLInputElement;

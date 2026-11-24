@@ -1,4 +1,4 @@
-import { AlertCircle, Code2, GitCommitHorizontal, GitPullRequest, LayoutDashboard, PlayCircle, RefreshCw, X } from 'lucide-react';
+import { AlertCircle, Code2, GitCommitHorizontal, GitPullRequest, LayoutDashboard, PlayCircle, RefreshCw } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 
 export type GitTab = 'overview' | 'code' | 'commits' | 'actions' | 'prs';
@@ -42,36 +42,8 @@ interface GitStatusBannersProps {
   onClearNotice: () => void;
 }
 
-export function GitStatusBanners({
-  error,
-  notice,
-  onClearError,
-  onClearNotice,
-}: GitStatusBannersProps) {
-  return (
-    <>
-      {error && (
-        <div
-          role="alert"
-          className="flex items-center justify-between border border-[#EF4444] bg-[#161B22] px-4 py-2.5 text-xs text-[#EF4444]"
-        >
-          <span>{error}</span>
-          <button type="button" aria-label="Dismiss error" onClick={onClearError}>
-            <X className="h-3.5 w-3.5" strokeWidth={1.5} />
-          </button>
-        </div>
-      )}
-
-      {notice && (
-        <div className="flex items-center justify-between border border-[#22C55E] bg-[#052E16] px-4 py-2.5 text-xs text-[#4ADE80]">
-          <span>{notice}</span>
-          <button type="button" aria-label="Dismiss notice" onClick={onClearNotice}>
-            <X className="h-3.5 w-3.5" strokeWidth={1.5} />
-          </button>
-        </div>
-      )}
-    </>
-  );
+export function GitStatusBanners(_props: GitStatusBannersProps) {
+  return null;
 }
 
 interface GitTabBarProps {

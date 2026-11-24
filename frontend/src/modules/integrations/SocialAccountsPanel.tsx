@@ -3,6 +3,8 @@ import { Github, Globe, Link2, Unlink } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { ErrorView, LoadingView } from '../../components/ui/StateViews';
+import { toast } from '../../components/ui/toastStore';
+import { useNoticeToast } from '../../components/ui/useNoticeToast';
 import { useAsyncAction } from '../../hooks/useAsyncAction';
 import { useResource } from '../../hooks/useResource';
 import { SOCIAL_PROVIDERS } from '../../mocks/linkedAccount.mock';
@@ -16,27 +18,21 @@ const PROVIDER_ICON = { google: Globe, github: Github } as const;
 export function SocialAccountsPanel() {
   const accounts = useResource(() => linkedAccountService.listLinkedAccounts(), []);
   const [activeProvider, setActiveProvider] = useState<SocialProvider | null>(null);
-  const [linkNotice, setLinkNotice] = useState<string | null>(null);
-  const [linkError, setLinkError] = useState<string | null>(null);
 
   useEffect(() => {
     return subscribeOAuthLinkResult((result) => {
       setActiveProvider(null);
       if (result.error) {
-        setLinkNotice(null);
-        setLinkError(result.error);
+        toast.error(result.error);
       } else if (result.provider) {
         const label = result.provider.charAt(0).toUpperCase() + result.provider.slice(1);
-        setLinkError(null);
-        setLinkNotice(`Connected ${label} account successfully.`);
+        toast.success(`Connected ${label} account successfully.`);
       }
       accounts.reload();
     });
   }, [accounts.reload]);
 
   const connect = useAsyncAction(async (provider: SocialProvider) => {
-    setLinkError(null);
-    setLinkNotice(null);
     setActiveProvider(provider);
     try {
       await linkedAccountService.connectProvider(provider);
@@ -47,18 +43,19 @@ export function SocialAccountsPanel() {
   });
 
   const disconnect = useAsyncAction(async (accountId: string) => {
-    setLinkError(null);
-    setLinkNotice(null);
     await linkedAccountService.disconnectAccount(accountId);
+    toast.success('Disconnected linked account.');
     accounts.reload();
   });
+
+  const actionError = connect.error ?? disconnect.error;
+  useNoticeToast(actionError, 'error');
 
   if (accounts.loading && !accounts.data) return <LoadingView label="Loading connected accounts..." />;
   if (accounts.error) return <ErrorView message={accounts.error} onRetry={accounts.reload} />;
 
   const linked = accounts.data ?? [];
   const busy = connect.pending || disconnect.pending;
-  const error = linkError ?? connect.error ?? disconnect.error;
 
   return (
     <div className="space-y-3">
@@ -108,16 +105,6 @@ export function SocialAccountsPanel() {
           );
         })}
       </div>
-      {linkNotice && (
-        <p role="status" className="border border-[#22C55E] bg-[#052E16] px-3 py-2 text-xs text-[#22C55E]">
-          {linkNotice}
-        </p>
-      )}
-      {error && (
-        <p role="alert" className="border border-[#EF4444] bg-[#21262D] px-3 py-2 text-xs text-[#EF4444]">
-          {error}
-        </p>
-      )}
       <p className="text-xs text-[#7D8590]">
         Connected Google and GitHub accounts sign in to this same Orbit account alongside your username and email.
       </p>

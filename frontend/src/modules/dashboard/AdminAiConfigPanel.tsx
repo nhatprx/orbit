@@ -1,6 +1,7 @@
 import { Bot, RefreshCw, Save } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import { useNoticeToast } from '../../components/ui/useNoticeToast';
 import type { AiProviderType } from '../../types/ai.types';
 import { AdminApiKeyVault } from './AdminApiKeyVault';
 import { AdminModelSelect } from './AdminModelSelect';
@@ -16,6 +17,8 @@ interface AdminAiConfigPanelProps {
 
 export function AdminAiConfigPanel({ section = 'all' }: AdminAiConfigPanelProps) {
   const vm = useAdminAiConfig();
+  useNoticeToast(vm.notice, 'success');
+  useNoticeToast(vm.error, 'error');
   const showKeys = section === 'all' || section === 'keys';
   const showUsers = section === 'all' || section === 'users';
 
@@ -97,9 +100,6 @@ export function AdminAiConfigPanel({ section = 'all' }: AdminAiConfigPanelProps)
               <input type="checkbox" checked={vm.webSearch} onChange={(e) => vm.setWebSearch(e.target.checked)} className="accent-[#22C55E]" />
               Allow external web search in Orbit AI
             </label>
-
-            {vm.notice && <p role="status" className="border border-[#22C55E] bg-[#052E16] px-3 py-2 text-xs text-[#22C55E]">{vm.notice}</p>}
-            {vm.error && <p role="alert" className="border border-[#EF4444] bg-[#21262D] px-3 py-2 text-xs text-[#EF4444]">{vm.error}</p>}
 
             <div className="flex flex-wrap gap-2">
               <Button type="submit" variant="primary" disabled={vm.saving}>
