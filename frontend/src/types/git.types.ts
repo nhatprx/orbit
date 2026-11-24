@@ -131,6 +131,7 @@ export interface GitCommitDto {
   additions: number;
   deletions: number;
   htmlUrl: string | null;
+  parentShas?: string[];
 }
 
 export interface GitCommitFileDiffDto {

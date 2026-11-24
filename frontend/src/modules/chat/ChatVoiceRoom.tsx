@@ -1,6 +1,7 @@
-import { AlertTriangle, Volume2, X } from 'lucide-react';
+import { AlertTriangle, X } from 'lucide-react';
 import type { ChatChannelDto, MemberDto } from '../../types/workspace.types';
 import { useChatLayout } from './chatLayoutStore';
+import { ChatThreadHeader } from './ChatThreadHeader';
 import type { VoiceSessionState } from './chatVoiceTypes';
 import { VoicePreJoinCard } from './VoicePreJoinCard';
 import { VoiceSideChat } from './VoiceSideChat';
@@ -37,10 +38,7 @@ export function ChatVoiceRoom({
   return (
     <div className="flex min-w-0 flex-1 bg-[#0D1117]">
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b border-[#30363D] bg-[#161B22] px-4">
-          <Volume2 className="h-3.5 w-3.5 shrink-0 text-[#22C55E]" strokeWidth={1.5} />
-          <span className="truncate text-sm font-semibold text-[#E6EDF3]">{channel.name}</span>
-        </header>
+        <ChatThreadHeader channel={channel} members={mentionMembers} />
 
         {voice.mediaNotice && (
           <div

@@ -161,16 +161,10 @@ export function ChatPage({ workspace, project }: ChatPageProps) {
         />
       ) : (
         <ChatThreadView
-          key={selectedChannel.id}
-          channel={selectedChannel}
-          scopeLabel={scopeName}
-          currentUserId={currentUser?.id ?? null}
-          canManageChannels={canManageChannels}
-          canWriteChat={canWriteChat}
-          onlineCount={onlineCount}
-          mentionMembers={mentionMembers}
-          onEditChannel={(channel) => { setEditingChannel(channel); setModalMode('edit'); }}
-          onDeleteChannel={setDeletingChannel}
+          key={selectedChannel.id} channel={selectedChannel} workspaceId={workspace.id} projectId={project?.id ?? null}
+          scopeLabel={scopeName} currentUserId={currentUser?.id ?? null} canManageChannels={canManageChannels}
+          canWriteChat={canWriteChat} onlineCount={onlineCount} mentionMembers={mentionMembers}
+          onEditChannel={(channel) => { setEditingChannel(channel); setModalMode('edit'); }} onDeleteChannel={setDeletingChannel}
         />
       )}
 

@@ -88,7 +88,6 @@ export function VoiceStageBody({
               shares={screenShares}
               activeShare={activeShare}
               onSelectShare={setPinnedScreenId}
-              onStopLocalShare={() => void voice.toggleScreenShare()}
             />
           </div>
         )}

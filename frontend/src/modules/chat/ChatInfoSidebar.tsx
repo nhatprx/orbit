@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
-  Bell, BellOff, ChevronDown, ChevronRight, Pin, PinOff, Search, Settings, Users, X,
+  Bell, BellOff, ChevronDown, ChevronRight, Info, Pin, PinOff, Search, Settings, Users, X,
 } from 'lucide-react';
 import { UserAvatar } from '../../components/ui/UserAvatar';
 import type { ChatChannelDto, ChatMessageDto, MemberDto } from '../../types/workspace.types';
@@ -42,8 +42,11 @@ export function ChatInfoSidebar({
 
   return (
     <aside aria-label="Channel info panel" className="flex w-96 shrink-0 flex-col border-l border-[#30363D] bg-[#0D1117]">
-      <div className="flex h-12 shrink-0 items-center justify-between border-b border-[#30363D] bg-[#161B22] px-4">
-        <span className="text-xs font-semibold uppercase tracking-wider text-[#E6EDF3]">Channel Info</span>
+      <div className="flex h-12 shrink-0 items-center justify-between border-b border-[#30363D] bg-[#161B22] px-3">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-[#E6EDF3]">
+          <Info className="h-3.5 w-3.5 text-[#22C55E]" strokeWidth={1.5} />
+          <span>Channel Info</span>
+        </div>
         <button
           type="button"
           aria-label="Close channel info"

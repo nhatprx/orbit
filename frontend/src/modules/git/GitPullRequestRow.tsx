@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, ExternalLink, GitMerge, GitPullRequest } from 'lucide-react';
+import { Bot, ChevronDown, ChevronRight, ExternalLink, GitMerge, GitPullRequest, Share2 } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import type { GitPullRequestDto, MergeGitPullRequest } from '../../types/git.types';
 import { formatGitTimestamp } from './gitFormat';
+import type { ShareToChatPayload } from './GitShareToChatModal';
 
 type MergeMethod = NonNullable<MergeGitPullRequest['mergeMethod']>;
 
@@ -13,14 +14,12 @@ interface GitPullRequestRowProps {
   canWrite: boolean;
   merging: boolean;
   onMerge: (pullNumber: number, body: MergeGitPullRequest) => Promise<void>;
+  onInspectPr?: (pullNumber: number) => void;
+  onShareToChat?: (payload: ShareToChatPayload) => void;
 }
 
 export function GitPullRequestRow({
-  pr,
-  bordered,
-  canWrite,
-  merging,
-  onMerge,
+  pr, bordered, canWrite, merging, onMerge, onInspectPr, onShareToChat,
 }: GitPullRequestRowProps) {
   const [expanded, setExpanded] = useState(false);
   const [mergeMethod, setMergeMethod] = useState<MergeMethod>('merge');
@@ -77,6 +76,25 @@ export function GitPullRequestRow({
           >
             {pr.status}
           </Badge>
+          {onInspectPr && (
+            <Button type="button" variant="secondary" onClick={() => onInspectPr(pr.number)}>
+              <Bot className="h-3.5 w-3.5 text-[#22C55E]" strokeWidth={1.5} />
+              Diff &amp; AI Review
+            </Button>
+          )}
+          {onShareToChat && (
+            <button
+              type="button"
+              aria-label={`Share PR #${pr.number} to chat`}
+              onClick={() => onShareToChat({
+                title: `PR #${pr.number}`,
+                body: `[Git PR #${pr.number}] ${pr.title}\nBranch: ${pr.sourceBranch} -> ${pr.targetBranch} (${pr.status}) by ${pr.author}${pr.htmlUrl ? `\n${pr.htmlUrl}` : ''}`,
+              })}
+              className="flex h-8 w-8 items-center justify-center border border-[#30363D] bg-[#0D1117] text-[#8A8A8A] hover:border-[#22C55E] hover:text-[#E6EDF3]"
+            >
+              <Share2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+            </button>
+          )}
           {canWrite && pr.status === 'open' && (
             <>
               <select

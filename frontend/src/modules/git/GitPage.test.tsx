@@ -13,20 +13,18 @@ afterEach(() => {
 });
 
 describe('GitPage', () => {
-  it('verifies a GitHub token and connects an existing repository', async () => {
+  it('connects GitHub and links an existing repository', async () => {
     const api = createMockGitApi(null);
     render(<GitPage scope={FULL_SCOPE} scopeLabel="Orbit Core" api={api} />);
 
-    const tokenInput = await screen.findByLabelText(/GitHub Personal Access Token/i);
-    fireEvent.change(tokenInput, { target: { value: 'ghp_testtoken12345' } });
-    fireEvent.click(screen.getByRole('button', { name: /Verify GitHub Access/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Connect GitHub/i }));
 
     expect(await screen.findByText('@octocat')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /Connect Repository/i }));
 
     await waitFor(() => {
       expect(api.connectRepository).toHaveBeenCalledWith({
-        accessToken: 'ghp_testtoken12345',
+        accessToken: 'gho_auto_fetched_12345',
         repoOwner: 'orbit-org',
         repoName: 'orbit-core',
         defaultBranch: 'main',
@@ -39,9 +37,8 @@ describe('GitPage', () => {
     const api = createMockGitApi(null);
     render(<GitPage scope={FULL_SCOPE} api={api} />);
 
-    fireEvent.change(await screen.findByLabelText(/GitHub Personal Access Token/i), {
-      target: { value: 'ghp_create12345' },
-    });
+    fireEvent.click(await screen.findByRole('button', { name: /Connect GitHub/i }));
+    expect(await screen.findByText('@octocat')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /Create New GitHub Repository/i }));
     fireEvent.change(screen.getByLabelText(/New Repository Name/i), {
       target: { value: 'orbit-new-repo' },
@@ -53,7 +50,7 @@ describe('GitPage', () => {
 
     await waitFor(() => {
       expect(api.createRepository).toHaveBeenCalledWith({
-        accessToken: 'ghp_create12345',
+        accessToken: 'gho_auto_fetched_12345',
         repoName: 'orbit-new-repo',
         description: 'Created via Orbit',
         privateRepo: true,
@@ -66,6 +63,7 @@ describe('GitPage', () => {
     const api = createMockGitApi(SAMPLE_REPO);
     render(<GitPage scope={FULL_SCOPE} api={api} />);
 
+    fireEvent.click(await screen.findByRole('button', { name: /^Code$/i }));
     fireEvent.click(await screen.findByRole('button', { name: /src/i }));
     fireEvent.click(await screen.findByRole('button', { name: /app\.ts/i }));
     expect(await screen.findByText(/export const version = 1;/)).toBeTruthy();
@@ -115,7 +113,7 @@ describe('GitPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Pull Commit History/i }));
 
     await waitFor(() => {
-      expect(api.syncCommits).toHaveBeenCalledWith('main', 30);
+      expect(api.syncCommits).toHaveBeenCalledWith('main', 100);
     });
 
     fireEvent.click(screen.getByRole('button', { name: /View Diff/i }));
@@ -154,7 +152,7 @@ describe('GitPage', () => {
     const disconnectedApi = createMockGitApi(null);
     const { unmount } = render(<GitPage scope={READONLY_SCOPE} api={disconnectedApi} />);
     expect(await screen.findByText(/read-only access/i)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Verify GitHub Access/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Connect GitHub/i })).toBeNull();
     unmount();
 
     const connectedApi = createMockGitApi(SAMPLE_REPO);

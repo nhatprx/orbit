@@ -1,4 +1,4 @@
-import { Ban, CheckSquare, CornerUpLeft, Pin, Square } from 'lucide-react';
+import { Ban, Bot, CheckSquare, CornerUpLeft, Pin, Square } from 'lucide-react';
 import { UserAvatar } from '../../components/ui/UserAvatar';
 import type { ChatMessageDto, ChatReactionKey } from '../../types/workspace.types';
 import { formatTime } from '../../utils/format';
@@ -101,7 +101,13 @@ export function ChatMessageRow({
 
       {!mine && (
         <div className="w-7 shrink-0 pt-0.5">
-          {isFirstInGroup && <UserAvatar name={message.senderName} avatarUrl={message.senderAvatarUrl} />}
+          {isFirstInGroup && (message.senderUsername === 'ai' ? (
+            <span className="flex h-7 w-7 items-center justify-center border border-[#22C55E] bg-[#052E16] text-[#4ADE80]">
+              <Bot className="h-3.5 w-3.5" strokeWidth={1.5} />
+            </span>
+          ) : (
+            <UserAvatar name={message.senderName} avatarUrl={message.senderAvatarUrl} />
+          ))}
         </div>
       )}
 

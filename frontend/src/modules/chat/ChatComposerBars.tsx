@@ -1,5 +1,6 @@
 import { CornerUpLeft, FileText, Lock, Pencil, X } from 'lucide-react';
 import type { ChatMessageDto } from '../../types/workspace.types';
+import type { AttachedWorkspaceFile } from './ChatSlashFileMenu';
 
 export interface PendingChatFile {
   id: string;
@@ -13,6 +14,7 @@ interface ChatComposerBarsProps {
   replyTo: ChatMessageDto | null;
   editingMessage: ChatMessageDto | null;
   pendingFiles: PendingChatFile[];
+  workspaceFiles?: AttachedWorkspaceFile[];
   showAttachment: boolean;
   attachmentName: string;
   attachmentUrl: string;
@@ -21,6 +23,7 @@ interface ChatComposerBarsProps {
   onCancelEdit?: () => void;
   onRemoveFile: (id: string) => void;
   onClearFiles: () => void;
+  onRemoveWorkspaceFile?: (id: string) => void;
   onChangeAttachmentName: (value: string) => void;
   onChangeAttachmentUrl: (value: string) => void;
   onCloseAttachment: () => void;
@@ -31,6 +34,7 @@ export function ChatComposerBars({
   replyTo,
   editingMessage,
   pendingFiles,
+  workspaceFiles = [],
   showAttachment,
   attachmentName,
   attachmentUrl,
@@ -39,6 +43,7 @@ export function ChatComposerBars({
   onCancelEdit,
   onRemoveFile,
   onClearFiles,
+  onRemoveWorkspaceFile,
   onChangeAttachmentName,
   onChangeAttachmentUrl,
   onCloseAttachment,
@@ -119,6 +124,28 @@ export function ChatComposerBars({
               );
             })}
           </div>
+        </div>
+      )}
+
+      {workspaceFiles.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1.5 border border-[#1E5631] bg-[#0D1117] p-2">
+          {workspaceFiles.map((wf) => (
+            <span
+              key={wf.id}
+              className="inline-flex max-w-[220px] items-center gap-1.5 border border-[#30363D] bg-[#161B22] px-2 py-1 text-xs text-[#E6EDF3]"
+            >
+              <FileText className="h-3.5 w-3.5 shrink-0 text-[#22C55E]" strokeWidth={1.5} />
+              <span className="truncate">{wf.name}</span>
+              <button
+                type="button"
+                aria-label={`Remove ${wf.name}`}
+                onClick={() => onRemoveWorkspaceFile?.(wf.id)}
+                className="shrink-0 text-[#8B949E] hover:text-[#EF4444]"
+              >
+                <X className="h-3 w-3" strokeWidth={1.75} />
+              </button>
+            </span>
+          ))}
         </div>
       )}
 

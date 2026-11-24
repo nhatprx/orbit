@@ -48,6 +48,9 @@ public class GitCommitCacheEntity {
     @Column(name = "html_url", length = 500)
     private String htmlUrl;
 
+    @Column(name = "parent_shas", length = 512)
+    private String parentShas;
+
     @Column(name = "synced_at", nullable = false)
     private Instant syncedAt;
 
@@ -81,6 +84,8 @@ public class GitCommitCacheEntity {
     public void setDeletions(int deletions) { this.deletions = deletions; }
     public String getHtmlUrl() { return htmlUrl; }
     public void setHtmlUrl(String htmlUrl) { this.htmlUrl = htmlUrl; }
+    public String getParentShas() { return parentShas; }
+    public void setParentShas(String parentShas) { this.parentShas = parentShas; }
     public Instant getSyncedAt() { return syncedAt; }
     public void setSyncedAt(Instant syncedAt) { this.syncedAt = syncedAt; }
 }

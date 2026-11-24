@@ -41,7 +41,8 @@ describe('@mention helpers & composer autocomplete', () => {
 
     const allMatches = filterMentionCandidates(MEMBERS, '');
     expect(allMatches[0]?.handle).toBe('all');
-    expect(allMatches).toHaveLength(3);
+    expect(allMatches[1]?.handle).toBe('ai');
+    expect(allMatches).toHaveLength(4);
 
     const duyMatches = filterMentionCandidates(MEMBERS, 'duy');
     expect(duyMatches.map((m) => m.handle)).toEqual(['duynn']);

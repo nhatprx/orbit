@@ -1,4 +1,4 @@
-import { Users } from 'lucide-react';
+import { Bot, Users } from 'lucide-react';
 import { UserAvatar } from '../../components/ui/UserAvatar';
 import type { MemberDto } from '../../types/workspace.types';
 
@@ -14,6 +14,7 @@ export interface MentionCandidate {
   subtitle: string;
   avatarUrl?: string | null;
   isAll?: boolean;
+  isAi?: boolean;
 }
 
 export function findActiveMention(text: string, cursor: number): ActiveMention | null {
@@ -51,6 +52,16 @@ export function filterMentionCandidates(members: MemberDto[], query: string): Me
     });
   }
 
+  if (!q || 'ai'.startsWith(q) || 'orbit'.startsWith(q) || 'bot'.startsWith(q)) {
+    list.push({
+      id: 'mention-ai',
+      handle: 'ai',
+      label: '@ai',
+      subtitle: 'Ask Orbit AI about this chat',
+      isAi: true,
+    });
+  }
+
   for (const member of members) {
     if (list.length >= 8) break;
     const match =
@@ -85,7 +96,7 @@ export function ChatMentionMenu({ candidates, selectedIndex, onSelect }: ChatMen
       className="absolute bottom-full left-0 z-20 mb-1.5 w-full max-w-xs border border-[#30363D] bg-[#0D1117] py-1 shadow-lg"
     >
       <div className="border-b border-[#21262D] px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-[#7D8590]">
-        Mention member or @all
+        Mention @ai, member, or @all
       </div>
       {candidates.map((item, idx) => {
         const active = idx === selectedIndex;
@@ -105,7 +116,11 @@ export function ChatMentionMenu({ candidates, selectedIndex, onSelect }: ChatMen
                 : 'border-l-2 border-transparent text-[#BDBDBD] hover:bg-[#161B22]'
             }`}
           >
-            {item.isAll ? (
+            {item.isAi ? (
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center border border-[#22C55E] bg-[#052E16] text-[#4ADE80]">
+                <Bot className="h-3.5 w-3.5" strokeWidth={1.5} />
+              </span>
+            ) : item.isAll ? (
               <span className="flex h-7 w-7 shrink-0 items-center justify-center border border-[#22C55E] bg-[#052E16] text-[#22C55E]">
                 <Users className="h-3.5 w-3.5" strokeWidth={1.5} />
               </span>

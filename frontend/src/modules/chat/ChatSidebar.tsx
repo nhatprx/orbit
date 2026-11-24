@@ -52,8 +52,12 @@ export function ChatSidebar({
     >
       <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-[#30363D] px-3">
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="shrink-0 border border-[#30363D] bg-[#21262D] px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-wider text-[#BDBDBD]">
-            {scopeType}
+          <span
+            title={scopeType === 'WORKSPACE' ? 'Workspace' : 'Project'}
+            aria-label={scopeType === 'WORKSPACE' ? 'Workspace' : 'Project'}
+            className="flex h-6 w-6 shrink-0 items-center justify-center border border-[#30363D] bg-[#21262D] font-mono text-[11px] font-semibold text-[#22C55E]"
+          >
+            {scopeType === 'WORKSPACE' ? 'W' : 'P'}
           </span>
           <h2 className="truncate text-sm font-semibold text-[#E6EDF3]" title={scopeName}>
             {scopeName}

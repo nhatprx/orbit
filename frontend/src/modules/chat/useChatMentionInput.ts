@@ -55,6 +55,7 @@ export function useChatMentionInput(
   }
 
   return {
+    cursor,
     candidates,
     selectedIndex,
     setCursor,

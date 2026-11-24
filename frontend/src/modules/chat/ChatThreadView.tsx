@@ -17,6 +17,8 @@ import { useChatChannel } from './useChatChannel';
 
 interface ChatThreadViewProps {
   channel: ChatChannelDto;
+  workspaceId?: string;
+  projectId?: string | null;
   scopeLabel: string;
   currentUserId: string | null;
   canManageChannels: boolean;
@@ -28,7 +30,7 @@ interface ChatThreadViewProps {
 }
 
 export function ChatThreadView({
-  channel, scopeLabel, currentUserId, canManageChannels,
+  channel, workspaceId, projectId = null, scopeLabel, currentUserId, canManageChannels,
   canWriteChat = true, onlineCount, mentionMembers = [], onEditChannel, onDeleteChannel,
 }: ChatThreadViewProps) {
   const chat = useChatChannel(channel.id, currentUserId);
@@ -148,6 +150,8 @@ export function ChatThreadView({
         ) : (
           <ChatComposer
             channelId={channel.id}
+            workspaceId={workspaceId}
+            projectId={projectId}
             mentionMembers={mentionMembers}
             placeholder={canWriteChat ? channel.channelType === 'FORUM' ? `Start a topic in ${channel.name}` : `Message #${channel.name}` : 'Read-only access'}
             disabled={!canWriteChat}

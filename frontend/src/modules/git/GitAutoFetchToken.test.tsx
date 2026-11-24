@@ -12,7 +12,7 @@ describe('Git auto-fetch GitHub token flow', () => {
     const api = createMockGitApi(null);
     render(<GitPage scope={FULL_SCOPE} scopeLabel="Orbit Core" api={api} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: /Auto-Fetch from GitHub/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Connect GitHub/i }));
 
     await waitFor(() => {
       expect(api.fetchOAuthToken).toHaveBeenCalledTimes(1);
@@ -20,8 +20,7 @@ describe('Git auto-fetch GitHub token flow', () => {
     });
 
     expect(await screen.findByText('@octocat')).toBeTruthy();
-    const tokenInput = screen.getByLabelText(/GitHub Personal Access Token/i) as HTMLInputElement;
-    expect(tokenInput.value).toBe('gho_auto_fetched_12345');
+    expect(screen.queryByLabelText(/GitHub Personal Access Token/i)).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: /Connect Repository/i }));
     await waitFor(() => {
@@ -39,7 +38,7 @@ describe('Git auto-fetch GitHub token flow', () => {
     api.fetchOAuthToken = vi.fn().mockRejectedValue(new Error('GitHub authorization was canceled.'));
     render(<GitPage scope={FULL_SCOPE} api={api} />);
 
-    fireEvent.click(await screen.findByRole('button', { name: /Auto-Fetch from GitHub/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Connect GitHub/i }));
 
     expect(await screen.findByText(/GitHub authorization was canceled/i)).toBeTruthy();
     expect(api.inspectToken).not.toHaveBeenCalled();

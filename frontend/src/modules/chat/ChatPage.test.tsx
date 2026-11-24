@@ -99,7 +99,7 @@ describe('ChatPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Turn camera on' }));
     expect(screen.getByRole('button', { name: 'Turn camera off' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Share screen' }));
-    expect(screen.getByText('LIVE SCREEN')).toBeTruthy();
+    expect(screen.getByLabelText('Screen share stage')).toBeTruthy();
 
     fireEvent.click(screen.getByLabelText('Toggle voice text chat'));
     expect(screen.getByLabelText('Voice room text chat')).toBeTruthy();

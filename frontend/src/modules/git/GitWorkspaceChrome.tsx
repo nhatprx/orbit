@@ -1,7 +1,7 @@
-import { AlertCircle, Code2, GitCommitHorizontal, GitPullRequest, RefreshCw, X } from 'lucide-react';
+import { AlertCircle, Code2, GitCommitHorizontal, GitPullRequest, LayoutDashboard, PlayCircle, RefreshCw, X } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 
-export type GitTab = 'code' | 'commits' | 'prs';
+export type GitTab = 'overview' | 'code' | 'commits' | 'actions' | 'prs';
 
 interface GitLoadErrorViewProps {
   error: string;
@@ -77,31 +77,34 @@ export function GitStatusBanners({
 interface GitTabBarProps {
   tab: GitTab;
   commitsCount: number;
+  actionsCount: number;
   prsCount: number;
   onSelectTab: (tab: GitTab) => void;
 }
 
-export function GitTabBar({ tab, commitsCount, prsCount, onSelectTab }: GitTabBarProps) {
+export function GitTabBar({ tab, commitsCount, actionsCount, prsCount, onSelectTab }: GitTabBarProps) {
   const tabs = [
+    { id: 'overview' as const, label: 'Overview', icon: LayoutDashboard },
     { id: 'code' as const, label: 'Code', icon: Code2 },
     { id: 'commits' as const, label: `Commits (${commitsCount})`, icon: GitCommitHorizontal },
+    { id: 'actions' as const, label: `Actions (${actionsCount})`, icon: PlayCircle },
     { id: 'prs' as const, label: `Pull Requests (${prsCount})`, icon: GitPullRequest },
   ];
 
   return (
-    <div className="flex gap-1 border-b border-[#30363D]">
+    <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-[#30363D] bg-[#0D1117] px-4">
       {tabs.map(({ id, label, icon: Icon }) => (
         <button
           key={id}
           type="button"
           onClick={() => onSelectTab(id)}
-          className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+          className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
             tab === id
-              ? 'border-[#22C55E] text-[#22C55E]'
-              : 'border-transparent text-[#BDBDBD] hover:text-[#E6EDF3]'
+              ? 'border-[#22C55E] text-[#4ADE80]'
+              : 'border-transparent text-[#8B949E] hover:text-[#E6EDF3]'
           }`}
         >
-          <Icon className="h-4 w-4" strokeWidth={1.5} />
+          <Icon className="h-3.5 w-3.5" strokeWidth={1.5} />
           <span>{label}</span>
         </button>
       ))}

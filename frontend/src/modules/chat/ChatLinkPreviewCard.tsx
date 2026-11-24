@@ -44,16 +44,16 @@ export function ChatLinkPreviewCard({ url, mine }: ChatLinkPreviewCardProps) {
       target="_blank"
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}
-      className={`mt-2 block w-[340px] max-w-full overflow-hidden border transition-colors ${surfaceClass}`}
+      className={`mt-2 block w-full min-w-[260px] overflow-hidden border transition-colors ${surfaceClass}`}
     >
       {imageUrl && (
-        <div className="max-h-44 w-full overflow-hidden border-b border-[#21262D] bg-[#161B22]">
+        <div className="max-h-52 w-full overflow-hidden border-b border-[#21262D] bg-[#161B22]">
           <img
             src={imageUrl}
             alt={title}
             loading="lazy"
             onError={() => setImgFailed(true)}
-            className="block max-h-44 w-full object-cover"
+            className="block max-h-52 w-full object-cover"
           />
         </div>
       )}

@@ -133,6 +133,7 @@ public class GitHistoryService {
             row.setAdditions(dto.additions());
             row.setDeletions(dto.deletions());
             row.setHtmlUrl(dto.htmlUrl());
+            row.setParentShas(dto.parentShas() == null || dto.parentShas().isEmpty() ? "" : truncate(String.join(",", dto.parentShas()), 512));
             row.setSyncedAt(now);
             toSave.add(row);
         }
@@ -144,9 +145,11 @@ public class GitHistoryService {
     }
 
     private static GitCommitDto toCommitDto(GitCommitCacheEntity e) {
+        List<String> parents = (e.getParentShas() == null || e.getParentShas().isBlank())
+            ? List.of() : List.of(e.getParentShas().split(","));
         return new GitCommitDto(
             e.getSha(), e.getMessage(), e.getAuthorName(), e.getAuthorEmail(),
-            e.getCommittedAt(), e.getFilesChanged(), e.getAdditions(), e.getDeletions(), e.getHtmlUrl()
+            e.getCommittedAt(), e.getFilesChanged(), e.getAdditions(), e.getDeletions(), e.getHtmlUrl(), parents
         );
     }
 

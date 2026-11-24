@@ -35,6 +35,7 @@ public class ChatMessageService {
     private final ChatReactionService reactions;
     private final StorageService storage;
     private ChatMentionNotificationService mentionNotifier;
+    private ChatAiAssistantService aiAssistant;
 
     @Autowired
     public ChatMessageService(
@@ -58,6 +59,11 @@ public class ChatMessageService {
     @Autowired(required = false)
     void setMentionNotifier(ChatMentionNotificationService mentionNotifier) {
         this.mentionNotifier = mentionNotifier;
+    }
+
+    @Autowired(required = false)
+    void setAiAssistant(ChatAiAssistantService aiAssistant) {
+        this.aiAssistant = aiAssistant;
     }
 
     public ChatMessageService(ChatMessageRepository messages, UserRepository users, ChatAccessGuard guard,
@@ -150,6 +156,9 @@ public class ChatMessageService {
         broadcaster.broadcast(dto);
         if (mentionNotifier != null && !content.isEmpty()) {
             mentionNotifier.notifyMentions(channel, sender, content);
+        }
+        if (aiAssistant != null && !content.isEmpty()) {
+            aiAssistant.maybeReplyAsync(channel, sender, dto);
         }
         return dto;
     }

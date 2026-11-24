@@ -106,11 +106,18 @@ public class GitHubApiParser {
                 JsonNode author = c.path("author");
                 JsonNode stats = item.path("stats");
                 int files = item.path("files").isArray() ? item.path("files").size() : 0;
+                List<String> parents = new ArrayList<>();
+                if (item.path("parents").isArray()) {
+                    for (JsonNode p : item.path("parents")) {
+                        String pSha = text(p, "sha", "");
+                        if (!pSha.isEmpty()) parents.add(pSha);
+                    }
+                }
                 commits.add(new GitCommitDto(text(item, "sha", ""), text(c, "message", ""),
                     text(author, "name", text(item.path("author"), "login", "unknown")),
                     nullableText(author, "email"), parseInstant(text(author, "date", null)),
                     files, stats.path("additions").asInt(0), stats.path("deletions").asInt(0),
-                    nullableText(item, "html_url")));
+                    nullableText(item, "html_url"), parents));
             }
         }
         return commits;

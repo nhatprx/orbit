@@ -38,7 +38,7 @@ describe('GitPage error handling, formatting, branch confirmation & PR details',
 
     expect(await screen.findByText(/Unable to load Git repository/i)).toBeTruthy();
     expect(screen.getByRole('alert').textContent).toContain('Missing git.read permission');
-    expect(screen.queryByLabelText(/GitHub Personal Access Token/i)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Connect GitHub/i })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: /Retry/i }));
     expect(await screen.findByText('orbit-org/orbit-core')).toBeTruthy();

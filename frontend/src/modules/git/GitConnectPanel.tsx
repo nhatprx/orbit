@@ -38,16 +38,13 @@ export function GitConnectPanel({
 
   if (!canManage) {
     return (
-      <div className="border border-[#30363D] bg-[#161B22] p-6">
-        <div className="flex items-start gap-3">
-          <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-[#8A8A8A]" strokeWidth={1.5} />
-          <div>
-            <h2 className="text-sm font-semibold text-[#E6EDF3]">No GitHub Repository Connected</h2>
-            <p className="mt-1 text-xs text-[#8A8A8A]">
-              You have read-only access for {scopeLabel ?? 'this scope'}. Ask a workspace or
-              project manager to connect a GitHub repository.
-            </p>
-          </div>
+      <div className="flex items-start gap-3 border border-[#30363D] bg-[#161B22] p-6">
+        <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-[#8A8A8A]" strokeWidth={1.5} />
+        <div>
+          <h2 className="text-sm font-semibold text-[#E6EDF3]">No GitHub Repository Connected</h2>
+          <p className="mt-1 text-xs text-[#8A8A8A]">
+            You have read-only access for {scopeLabel ?? 'this scope'}. Ask a workspace or project manager to connect a GitHub repository.
+          </p>
         </div>
       </div>
     );
@@ -126,15 +123,28 @@ export function GitConnectPanel({
 
   return (
     <div className="space-y-4 border border-[#30363D] bg-[#161B22] p-6">
-      <div className="flex items-center gap-2.5 border-b border-[#30363D] pb-4">
-        <FolderGit2 className="h-5 w-5 text-[#22C55E]" strokeWidth={1.5} />
-        <div>
-          <h2 className="text-sm font-semibold text-[#E6EDF3]">
-            Connect GitHub Repository {scopeLabel ? `— ${scopeLabel}` : ''}
-          </h2>
-          <p className="text-xs text-[#8A8A8A]">
-            Authorize a GitHub Personal Access Token to link an existing repository or create one.
-          </p>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#30363D] pb-4">
+        <div className="flex items-center gap-2.5">
+          <FolderGit2 className="h-5 w-5 text-[#22C55E]" strokeWidth={1.5} />
+          <div>
+            <h2 className="text-sm font-semibold text-[#E6EDF3]">
+              Connect GitHub Repository {scopeLabel ? `— ${scopeLabel}` : ''}
+            </h2>
+            <p className="text-xs text-[#8A8A8A]">
+              {tokenInfo
+                ? 'Step 2 of 2: Select a repository to link or create a new one for this workspace.'
+                : 'Step 1 of 2: Connect GitHub or add a Personal Access Token first.'}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 font-mono text-[11px]">
+          <span className={`border px-2 py-0.5 ${tokenInfo ? 'border-[#1E5631] bg-[#052E16] text-[#4ADE80]' : 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]'}`}>
+            1. GitHub Auth
+          </span>
+          <span className="text-[#8A8A8A]">/</span>
+          <span className={`border px-2 py-0.5 ${tokenInfo ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]' : 'border-[#30363D] bg-[#0D1117] text-[#8A8A8A]'}`}>
+            2. Select Repo
+          </span>
         </div>
       </div>
 
@@ -151,45 +161,32 @@ export function GitConnectPanel({
         tokenInfo={tokenInfo}
         onChangeToken={setToken}
         onVerify={() => { if (token.trim()) void verifyRawToken(token.trim()); }}
-        onAutoFetch={onAutoFetchToken ? () => void handleAutoFetch() : undefined}
+        onConnectGitHub={onAutoFetchToken ? () => void handleAutoFetch() : undefined}
+        onResetToken={() => { setToken(''); setTokenInfo(null); setRepoOwner(''); setRepoName(''); }}
       />
 
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setMode('connect')}
-          className={`border px-3 py-1.5 text-xs font-medium ${mode === 'connect' ? TAB_ACTIVE : TAB_IDLE}`}
-        >
-          Connect Existing Repository
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode('create')}
-          className={`inline-flex items-center gap-1.5 border px-3 py-1.5 text-xs font-medium ${mode === 'create' ? TAB_ACTIVE : TAB_IDLE}`}
-        >
-          <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
-          Create New GitHub Repository
-        </button>
-      </div>
+      {tokenInfo && (
+        <>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setMode('connect')} className={`border px-3 py-1.5 text-xs font-medium ${mode === 'connect' ? TAB_ACTIVE : TAB_IDLE}`}>
+              Connect Existing Repository
+            </button>
+            <button type="button" onClick={() => setMode('create')} className={`inline-flex items-center gap-1.5 border px-3 py-1.5 text-xs font-medium ${mode === 'create' ? TAB_ACTIVE : TAB_IDLE}`}>
+              <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
+              Create New GitHub Repository
+            </button>
+          </div>
 
-      <GitConnectFormFields
-        mode={mode}
-        repositories={tokenInfo?.repositories ?? []}
-        repoOwner={repoOwner}
-        repoName={repoName}
-        defaultBranch={defaultBranch}
-        description={description}
-        privateRepo={privateRepo}
-        canSubmit={Boolean(token.trim() && repoName.trim())}
-        submitting={submitting}
-        onSelectRemote={handleSelectRemote}
-        onChangeOwner={setRepoOwner}
-        onChangeName={setRepoName}
-        onChangeBranch={setDefaultBranch}
-        onChangeDescription={setDescription}
-        onChangePrivate={setPrivateRepo}
-        onSubmit={(e) => void handleSubmit(e)}
-      />
+          <GitConnectFormFields
+            mode={mode} repositories={tokenInfo.repositories} repoOwner={repoOwner} repoName={repoName}
+            defaultBranch={defaultBranch} description={description} privateRepo={privateRepo}
+            canSubmit={Boolean(token.trim() && repoName.trim())} submitting={submitting}
+            onSelectRemote={handleSelectRemote} onChangeOwner={setRepoOwner} onChangeName={setRepoName}
+            onChangeBranch={setDefaultBranch} onChangeDescription={setDescription}
+            onChangePrivate={setPrivateRepo} onSubmit={(e) => void handleSubmit(e)}
+          />
+        </>
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import type { GitPullRequestDto, MergeGitPullRequest } from '../../types/git.types';
 import { GitPullRequestRow } from './GitPullRequestRow';
+import type { ShareToChatPayload } from './GitShareToChatModal';
 
 interface GitPullRequestsViewProps {
   pullRequests: GitPullRequestDto[];
@@ -11,15 +12,12 @@ interface GitPullRequestsViewProps {
   onFilterChange: (filter: 'all' | 'open' | 'closed') => void;
   onNewPr: () => void;
   onMergePr: (pullNumber: number, body?: MergeGitPullRequest) => Promise<void>;
+  onInspectPr?: (pullNumber: number) => void;
+  onShareToChat?: (payload: ShareToChatPayload) => void;
 }
 
 export function GitPullRequestsView({
-  pullRequests,
-  filter,
-  canWrite,
-  onFilterChange,
-  onNewPr,
-  onMergePr,
+  pullRequests, filter, canWrite, onFilterChange, onNewPr, onMergePr, onInspectPr, onShareToChat,
 }: GitPullRequestsViewProps) {
   const [mergingNumber, setMergingNumber] = useState<number | null>(null);
 
@@ -80,6 +78,8 @@ export function GitPullRequestsView({
               canWrite={canWrite}
               merging={mergingNumber === pr.number}
               onMerge={handleMerge}
+              onInspectPr={onInspectPr}
+              onShareToChat={onShareToChat}
             />
           ))
         )}
