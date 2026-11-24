@@ -1,9 +1,21 @@
-import { ArrowUp, FileCode, Folder, Plus } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
-import type { GitFileContentDto, GitTreeEntryDto } from '../../types/git.types';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { GitApi } from '../../services/git/gitApi';
+import type { GitFileContentDto, GitScope, GitTreeEntryDto } from '../../types/git.types';
+import { GitCodeTree } from './GitCodeTree';
 import { GitFileViewerPane } from './GitFileViewerPane';
+import {
+  fetchFullGitTree,
+  getCachedFullTree,
+  getCachedGitFile,
+  prefetchGitFile,
+} from './gitCodeCache';
+import { buildCodeTree, flattenVisibleTree } from './gitCodeTreeUtils';
 
 interface GitCodeViewProps {
+  scope: GitScope;
+  api: GitApi;
+  activeBranch: string;
+  enableFastTree: boolean;
   currentDir: string;
   tree: GitTreeEntryDto[];
   selectedFile: GitFileContentDto | null;
@@ -12,12 +24,17 @@ interface GitCodeViewProps {
   canDelete: boolean;
   onNavigateDir: (dirPath: string) => void;
   onOpenFile: (filePath: string) => void;
+  onSelectCachedFile: (file: GitFileContentDto | null) => void;
   onNewFile: () => void;
-  onEditFile: (file: GitFileContentDto) => void;
+  onSaveInlineFile: (file: GitFileContentDto, content: string, commitMessage: string) => Promise<void>;
   onDeleteFile: (file: GitFileContentDto, commitMessage: string) => Promise<void>;
 }
 
 export function GitCodeView({
+  scope,
+  api,
+  activeBranch,
+  enableFastTree,
   currentDir,
   tree,
   selectedFile,
@@ -26,104 +43,146 @@ export function GitCodeView({
   canDelete,
   onNavigateDir,
   onOpenFile,
+  onSelectCachedFile,
   onNewFile,
-  onEditFile,
+  onSaveInlineFile,
   onDeleteFile,
 }: GitCodeViewProps) {
-  const segments = currentDir ? currentDir.split('/').filter(Boolean) : [];
-  const parentDir = segments.length > 1 ? segments.slice(0, -1).join('/') : '';
+  const [fullTree, setFullTree] = useState<GitTreeEntryDto[] | null>(() =>
+    enableFastTree && activeBranch ? getCachedFullTree(scope, activeBranch) : null,
+  );
+  const [treeLoading, setTreeLoading] = useState(false);
+  const [expandedDirs, setExpandedDirs] = useState<Set<string>>(() => new Set());
+  const [filter, setFilter] = useState('');
+  const [openTabs, setOpenTabs] = useState<GitFileContentDto[]>([]);
+
+  const loadFullTree = useCallback(
+    async (force = false) => {
+      if (!enableFastTree || !activeBranch) return;
+      if (!force) {
+        const cached = getCachedFullTree(scope, activeBranch);
+        if (cached) {
+          setFullTree(cached);
+          return;
+        }
+      }
+      setTreeLoading(true);
+      try {
+        const entries = await fetchFullGitTree(scope, activeBranch, force);
+        setFullTree(entries);
+      } catch {
+        setFullTree(null);
+      } finally {
+        setTreeLoading(false);
+      }
+    },
+    [activeBranch, enableFastTree, scope],
+  );
+
+  useEffect(() => {
+    setExpandedDirs(new Set());
+    setFilter('');
+    setOpenTabs([]);
+    void loadFullTree(false);
+  }, [loadFullTree]);
+
+  useEffect(() => {
+    if (!enableFastTree || !activeBranch || !fullTree?.length) return;
+    const readme = fullTree.find((e) => e.type === 'file' && e.path.toLowerCase() === 'readme.md');
+    if (readme) prefetchGitFile(scope, api, activeBranch, readme.path);
+  }, [activeBranch, api, enableFastTree, fullTree, scope]);
+
+  useEffect(() => {
+    if (!selectedFile) return;
+    setOpenTabs((prev) => {
+      const exists = prev.some((t) => t.path === selectedFile.path);
+      if (exists) return prev.map((t) => (t.path === selectedFile.path ? selectedFile : t));
+      return [...prev.slice(-7), selectedFile];
+    });
+  }, [selectedFile]);
+
+  const useRecursiveMode = Boolean(enableFastTree && fullTree && fullTree.length > 0);
+
+  const treeRoots = useMemo(
+    () => (useRecursiveMode && fullTree ? buildCodeTree(fullTree) : []),
+    [fullTree, useRecursiveMode],
+  );
+
+  const visibleRows = useMemo(
+    () => (useRecursiveMode ? flattenVisibleTree(treeRoots, expandedDirs, filter) : []),
+    [expandedDirs, filter, treeRoots, useRecursiveMode],
+  );
+
+  function handleToggleDir(dirPath: string) {
+    setExpandedDirs((prev) => {
+      const next = new Set(prev);
+      if (next.has(dirPath)) next.delete(dirPath);
+      else next.add(dirPath);
+      return next;
+    });
+  }
+
+  function handleOpenFile(filePath: string) {
+    if (enableFastTree && activeBranch) {
+      const hit = getCachedGitFile(scope, activeBranch, filePath);
+      if (hit) {
+        onSelectCachedFile(hit);
+        return;
+      }
+    }
+    onOpenFile(filePath);
+  }
+
+  function handleCloseTab(path: string) {
+    setOpenTabs((prev) => {
+      const next = prev.filter((t) => t.path !== path);
+      if (selectedFile?.path === path) {
+        onSelectCachedFile(next[next.length - 1] ?? null);
+      }
+      return next;
+    });
+  }
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-      <div className="border border-[#30363D] bg-[#161B22] lg:col-span-5">
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#30363D] px-4 py-2.5">
-          <div className="flex flex-wrap items-center gap-1 font-mono text-xs text-[#BDBDBD]">
-            <button
-              type="button"
-              onClick={() => onNavigateDir('')}
-              className="hover:text-[#22C55E]"
-            >
-              root
-            </button>
-            {segments.map((seg, i) => {
-              const target = segments.slice(0, i + 1).join('/');
-              return (
-                <span key={target} className="flex items-center gap-1">
-                  <span className="text-[#8A8A8A]">/</span>
-                  <button
-                    type="button"
-                    onClick={() => onNavigateDir(target)}
-                    className="hover:text-[#22C55E]"
-                  >
-                    {seg}
-                  </button>
-                </span>
-              );
-            })}
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            {currentDir && (
-              <Button type="button" variant="secondary" onClick={() => onNavigateDir(parentDir)}>
-                <ArrowUp className="h-3.5 w-3.5" strokeWidth={1.5} />
-                Up
-              </Button>
-            )}
-            {canWrite && (
-              <Button type="button" variant="primary" onClick={onNewFile}>
-                <Plus className="h-3.5 w-3.5" strokeWidth={1.5} />
-                New File
-              </Button>
-            )}
-          </div>
-        </div>
-
-        <div>
-          {tree.length === 0 ? (
-            <div className="p-5 text-xs text-[#8A8A8A]">Directory is empty.</div>
-          ) : (
-            tree.map((entry, idx) => {
-              const active = entry.type === 'file' && entry.path === selectedFile?.path;
-              return (
-                <button
-                  key={entry.path}
-                  type="button"
-                  onClick={() =>
-                    entry.type === 'dir' ? onNavigateDir(entry.path) : onOpenFile(entry.path)
-                  }
-                  className={`flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm transition-colors ${
-                    idx > 0 ? 'border-t border-[#30363D]' : ''
-                  } ${
-                    active
-                      ? 'border-l-2 border-l-[#22C55E] bg-[#21262D] text-[#E6EDF3]'
-                      : 'text-[#BDBDBD] hover:bg-[#21262D] hover:text-[#E6EDF3]'
-                  }`}
-                >
-                  <span className="flex min-w-0 items-center gap-2.5">
-                    {entry.type === 'dir' ? (
-                      <Folder className="h-4 w-4 shrink-0 text-[#22C55E]" strokeWidth={1.5} />
-                    ) : (
-                      <FileCode className="h-4 w-4 shrink-0 text-[#22C55E]" strokeWidth={1.5} />
-                    )}
-                    <span className="truncate font-mono text-xs">{entry.name}</span>
-                  </span>
-                  <span className="shrink-0 font-mono text-[11px] text-[#8A8A8A]">
-                    {entry.type === 'dir' ? 'dir' : `${entry.size} B`}
-                  </span>
-                </button>
-              );
-            })
-          )}
-        </div>
-      </div>
+    <div className="grid h-[calc(100vh-11.5rem)] min-h-[460px] grid-cols-1 gap-3 lg:grid-cols-12">
+      <GitCodeTree
+        useRecursiveMode={useRecursiveMode}
+        currentDir={currentDir}
+        lazyTree={tree}
+        rows={visibleRows}
+        filter={filter}
+        treeLoading={treeLoading}
+        activeFilePath={selectedFile?.path ?? null}
+        canWrite={canWrite}
+        onFilterChange={setFilter}
+        onToggleDir={handleToggleDir}
+        onCollapseAll={() => setExpandedDirs(new Set())}
+        onRefreshTree={() => void loadFullTree(true)}
+        onNavigateDir={onNavigateDir}
+        onOpenFile={handleOpenFile}
+        onPrefetchFile={(path) => {
+          if (enableFastTree && activeBranch) prefetchGitFile(scope, api, activeBranch, path);
+        }}
+        onNewFile={onNewFile}
+      />
 
       <GitFileViewerPane
         selectedFile={selectedFile}
+        openTabs={openTabs}
         fileLoading={fileLoading}
         canWrite={canWrite}
         canDelete={canDelete}
-        onEditFile={onEditFile}
-        onDeleteFile={onDeleteFile}
+        onSelectTab={(file) => onSelectCachedFile(file)}
+        onCloseTab={handleCloseTab}
+        onSaveInlineFile={async (file, content, commitMessage) => {
+          await onSaveInlineFile(file, content, commitMessage);
+          if (enableFastTree) void loadFullTree(true);
+        }}
+        onDeleteFile={async (file, commitMessage) => {
+          await onDeleteFile(file, commitMessage);
+          handleCloseTab(file.path);
+          if (enableFastTree) void loadFullTree(true);
+        }}
       />
     </div>
   );

@@ -66,7 +66,9 @@ describe('GitPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: /^Code$/i }));
     fireEvent.click(await screen.findByRole('button', { name: /src/i }));
     fireEvent.click(await screen.findByRole('button', { name: /app\.ts/i }));
-    expect(await screen.findByText(/export const version = 1;/)).toBeTruthy();
+    await waitFor(() => {
+      expect(document.body.textContent).toContain('export const version = 1;');
+    });
 
     fireEvent.click(screen.getByRole('button', { name: /New File/i }));
     fireEvent.change(screen.getByLabelText(/File Path/i), { target: { value: 'src/new.ts' } });
@@ -85,7 +87,9 @@ describe('GitPage', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: /Edit File/i }));
-    fireEvent.change(screen.getByLabelText(/Content/i), { target: { value: 'export const version = 2;' } });
+    fireEvent.change(screen.getByLabelText(/Inline commit message/i), {
+      target: { value: 'Update src/app.ts inline' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /Commit to GitHub/i }));
 
     await waitFor(() => {

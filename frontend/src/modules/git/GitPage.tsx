@@ -90,10 +90,9 @@ export function GitPage({ scope, scopeLabel, api }: GitPageProps) {
         branches={ws.branches}
         activeBranch={ws.activeBranch}
         syncingCommits={ws.syncingCommits}
-        onSelectBranch={ws.setActiveBranch}
         onOpenBranches={() => setShowBranches(true)}
         onPullCommits={() => void ws.pullCommitHistory()}
-        onOpenAccess={() => setShowAccess(true)}
+        onOpenSettings={() => setShowAccess(true)}
       />
 
       <GitTabBar
@@ -104,7 +103,7 @@ export function GitPage({ scope, scopeLabel, api }: GitPageProps) {
         onSelectTab={setTab}
       />
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+      <div className="no-scrollbar min-h-0 min-w-0 flex-1 space-y-4 overflow-x-hidden overflow-y-auto p-4">
         <GitStatusBanners
           error={ws.error}
           notice={ws.notice}
@@ -134,11 +133,14 @@ export function GitPage({ scope, scopeLabel, api }: GitPageProps) {
 
         {tab === 'code' && (
           <GitCodeView
+            scope={scope} api={ws.api} activeBranch={ws.activeBranch} enableFastTree={!api}
             currentDir={ws.currentDir} tree={ws.tree} selectedFile={ws.selectedFile}
             fileLoading={ws.fileLoading} canWrite={perms.canWrite} canDelete={perms.canDelete}
             onNavigateDir={(dir) => void ws.navigateDir(dir)} onOpenFile={(path) => void ws.openFile(path)}
-            onNewFile={() => setFileEditor({ mode: 'create' })}
-            onEditFile={(file) => setFileEditor({ mode: 'edit', file })}
+            onSelectCachedFile={ws.setSelectedFile} onNewFile={() => setFileEditor({ mode: 'create' })}
+            onSaveInlineFile={async (file, content, commitMessage) => {
+              await ws.saveFile({ branch: ws.activeBranch, path: file.path, content, commitMessage, sha: file.sha });
+            }}
             onDeleteFile={async (file, commitMessage) => {
               await ws.removeFile({ branch: ws.activeBranch, path: file.path, sha: file.sha, commitMessage });
             }}
@@ -180,8 +182,14 @@ export function GitPage({ scope, scopeLabel, api }: GitPageProps) {
         onCloseCreatePr={() => setShowCreatePr(false)} onCloseFileEditor={() => setFileEditor(null)}
         onCloseCommitModal={() => setCommitModal(EMPTY_COMMIT_MODAL)}
         onSelectBranch={ws.setActiveBranch} onAutoFetchToken={() => ws.api.fetchOAuthToken()}
-        onUpdateToken={ws.updateToken} onDisconnect={ws.disconnectRepo}
-        onCreateBranch={ws.createBranch} onDeleteBranch={ws.deleteBranch}
+        onInspectToken={(token) => ws.api.inspectToken(token)}
+        onUpdateToken={ws.updateToken} onSwitchRepo={ws.connectRepo} onDisconnect={ws.disconnectRepo}
+        onCreateBranch={ws.createBranch}
+        onRenameBranch={async (oldName, newName) => {
+          await ws.createBranch({ branchName: newName, sourceBranch: oldName });
+          await ws.deleteBranch(oldName);
+        }}
+        onDeleteBranch={ws.deleteBranch}
         onSaveFile={ws.saveFile} onCreatePr={ws.createPr}
       />
     </div>

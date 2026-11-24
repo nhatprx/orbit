@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Code2, GitBranch, GitCompare, GitPullRequest, Lock, Share2, User } from 'lucide-react';
+import { Code2, GitBranch, Share2, User } from 'lucide-react';
 import type { GitBranchDto, GitCommitDto } from '../../types/git.types';
+import { initialsOf } from '../../utils/format';
 import { formatGitTimestamp } from './gitFormat';
 import { computeGitGraphLayout } from './gitGraphLayout';
 import type { ShareToChatPayload } from './GitShareToChatModal';
@@ -9,6 +10,7 @@ interface GitBranchGraphProps {
   branches: GitBranchDto[];
   commits: GitCommitDto[];
   activeBranch: string;
+  avatarByAuthor?: Record<string, string>;
   canWrite?: boolean;
   onSelectBranch: (name: string) => void;
   onManageBranches: () => void;
@@ -20,43 +22,36 @@ interface GitBranchGraphProps {
   onViewAllCommits?: () => void;
 }
 
-const LANE_W = 14;
-const PAD_X = 10;
-const ROW_H = 28;
-const MID_Y = ROW_H / 2;
+const LANE_W = 12, PAD_X = 8, ROW_H = 26, MID_Y = 13;
 const laneX = (lane: number) => PAD_X + lane * LANE_W;
 const parseMergeBranch = (msg: string) => msg.match(/merge (?:branch|pull request #\d+ from)\s+['"]?([^'"\s]+)['"]?/i)?.[1] ?? null;
-const shortCommitLabel = (firstLine: string, max = 34) => {
+const shortCommitLabel = (firstLine: string, max = 26) => {
   const clean = firstLine.trim();
   return clean.length > max ? `${clean.slice(0, max - 3).trimEnd()}...` : clean;
 };
 
 export function GitBranchGraph({
-  branches, commits, activeBranch, canWrite = false,
-  onSelectBranch, onManageBranches, onCompareBranch, onQuickPr,
-  onInspectCommit, onShareToChat, onBrowseCode, onViewAllCommits,
+  branches, commits, activeBranch, avatarByAuthor = {},
+  onManageBranches, onInspectCommit, onShareToChat, onBrowseCode, onViewAllCommits,
 }: GitBranchGraphProps) {
   const [hovered, setHovered] = useState<{ commit: GitCommitDto; branchLabel: string } | null>(null);
-  const sortedBranches = useMemo(
-    () => [...branches].sort((a, b) => Number(b.isDefault) - Number(a.isDefault)),
-    [branches]
-  );
-  const defaultBranch = sortedBranches.find((b) => b.isDefault)?.name ?? sortedBranches[0]?.name ?? 'main';
+  const sortedBranches = useMemo(() => [...branches].sort((a, b) => Number(b.isDefault) - Number(a.isDefault)), [branches]);
   const branchBySha = useMemo(() => {
     const map = new Map<string, GitBranchDto[]>();
-    for (const b of sortedBranches) {
-      const list = map.get(b.sha) ?? [];
-      list.push(b);
-      map.set(b.sha, list);
-    }
+    for (const b of sortedBranches) { const list = map.get(b.sha) ?? []; list.push(b); map.set(b.sha, list); }
     return map;
   }, [sortedBranches]);
 
   const layout = useMemo(() => computeGitGraphLayout(commits), [commits]);
   const svgW = PAD_X * 2 + Math.max(1, layout.maxLanes) * LANE_W;
+  const resolveBranch = (commit: GitCommitDto) => {
+    const refs = branchBySha.get(commit.sha) ?? [];
+    return refs.length > 0 ? refs.map((r) => r.name).join(', ') : (parseMergeBranch(commit.message) ?? activeBranch);
+  };
+  const detail = hovered ?? (commits[0] ? { commit: commits[0], branchLabel: resolveBranch(commits[0]) } : null);
 
   return (
-    <section className="flex flex-col border border-[#30363D] bg-[#161B22]">
+    <section className="flex h-[calc(100vh-11.5rem)] min-w-0 flex-col overflow-hidden border border-[#30363D] bg-[#161B22]">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#30363D] px-3 py-2">
         <div className="flex items-center gap-1.5 text-xs font-semibold text-[#E6EDF3]">
           <GitBranch className="h-3.5 w-3.5 text-[#22C55E]" strokeWidth={1.5} />
@@ -78,56 +73,20 @@ export function GitBranchGraph({
         </div>
       </div>
 
-      {sortedBranches.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1 border-b border-[#21262D] bg-[#0D1117] px-2.5 py-1.5">
-          {sortedBranches.slice(0, 10).map((b) => {
-            const active = b.name === activeBranch;
-            return (
-              <div key={b.name} className={`inline-flex items-center border font-mono text-[10px] ${active ? 'border-[#22C55E] bg-[#052E16] text-[#4ADE80]' : 'border-[#30363D] bg-[#161B22] text-[#BDBDBD]'}`}>
-                <button type="button" onClick={() => onSelectBranch(b.name)} className="inline-flex items-center gap-1 px-1.5 py-0.5 hover:text-[#E6EDF3]">
-                  <span>{b.name}</span>
-                  {b.isProtected && <Lock className="h-2.5 w-2.5 text-[#EAB308]" strokeWidth={1.5} />}
-                </button>
-                {!b.isDefault && onCompareBranch && (
-                  <button type="button" title={`Compare ${defaultBranch}...${b.name}`} onClick={() => onCompareBranch(defaultBranch, b.name)} className="border-l border-[#30363D] px-1 py-0.5 text-[#8B949E] hover:text-[#4ADE80]">
-                    <GitCompare className="h-2.5 w-2.5" strokeWidth={1.5} />
-                  </button>
-                )}
-                {!b.isDefault && canWrite && onQuickPr && (
-                  <button type="button" title={`Create PR from ${b.name}`} onClick={() => onQuickPr(b.name)} className="border-l border-[#30363D] px-1 py-0.5 text-[#4ADE80] hover:bg-[#22C55E] hover:text-[#0D1117]">
-                    <GitPullRequest className="h-2.5 w-2.5" strokeWidth={1.5} />
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
       {commits.length === 0 ? (
         <p className="px-3 py-5 text-xs text-[#8A8A8A]">No commits synced yet on {activeBranch}.</p>
       ) : (
-        <div className="max-h-[calc(100vh-16.5rem)] overflow-y-auto" onMouseLeave={() => setHovered(null)}>
+        <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden" onMouseLeave={() => setHovered(null)}>
           {commits.map((commit, idx) => {
             const row = layout.rows[idx]!;
             const isHead = idx === 0;
             const refs = branchBySha.get(commit.sha) ?? [];
-            const branchLabel = refs.length > 0 ? refs.map((r) => r.name).join(', ') : (parseMergeBranch(commit.message) ?? activeBranch);
+            const branchLabel = resolveBranch(commit);
             const firstLine = commit.message.split('\n')[0] ?? commit.message;
             const cx = laneX(row.lane);
-
             return (
-              <div
-                key={commit.sha}
-                onMouseEnter={() => setHovered({ commit, branchLabel })}
-                className={`group flex h-7 items-center gap-1.5 pr-2 text-xs transition-colors hover:bg-[#0D1117] ${isHead ? 'bg-[#052E16]/35' : ''}`}
-              >
-                <button
-                  type="button"
-                  onClick={() => onInspectCommit(commit.sha)}
-                  title={`${firstLine}\nBranch: ${branchLabel} · Author: ${commit.authorName} · ${commit.sha.slice(0, 7)}`}
-                  className="flex h-full min-w-0 flex-1 items-center gap-1.5 text-left"
-                >
+              <div key={commit.sha} onMouseEnter={() => setHovered({ commit, branchLabel })} className={`group flex h-7 items-center gap-1.5 pr-2 text-xs transition-colors hover:bg-[#0D1117] ${isHead ? 'bg-[#052E16]/35' : ''}`}>
+                <button type="button" onClick={() => onInspectCommit(commit.sha)} title={`${firstLine}\nBranch: ${branchLabel} · Author: ${commit.authorName} · ${commit.sha.slice(0, 7)}`} className="flex h-full min-w-0 flex-1 items-center gap-1.5 text-left">
                   <svg width={svgW} height={ROW_H} viewBox={`0 0 ${svgW} ${ROW_H}`} className="shrink-0" aria-hidden="true">
                     {row.passThroughs.map((pt) => (
                       <line key={`pt-${pt.lane}`} x1={laneX(pt.lane)} y1={0} x2={laneX(pt.lane)} y2={ROW_H} stroke={pt.color} strokeWidth="1.5" />
@@ -151,7 +110,7 @@ export function GitBranchGraph({
                   </svg>
 
                   <span className={`min-w-0 flex-1 truncate ${isHead ? 'font-semibold text-[#E6EDF3]' : 'text-[#D0D7DE]'}`}>
-                    {shortCommitLabel(firstLine)}
+                    {shortCommitLabel(firstLine, 26)}
                   </span>
 
                   {refs.length > 0 && (
@@ -160,16 +119,20 @@ export function GitBranchGraph({
                     </span>
                   )}
 
-                  <span className="shrink-0 font-mono text-[10px] text-[#7D8590]">{commit.authorName}</span>
+                  {avatarByAuthor[commit.authorName.toLowerCase()] ? (
+                    <img src={avatarByAuthor[commit.authorName.toLowerCase()]} alt={commit.authorName} title={commit.authorName} className="h-4 w-4 shrink-0 border border-[#30363D] object-cover" />
+                  ) : (
+                    <span title={commit.authorName} className="flex h-4 w-4 shrink-0 items-center justify-center border border-[#30363D] bg-[#0D1117] font-mono text-[8px] font-semibold text-[#4ADE80]">
+                      {initialsOf(commit.authorName)}
+                    </span>
+                  )}
+                  <span className="shrink-0 border border-[#21262D] bg-[#0D1117] px-1 py-0.5 font-mono text-[10px] text-[#4ADE80]">
+                    {commit.sha.slice(0, 7)}
+                  </span>
                 </button>
 
                 {onShareToChat && (
-                  <button
-                    type="button"
-                    aria-label={`Share commit ${commit.sha.slice(0, 7)} to chat`}
-                    onClick={() => onShareToChat({ title: `Commit ${commit.sha.slice(0, 7)}`, body: `[Git Commit ${commit.sha.slice(0, 7)}] ${firstLine}\nBranch: ${branchLabel} · Author: ${commit.authorName}${commit.htmlUrl ? `\n${commit.htmlUrl}` : ''}` })}
-                    className="shrink-0 p-0.5 text-[#7D8590] opacity-0 transition-opacity group-hover:opacity-100 hover:text-[#4ADE80]"
-                  >
+                  <button type="button" aria-label={`Share commit ${commit.sha.slice(0, 7)} to chat`} onClick={() => onShareToChat({ title: `Commit ${commit.sha.slice(0, 7)}`, body: `[Git Commit ${commit.sha.slice(0, 7)}] ${firstLine}\nBranch: ${branchLabel} · Author: ${commit.authorName}${commit.htmlUrl ? `\n${commit.htmlUrl}` : ''}` })} className="shrink-0 p-0.5 text-[#7D8590] opacity-0 transition-opacity group-hover:opacity-100 hover:text-[#4ADE80]">
                     <Share2 className="h-3 w-3" strokeWidth={1.5} />
                   </button>
                 )}
@@ -179,17 +142,23 @@ export function GitBranchGraph({
         </div>
       )}
 
-      {hovered && (
-        <div className="border-t border-[#22C55E]/60 bg-[#0D1117] px-3 py-2 text-xs">
-          <p className="break-words font-medium text-[#E6EDF3]">{hovered.commit.message}</p>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10px] text-[#8B949E]">
-            <span className="inline-flex items-center gap-1 text-[#4ADE80]"><GitBranch className="h-3 w-3" strokeWidth={1.5} />{hovered.branchLabel}</span>
-            <span className="inline-flex items-center gap-1 text-[#E6EDF3]"><User className="h-3 w-3 text-[#8B949E]" strokeWidth={1.5} />{hovered.commit.authorName}</span>
-            <span>{hovered.commit.sha.slice(0, 7)}</span>
-            <span>{formatGitTimestamp(hovered.commit.committedAt, '')}</span>
-          </div>
-        </div>
-      )}
+      <div className="flex h-[52px] shrink-0 flex-col justify-between overflow-hidden border-t border-[#22C55E]/60 bg-[#0D1117] px-3 py-1.5 text-xs">
+        {detail ? (
+          <>
+            <p className="truncate font-medium leading-4 text-[#E6EDF3]" title={detail.commit.message}>
+              {detail.commit.message.split('\n')[0]}
+            </p>
+            <div className="flex items-center gap-3 overflow-hidden whitespace-nowrap font-mono text-[10px] text-[#8B949E]">
+              <span className="inline-flex shrink-0 items-center gap-1 text-[#4ADE80]"><GitBranch className="h-3 w-3" strokeWidth={1.5} />{detail.branchLabel}</span>
+              <span className="inline-flex min-w-0 items-center gap-1 truncate text-[#E6EDF3]"><User className="h-3 w-3 shrink-0 text-[#8B949E]" strokeWidth={1.5} />{detail.commit.authorName}</span>
+              <span className="shrink-0">{detail.commit.sha.slice(0, 7)}</span>
+              <span className="shrink-0">{formatGitTimestamp(detail.commit.committedAt, '')}</span>
+            </div>
+          </>
+        ) : (
+          <p className="text-[11px] text-[#6E7681]">No commit details available.</p>
+        )}
+      </div>
     </section>
   );
 }

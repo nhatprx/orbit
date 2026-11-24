@@ -5,14 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "predev": "npm run sync:excalidraw-fonts",
-    "prebuild": "npm run sync:excalidraw-fonts",
+    "predev": "npm run sync:excalidraw-fonts && npm run sync:material-icons",
+    "prebuild": "npm run sync:excalidraw-fonts && npm run sync:material-icons",
     "build": "tsc -b && node --max-old-space-size=4096 ./node_modules/vite/bin/vite.js build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "test": "vitest run",
     "ponytail": "node ../ponytail/check.mjs",
-    "sync:excalidraw-fonts": "node -e \"const fs=require('node:fs');const src='node_modules/@excalidraw/excalidraw/dist/prod/fonts';if(fs.existsSync(src)){fs.rmSync('public/fonts',{recursive:true,force:true});fs.mkdirSync('public',{recursive:true});fs.cpSync(src,'public/fonts',{recursive:true});}\""
+    "sync:excalidraw-fonts": "node -e \"const fs=require('node:fs');const src='node_modules/@excalidraw/excalidraw/dist/prod/fonts';if(fs.existsSync(src)){fs.rmSync('public/fonts',{recursive:true,force:true});fs.mkdirSync('public',{recursive:true});fs.cpSync(src,'public/fonts',{recursive:true});}\"",
+    "sync:material-icons": "node -e \"const fs=require('node:fs');const src='node_modules/material-icon-theme/icons';if(fs.existsSync(src)){fs.rmSync('public/material-icons',{recursive:true,force:true});fs.mkdirSync('public',{recursive:true});fs.cpSync(src,'public/material-icons',{recursive:true});}\""
   },
   "dependencies": {
     "@codemirror/lang-css": "^6.3.1",
@@ -37,6 +38,7 @@
     "dompurify": "^3.4.18",
     "lucide-react": "^0.475.0",
     "marked": "^18.2.1",
+    "material-icon-theme": "^5.40.0",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

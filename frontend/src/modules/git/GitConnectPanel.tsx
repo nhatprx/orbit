@@ -133,7 +133,7 @@ export function GitConnectPanel({
             <p className="text-xs text-[#8A8A8A]">
               {tokenInfo
                 ? 'Step 2 of 2: Select a repository to link or create a new one for this workspace.'
-                : 'Step 1 of 2: Connect GitHub or add a Personal Access Token first.'}
+                : 'Step 1 of 2: Login with GitHub to automatically fetch your repositories.'}
             </p>
           </div>
         </div>
@@ -155,12 +155,9 @@ export function GitConnectPanel({
       )}
 
       <GitTokenVerifyBox
-        token={token}
         verifying={verifying}
         autoFetching={autoFetching}
         tokenInfo={tokenInfo}
-        onChangeToken={setToken}
-        onVerify={() => { if (token.trim()) void verifyRawToken(token.trim()); }}
         onConnectGitHub={onAutoFetchToken ? () => void handleAutoFetch() : undefined}
         onResetToken={() => { setToken(''); setTokenInfo(null); setRepoOwner(''); setRepoName(''); }}
       />

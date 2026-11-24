@@ -10,6 +10,7 @@ import {
 } from '../../types/git.types';
 
 import { clearCachedGitWorkspace, getCachedGitWorkspace, setCachedGitWorkspace } from './gitWorkspaceCache';
+import { getCachedGitFile, invalidateGitCodeCache, loadGitFileCached } from './gitCodeCache';
 
 export type GitPrFilter = 'all' | 'open' | 'closed';
 const isAbort = (err: unknown) => err instanceof DOMException && err.name === 'AbortError';
@@ -80,27 +81,17 @@ export function useGitWorkspace(scope: GitScope, apiOverride?: GitApi) {
       await hydrateConnected(found, signal);
     } catch (err) {
       if (!isAbort(err)) setError(errorMessage(err, 'Failed to load Git repository.'));
-    } finally {
-      if (!signal?.aborted) setLoading(false);
-    }
+    } finally { if (!signal?.aborted) setLoading(false); }
   }, [api, hydrateConnected, resetConnected, scopeKey, useCache]);
-
   useEffect(() => {
     const controller = new AbortController();
     void reloadAll(controller.signal);
     return () => controller.abort();
   }, [reloadAll]);
-
   const runAction = useCallback(async <T,>(task: () => Promise<T>, fallback: string, okMsg?: string): Promise<T> => {
     setError(null); setNotice(null);
-    try {
-      const result = await task();
-      if (okMsg) setNotice(okMsg);
-      return result;
-    } catch (err) {
-      setError(errorMessage(err, fallback));
-      throw err;
-    }
+    try { const result = await task(); if (okMsg) setNotice(okMsg); return result; }
+    catch (err) { setError(errorMessage(err, fallback)); throw err; }
   }, []);
 
   const setActiveBranch = (branch: string) => {
@@ -122,12 +113,19 @@ export function useGitWorkspace(scope: GitScope, apiOverride?: GitApi) {
   };
   const openFile = async (filePath: string) => {
     if (!activeBranch) return;
+    const hit = useCache ? getCachedGitFile(scope, activeBranch, filePath) : null;
+    if (hit) { setSelectedFile(hit); return; }
     setFileLoading(true);
-    try { setSelectedFile(await runAction(() => api.getFile(activeBranch, filePath), 'Failed to load file.')); }
-    finally { setFileLoading(false); }
+    try {
+      setSelectedFile(await runAction(
+        () => (useCache ? loadGitFileCached(scope, api, activeBranch, filePath) : api.getFile(activeBranch, filePath)),
+        'Failed to load file.',
+      ));
+    } finally { setFileLoading(false); }
   };
   const connectRepo = (req: ConnectGitRepoRequest) => runAction(async () => {
-    const connected = await api.connectRepository(req); setRepo(connected); await hydrateConnected(connected); return connected;
+    const connected = await api.connectRepository(req); if (useCache) invalidateGitCodeCache(scope);
+    setRepo(connected); await hydrateConnected(connected); return connected;
   }, 'Failed to connect GitHub repository.', 'GitHub repository connected.');
   const createRepo = (req: CreateGitRepoRequest) => runAction(async () => {
     const created = await api.createRepository(req); setRepo(created); await hydrateConnected(created); return created;
@@ -136,24 +134,24 @@ export function useGitWorkspace(scope: GitScope, apiOverride?: GitApi) {
     const updated = await api.updateToken(token); setRepo(updated); return updated;
   }, 'Failed to update GitHub token.', 'GitHub token updated.');
   const disconnectRepo = () => runAction(async () => {
-    await api.disconnectRepository(); setRepo(null); resetConnected();
+    await api.disconnectRepository(); setRepo(null); resetConnected(); if (useCache) invalidateGitCodeCache(scope);
   }, 'Failed to disconnect repository.', 'Repository disconnected.');
   const createBranch = (req: CreateGitBranchRequest) => runAction(async () => {
     const created = await api.createBranch(req); setBranches(await api.listBranches());
     await switchToBranchRoot(created.name); return created;
   }, 'Failed to create branch.', `Branch ${req.branchName} created.`);
   const deleteBranch = (name: string) => runAction(async () => {
-    await api.deleteBranch(name);
+    await api.deleteBranch(name); if (useCache) invalidateGitCodeCache(scope, name);
     const branchList = await api.listBranches(); setBranches(branchList);
     if (activeBranch === name) await switchToBranchRoot(repo?.defaultBranch || branchList[0]?.name || 'main');
   }, 'Failed to delete branch.', `Branch ${name} deleted.`);
   const saveFile = (req: UpsertGitFileRequest) => runAction(async () => {
-    const result = await api.upsertFile(req);
+    const result = await api.upsertFile(req); if (useCache) invalidateGitCodeCache(scope, req.branch);
     if (result.file) setSelectedFile(result.file);
     await loadBranchData(req.branch, currentDir); return result;
   }, 'Failed to commit file to GitHub.', `Committed ${req.path} to ${req.branch}.`);
   const removeFile = (req: DeleteGitFileRequest) => runAction(async () => {
-    const result = await api.deleteFile(req);
+    const result = await api.deleteFile(req); if (useCache) invalidateGitCodeCache(scope, req.branch);
     if (selectedFile?.path === req.path) setSelectedFile(null);
     await loadBranchData(req.branch, currentDir); return result;
   }, 'Failed to delete file from GitHub.', `Deleted ${req.path} from ${req.branch}.`);
@@ -168,11 +166,9 @@ export function useGitWorkspace(scope: GitScope, apiOverride?: GitApi) {
       }, 'Failed to pull commit history from GitHub.', 'Commit history synced from GitHub.');
     } finally { setSyncingCommits(false); }
   };
-  const inspectCommit = (sha: string): Promise<GitCommitDetailDto> =>
-    runAction(() => api.getCommitDetail(sha), 'Failed to load commit diff.');
+  const inspectCommit = (sha: string): Promise<GitCommitDetailDto> => runAction(() => api.getCommitDetail(sha), 'Failed to load commit diff.');
   const createPr = (req: CreateGitPullRequest) => runAction(async () => {
-    const created = await api.createPullRequest(req);
-    setPullRequests(await api.listPullRequests(prFilterRef.current));
+    const created = await api.createPullRequest(req); setPullRequests(await api.listPullRequests(prFilterRef.current));
     setNotice(`Pull request #${created.number} created.`); return created;
   }, 'Failed to create pull request.');
   const mergePr = (pullNumber: number, body?: MergeGitPullRequest) => runAction(async () => {
@@ -186,7 +182,7 @@ export function useGitWorkspace(scope: GitScope, apiOverride?: GitApi) {
 
   return {
     api, repo, loading, error, notice, branches, activeBranch, currentDir, tree,
-    selectedFile, fileLoading, commits, syncingCommits, pullRequests, prFilter,
+    selectedFile, setSelectedFile, fileLoading, commits, syncingCommits, pullRequests, prFilter,
     setActiveBranch, setPrFilter, clearError: () => setError(null), clearNotice: () => setNotice(null),
     reloadAll, navigateDir, openFile, connectRepo, createRepo, updateToken, disconnectRepo,
     createBranch, deleteBranch, saveFile, removeFile, pullCommitHistory, inspectCommit, createPr, mergePr,

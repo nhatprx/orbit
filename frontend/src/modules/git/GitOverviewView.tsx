@@ -4,6 +4,7 @@ import type { GitCollaboratorDto, GitRepoStatsDto, GitWorkflowRunDto } from '../
 import type { GitBranchDto, GitCommitDto, GitPullRequestDto } from '../../types/git.types';
 import { renderRunStatus } from './GitActionsView';
 import { GitBranchGraph } from './GitBranchGraph';
+import { GitContributorsChart } from './GitContributorsChart';
 import type { ShareToChatPayload } from './GitShareToChatModal';
 import type { GitTab } from './GitWorkspaceChrome';
 
@@ -32,13 +33,15 @@ export function GitOverviewView({
 }: GitOverviewViewProps) {
   const openPrs = pullRequests.filter((p) => p.status === 'open');
   const contributors = stats?.topContributors ?? [];
-  const maxContrib = Math.max(1, ...contributors.map((c) => c.contributions));
+  const avatarByAuthor: Record<string, string> = {};
+  for (const col of collaborators) { if (col.avatarUrl) avatarByAuthor[col.login.toLowerCase()] = col.avatarUrl; }
+  for (const ct of contributors) { if (ct.avatarUrl) avatarByAuthor[ct.login.toLowerCase()] = ct.avatarUrl; }
 
   return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-      <div className="xl:col-span-4">
+    <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-12">
+      <div className="min-w-0 xl:col-span-4">
         <GitBranchGraph
-          branches={branches} commits={commits} activeBranch={activeBranch} canWrite={canWrite}
+          branches={branches} commits={commits} activeBranch={activeBranch} avatarByAuthor={avatarByAuthor} canWrite={canWrite}
           onSelectBranch={onSelectBranch} onManageBranches={onManageBranches}
           onCompareBranch={onCompareBranch} onQuickPr={onQuickPr}
           onInspectCommit={onInspectCommit} onShareToChat={onShareToChat}
@@ -46,7 +49,7 @@ export function GitOverviewView({
         />
       </div>
 
-      <div className="space-y-4 xl:col-span-8">
+      <div className="min-w-0 space-y-4 xl:col-span-8">
         <section className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
           <div className="border border-[#30363D] bg-[#161B22] p-3">
             <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase text-[#8A8A8A]"><Eye className="h-3 w-3 text-[#22C55E]" />Views (14d)</div>
@@ -106,69 +109,60 @@ export function GitOverviewView({
           </div>
         </section>
 
-        <section className="border border-[#30363D] bg-[#161B22]">
-          <div className="flex items-center justify-between border-b border-[#30363D] px-4 py-2.5">
-            <div className="flex items-center gap-2 text-xs font-semibold text-[#E6EDF3]">
-              <Users className="h-3.5 w-3.5 text-[#22C55E]" strokeWidth={1.5} />
-              <span>Collaboration &amp; Contributors</span>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <section className="flex flex-col border border-[#30363D] bg-[#161B22]">
+            <div className="flex items-center justify-between border-b border-[#30363D] px-4 py-2.5">
+              <div className="flex items-center gap-2 text-xs font-semibold text-[#E6EDF3]">
+                <Users className="h-3.5 w-3.5 text-[#22C55E]" strokeWidth={1.5} />
+                <span>Collaborators ({collaborators.length})</span>
+              </div>
+              <button type="button" onClick={() => onSwitchTab('prs')} className="font-mono text-[11px] text-[#22C55E] hover:underline">
+                Open PRs ({openPrs.length})
+              </button>
             </div>
-            <button type="button" onClick={() => onSwitchTab('prs')} className="font-mono text-[11px] text-[#22C55E] hover:underline">
-              Open PRs ({openPrs.length})
-            </button>
-          </div>
-          <div className="grid grid-cols-1 gap-4 p-3.5 md:grid-cols-2">
-            <div className="space-y-2">
-              <p className="font-mono text-[10px] uppercase text-[#8A8A8A]">Collaborators ({collaborators.length})</p>
+            <div className="no-scrollbar max-h-60 divide-y divide-[#21262D] overflow-y-auto">
               {collaborators.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {collaborators.slice(0, 10).map((col) => (
-                    <a key={col.login} href={col.htmlUrl || undefined} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 border border-[#30363D] bg-[#0D1117] px-2 py-1 text-xs hover:border-[#22C55E]">
+                collaborators.slice(0, 12).map((col) => (
+                  <a
+                    key={col.login}
+                    href={col.htmlUrl || undefined}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center justify-between gap-2 px-4 py-2 text-xs transition-colors hover:bg-[#0D1117]"
+                  >
+                    <span className="flex min-w-0 items-center gap-2.5">
                       <UserAvatar name={col.login} avatarUrl={col.avatarUrl} />
-                      <span className="font-mono text-[#E6EDF3]">@{col.login}</span>
-                      <span className="border border-[#21262D] bg-[#161B22] px-1 py-0.5 font-mono text-[9px] text-[#8A8A8A]">{col.roleName}</span>
-                    </a>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-[#8A8A8A]">No collaborators returned.</p>
-              )}
-              {openPrs.length > 0 && (
-                <div className="border-t border-[#21262D] pt-2">
-                  {openPrs.slice(0, 3).map((pr) => (
-                    <button key={pr.number} type="button" onClick={() => onInspectPr?.(pr.number)} className="flex w-full items-center justify-between gap-2 py-1 text-left text-xs hover:text-[#4ADE80]">
-                      <span className="flex min-w-0 items-center gap-1.5 truncate text-[#E6EDF3]">
-                        <GitPullRequest className="h-3.5 w-3.5 shrink-0 text-[#22C55E]" strokeWidth={1.5} />
-                        <span className="truncate">#{pr.number} {pr.title}</span>
+                      <span className="truncate font-mono text-[#E6EDF3]">@{col.login}</span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-2">
+                      <span className="border border-[#30363D] bg-[#0D1117] px-1.5 py-0.5 font-mono text-[10px] uppercase text-[#8A8A8A]">
+                        {col.roleName}
                       </span>
-                      <span className="shrink-0 font-mono text-[10px] text-[#8A8A8A]">{pr.sourceBranch}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <p className="font-mono text-[10px] uppercase text-[#8A8A8A]">Top Contributors</p>
-              {contributors.length > 0 ? (
-                <div className="space-y-1.5">
-                  {contributors.slice(0, 6).map((ct) => (
-                    <div key={ct.login} className="space-y-1">
-                      <div className="flex items-center justify-between font-mono text-[11px]">
-                        <span className="truncate text-[#E6EDF3]">@{ct.login}</span>
-                        <span className="text-[#4ADE80]">{ct.contributions} commits</span>
-                      </div>
-                      <div className="h-1.5 w-full bg-[#0D1117]">
-                        <div className="h-full bg-[#22C55E]" style={{ width: `${Math.max(6, Math.round((ct.contributions / maxContrib) * 100))}%` }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                      <ExternalLink className="h-3 w-3 text-[#6E7681]" strokeWidth={1.5} />
+                    </span>
+                  </a>
+                ))
               ) : (
-                <p className="text-xs text-[#8A8A8A]">No contributor statistics available.</p>
+                <p className="px-4 py-6 text-xs text-[#8A8A8A]">No collaborators returned.</p>
               )}
             </div>
-          </div>
-        </section>
+            {openPrs.length > 0 && (
+              <div className="border-t border-[#30363D] bg-[#0D1117] px-4 py-2">
+                {openPrs.slice(0, 3).map((pr) => (
+                  <button key={pr.number} type="button" onClick={() => onInspectPr?.(pr.number)} className="flex w-full items-center justify-between gap-2 py-1 text-left text-xs hover:text-[#4ADE80]">
+                    <span className="flex min-w-0 items-center gap-1.5 truncate text-[#E6EDF3]">
+                      <GitPullRequest className="h-3.5 w-3.5 shrink-0 text-[#22C55E]" strokeWidth={1.5} />
+                      <span className="truncate">#{pr.number} {pr.title}</span>
+                    </span>
+                    <span className="shrink-0 font-mono text-[10px] text-[#8A8A8A]">{pr.sourceBranch}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <GitContributorsChart contributors={contributors} />
+        </div>
       </div>
     </div>
   );

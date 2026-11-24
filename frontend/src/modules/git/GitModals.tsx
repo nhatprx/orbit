@@ -1,10 +1,12 @@
 import type {
+  ConnectGitRepoRequest,
   CreateGitBranchRequest,
   CreateGitPullRequest,
   GitBranchDto,
   GitCommitDetailDto,
   GitFileContentDto,
   GitRepositoryDto,
+  InspectGitTokenResponse,
   UpsertGitFileRequest,
 } from '../../types/git.types';
 import { GitAccessModal } from './GitAccessModal';
@@ -33,40 +35,23 @@ interface GitModalsProps {
   onCloseCommitModal: () => void;
   onSelectBranch: (branch: string) => void;
   onAutoFetchToken?: () => Promise<string>;
+  onInspectToken: (token: string) => Promise<InspectGitTokenResponse>;
   onUpdateToken: (token: string) => Promise<unknown>;
+  onSwitchRepo: (req: ConnectGitRepoRequest) => Promise<unknown>;
   onDisconnect: () => Promise<unknown>;
   onCreateBranch: (req: CreateGitBranchRequest) => Promise<unknown>;
+  onRenameBranch: (oldName: string, newName: string) => Promise<unknown>;
   onDeleteBranch: (name: string) => Promise<unknown>;
   onSaveFile: (req: UpsertGitFileRequest) => Promise<unknown>;
   onCreatePr: (req: CreateGitPullRequest) => Promise<unknown>;
 }
 
 export function GitModals({
-  repo,
-  branches,
-  activeBranch,
-  currentDir,
-  canWrite,
-  canDelete,
-  canManage,
-  showAccess,
-  showBranches,
-  showCreatePr,
-  fileEditor,
-  commitModal,
-  onCloseAccess,
-  onCloseBranches,
-  onCloseCreatePr,
-  onCloseFileEditor,
-  onCloseCommitModal,
-  onSelectBranch,
-  onAutoFetchToken,
-  onUpdateToken,
-  onDisconnect,
-  onCreateBranch,
-  onDeleteBranch,
-  onSaveFile,
-  onCreatePr,
+  repo, branches, activeBranch, currentDir, canWrite, canDelete, canManage,
+  showAccess, showBranches, showCreatePr, fileEditor, commitModal,
+  onCloseAccess, onCloseBranches, onCloseCreatePr, onCloseFileEditor, onCloseCommitModal,
+  onSelectBranch, onAutoFetchToken, onInspectToken, onUpdateToken, onSwitchRepo, onDisconnect,
+  onCreateBranch, onRenameBranch, onDeleteBranch, onSaveFile, onCreatePr,
 }: GitModalsProps) {
   return (
     <>
@@ -76,12 +61,10 @@ export function GitModals({
           canManage={canManage}
           onClose={onCloseAccess}
           onAutoFetchToken={onAutoFetchToken}
-          onUpdateToken={async (token) => {
-            await onUpdateToken(token);
-          }}
-          onDisconnect={async () => {
-            await onDisconnect();
-          }}
+          onInspectToken={onInspectToken}
+          onUpdateToken={async (token) => { await onUpdateToken(token); }}
+          onSwitchRepo={async (req) => { await onSwitchRepo(req); }}
+          onDisconnect={async () => { await onDisconnect(); }}
         />
       )}
 
@@ -93,12 +76,9 @@ export function GitModals({
           canDelete={canDelete}
           onClose={onCloseBranches}
           onSelectBranch={onSelectBranch}
-          onCreateBranch={async (req) => {
-            await onCreateBranch(req);
-          }}
-          onDeleteBranch={async (name) => {
-            await onDeleteBranch(name);
-          }}
+          onCreateBranch={async (req) => { await onCreateBranch(req); }}
+          onRenameBranch={async (oldName, newName) => { await onRenameBranch(oldName, newName); }}
+          onDeleteBranch={async (name) => { await onDeleteBranch(name); }}
         />
       )}
 

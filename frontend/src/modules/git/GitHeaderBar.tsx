@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Copy, ExternalLink, GitBranch, KeyRound, RefreshCw } from 'lucide-react';
+import { Check, ChevronDown, Copy, ExternalLink, GitBranch, RefreshCw, Settings } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import type { GitBranchDto, GitRepositoryDto } from '../../types/git.types';
 import { formatGitTimestamp } from './gitFormat';
@@ -10,23 +10,22 @@ interface GitHeaderBarProps {
   branches: GitBranchDto[];
   activeBranch: string;
   syncingCommits: boolean;
-  onSelectBranch: (branch: string) => void;
   onOpenBranches: () => void;
   onPullCommits: () => void;
-  onOpenAccess: () => void;
+  onOpenSettings: () => void;
 }
 
-const BTN = 'inline-flex h-7 items-center gap-1.5 border border-[#30363D] bg-[#0D1117] px-2.5 text-xs font-medium text-[#BDBDBD] transition-colors hover:border-[#22C55E] hover:text-[#E6EDF3] disabled:opacity-50';
+const BTN =
+  'inline-flex h-7 items-center gap-1.5 border border-[#30363D] bg-[#0D1117] px-2.5 text-xs font-medium text-[#BDBDBD] transition-colors hover:border-[#22C55E] hover:text-[#E6EDF3] disabled:opacity-50';
 
 export function GitHeaderBar({
   repo,
   branches,
   activeBranch,
   syncingCommits,
-  onSelectBranch,
   onOpenBranches,
   onPullCommits,
-  onOpenAccess,
+  onOpenSettings,
 }: GitHeaderBarProps) {
   const [copiedClone, setCopiedClone] = useState(false);
 
@@ -36,8 +35,7 @@ export function GitHeaderBar({
     setTimeout(() => setCopiedClone(false), 1500);
   }
 
-  const branchNames =
-    branches.length > 0 ? branches.map((b) => b.name) : [activeBranch || repo.defaultBranch];
+  const branchLabel = activeBranch || repo.defaultBranch || 'main';
 
   return (
     <header className="flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-[#30363D] bg-[#161B22] px-4 py-2">
@@ -51,23 +49,20 @@ export function GitHeaderBar({
           <span className="truncate">{repo.slug}</span>
           <ExternalLink className="h-3 w-3 shrink-0 text-[#8A8A8A]" strokeWidth={1.5} />
         </a>
+
         <Badge tone="neutral">{repo.visibility.toLowerCase()}</Badge>
 
-        <div className="ml-1 flex h-7 items-center border border-[#30363D] bg-[#0D1117] px-2">
+        <button
+          type="button"
+          aria-label="Branches"
+          onClick={onOpenBranches}
+          className="inline-flex h-7 items-center gap-1.5 border border-[#30363D] bg-[#0D1117] px-2.5 font-mono text-xs text-[#E6EDF3] transition-colors hover:border-[#22C55E]"
+        >
           <GitBranch className="h-3.5 w-3.5 text-[#22C55E]" strokeWidth={1.5} />
-          <select
-            aria-label="Active branch"
-            value={activeBranch}
-            onChange={(e) => onSelectBranch(e.target.value)}
-            className="h-full bg-transparent px-1.5 font-mono text-xs text-[#E6EDF3] focus:outline-none"
-          >
-            {branchNames.map((name) => (
-              <option key={name} value={name} className="bg-[#161B22]">
-                {name}
-              </option>
-            ))}
-          </select>
-        </div>
+          <span className="max-w-[140px] truncate">{branchLabel}</span>
+          <span className="text-[10px] text-[#8A8A8A]">({branches.length || 1})</span>
+          <ChevronDown className="h-3.5 w-3.5 text-[#8A8A8A]" strokeWidth={1.5} />
+        </button>
 
         {repo.lastSyncedAt && (
           <span className="hidden font-mono text-[11px] text-[#8A8A8A] xl:inline">
@@ -80,11 +75,6 @@ export function GitHeaderBar({
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
-        <button type="button" onClick={onOpenBranches} className={BTN}>
-          <GitBranch className="h-3.5 w-3.5" strokeWidth={1.5} />
-          <span>Branches</span>
-        </button>
-
         <button
           type="button"
           disabled={syncingCommits}
@@ -98,9 +88,9 @@ export function GitHeaderBar({
           <span>{syncingCommits ? 'Pulling...' : 'Pull Commits'}</span>
         </button>
 
-        <button type="button" onClick={onOpenAccess} className={BTN}>
-          <KeyRound className="h-3.5 w-3.5" strokeWidth={1.5} />
-          <span>GitHub Access</span>
+        <button type="button" onClick={onOpenSettings} className={BTN}>
+          <Settings className="h-3.5 w-3.5" strokeWidth={1.5} />
+          <span>Settings</span>
         </button>
 
         <button

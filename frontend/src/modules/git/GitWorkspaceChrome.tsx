@@ -92,7 +92,7 @@ export function GitTabBar({ tab, commitsCount, actionsCount, prsCount, onSelectT
   ];
 
   return (
-    <div className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-[#30363D] bg-[#0D1117] px-4">
+    <div className="no-scrollbar flex shrink-0 items-center gap-1 overflow-x-auto border-b border-[#30363D] bg-[#0D1117] px-4">
       {tabs.map(({ id, label, icon: Icon }) => (
         <button
           key={id}
