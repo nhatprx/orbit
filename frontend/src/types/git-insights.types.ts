@@ -1,5 +1,29 @@
 import type { GitCommitDto, GitCommitFileDiffDto, GitPullRequestDto } from './git.types';
 
+export type GitOAuthScopeMode = 'all' | 'public' | 'selected';
+
+export interface GitOAuthCapabilitiesDto {
+  oauthConfigured: boolean;
+  githubAppConfigured: boolean;
+  githubAppSlug: string;
+}
+
+export interface GitWorkspaceMemberCandidateDto {
+  userId: string;
+  displayName: string;
+  email: string;
+  avatarUrl: string | null;
+  githubLinked: boolean;
+  githubUsername: string | null;
+  alreadyCollaborator: boolean;
+}
+
+export interface InviteGitCollaboratorResultDto {
+  githubUsername: string;
+  permission: string;
+  status: 'INVITED' | 'ALREADY_COLLABORATOR';
+}
+
 export interface GitWorkflowRunDto {
   id: number;
   name: string;

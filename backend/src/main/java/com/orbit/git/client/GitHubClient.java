@@ -1,6 +1,7 @@
 package com.orbit.git.client;
 
 import com.orbit.git.dto.CreateGitPullRequest;
+import com.orbit.git.dto.CreateGitRepoRequest;
 import com.orbit.git.dto.DeleteGitFileRequest;
 import com.orbit.git.dto.GitBranchDto;
 import com.orbit.git.dto.GitCommitDetailDto;
@@ -23,6 +24,10 @@ public interface GitHubClient {
     GitHubRemoteRepoDto getRepository(String token, String owner, String repo);
 
     GitHubRemoteRepoDto createRepository(String token, String name, String description, boolean privateRepo);
+
+    default GitHubRemoteRepoDto createRepository(String token, CreateGitRepoRequest req) {
+        return createRepository(token, req.repoName().trim(), req.description(), req.privateRepo());
+    }
 
     List<GitBranchDto> listBranches(String token, String owner, String repo, String defaultBranch);
 

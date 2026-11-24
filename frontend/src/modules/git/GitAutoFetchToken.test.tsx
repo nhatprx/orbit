@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { GitCollaboratorInviteCard } from './GitCollaboratorInviteCard';
 import { GitPage } from './GitPage';
+import { setCachedGitOAuthSession } from './gitWorkspaceCache';
 import {
   createMockGitApi,
   FULL_SCOPE,
@@ -11,6 +13,7 @@ import {
 
 afterEach(() => {
   cleanup();
+  setCachedGitOAuthSession(null);
 });
 
 describe('Git OAuth-only flow & Repository Settings modal', () => {
@@ -76,7 +79,16 @@ describe('Git OAuth-only flow & Repository Settings modal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Login with GitHub/i }));
     const select = await screen.findByLabelText(/Target Repository/i);
-    fireEvent.change(select, { target: { value: 'octocat/orbit-next' } });
+    expect(screen.getByText(/^Connected$/i)).toBeTruthy();
+
+    // Close and reopen Settings modal: OAuth connected state must persist
+    fireEvent.click(screen.getByLabelText(/Close modal/i));
+    fireEvent.click(screen.getByRole('button', { name: /^Settings$/i }));
+    const reopenedSelect = await screen.findByLabelText(/Target Repository/i);
+    expect(screen.getByText(/Signed in as @octocat/i)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Login with GitHub$/i })).toBeNull();
+    fireEvent.change(reopenedSelect, { target: { value: 'octocat/orbit-next' } });
+    expect(select).toBeTruthy();
 
     expect(await screen.findByText(/Warning: Switching Repository/i)).toBeTruthy();
     expect(api.connectRepository).not.toHaveBeenCalled();
@@ -111,5 +123,40 @@ describe('Git OAuth-only flow & Repository Settings modal', () => {
     fireEvent.click(await screen.findByRole('button', { name: /^Settings$/i }));
     expect(await screen.findByText(/Only managers can switch repositories/i)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Login with GitHub/i })).toBeNull();
+  });
+
+  it('renders linked workspace members as invitable and unlinked members as disabled', () => {
+    render(
+      <GitCollaboratorInviteCard
+        scope={FULL_SCOPE}
+        enableRemoteFetch={false}
+        initialCandidates={[
+          {
+            userId: 'u-1',
+            displayName: 'Alice Dev',
+            email: 'alice@orbit.dev',
+            avatarUrl: null,
+            githubLinked: true,
+            githubUsername: 'alice-gh',
+            alreadyCollaborator: false,
+          },
+          {
+            userId: 'u-2',
+            displayName: 'Bob NoGH',
+            email: 'bob@orbit.dev',
+            avatarUrl: null,
+            githubLinked: false,
+            githubUsername: null,
+            alreadyCollaborator: false,
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText('@alice-gh')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Invite$/i })).toBeTruthy();
+    expect(screen.getByText('Bob NoGH')).toBeTruthy();
+    expect(screen.getByText(/GitHub not linked/i)).toBeTruthy();
+    expect(screen.getByText(/Unavailable/i)).toBeTruthy();
   });
 });

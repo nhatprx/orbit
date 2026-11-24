@@ -44,6 +44,11 @@ public class GitRepositoryService {
         return gitHub.inspectToken(token);
     }
 
+    public InspectGitTokenResponse inspectConnectedAccount(GitScope scope) {
+        GitRepositoryEntity entity = requireEntity(scope);
+        return gitHub.inspectToken(decryptToken(entity));
+    }
+
     public GitRepositoryDto getRepository(GitScope scope) {
         return toDto(requireEntity(scope));
     }
@@ -53,7 +58,14 @@ public class GitRepositoryService {
         if (req == null) {
             throw ApiException.badRequest("INVALID_GIT_INPUT", "Request body is required.");
         }
-        String token = requireNonBlank(req.accessToken(), "accessToken");
+        String token;
+        if (req.accessToken() != null && !req.accessToken().isBlank()) {
+            token = req.accessToken().trim();
+        } else {
+            token = repoJpa.findByScopeTypeAndScopeId(scope.type(), scope.scopeId())
+                .map(this::decryptToken)
+                .orElseThrow(() -> ApiException.badRequest("INVALID_GIT_INPUT", "accessToken is required."));
+        }
         String owner = requireNonBlank(req.repoOwner(), "repoOwner");
         String name = requireNonBlank(req.repoName(), "repoName");
         GitHubRemoteRepoDto remote = gitHub.getRepository(token, owner, name);
@@ -70,7 +82,12 @@ public class GitRepositoryService {
         }
         String token = requireNonBlank(req.accessToken(), "accessToken");
         String name = requireNonBlank(req.repoName(), "repoName");
-        GitHubRemoteRepoDto remote = gitHub.createRepository(token, name, req.description(), req.privateRepo());
+        boolean hasCustomInit = Boolean.FALSE.equals(req.autoInit())
+            || (req.gitignoreTemplate() != null && !req.gitignoreTemplate().isBlank())
+            || (req.licenseTemplate() != null && !req.licenseTemplate().isBlank());
+        GitHubRemoteRepoDto remote = hasCustomInit
+            ? gitHub.createRepository(token, req)
+            : gitHub.createRepository(token, name, req.description(), req.privateRepo());
         return toDto(saveConnection(scope, userId, remote, remote.defaultBranch(), token));
     }
 

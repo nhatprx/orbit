@@ -5,9 +5,11 @@ import com.orbit.git.dto.GitCollaboratorDto;
 import com.orbit.git.dto.GitRepoStatsDto;
 import com.orbit.git.dto.GitTreeEntryDto;
 import com.orbit.git.dto.GitWorkflowRunDto;
+import com.orbit.git.dto.InspectGitTokenResponse;
 import com.orbit.git.service.GitAccessGuard;
 import com.orbit.git.service.GitContentService;
 import com.orbit.git.service.GitInsightsService;
+import com.orbit.git.service.GitRepositoryService;
 import com.orbit.workspace.permission.Permissions;
 import java.util.List;
 import java.util.UUID;
@@ -18,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Exposes GitHub Actions CI/CD runs, collaborators, repo stats, and fast recursive trees. */
+/** Exposes GitHub Actions CI/CD runs, collaborators, repo stats, account info, and fast recursive trees. */
 @RestController
 @RequestMapping("/api/v1/workspaces/{workspaceId}")
 public class GitInsightsController {
@@ -26,11 +28,15 @@ public class GitInsightsController {
     private final GitAccessGuard guard;
     private final GitInsightsService insights;
     private final GitContentService content;
+    private final GitRepositoryService repoService;
 
-    public GitInsightsController(GitAccessGuard guard, GitInsightsService insights, GitContentService content) {
+    public GitInsightsController(
+        GitAccessGuard guard, GitInsightsService insights, GitContentService content, GitRepositoryService repoService
+    ) {
         this.guard = guard;
         this.insights = insights;
         this.content = content;
+        this.repoService = repoService;
     }
 
     @GetMapping("/git/actions")
@@ -115,6 +121,27 @@ public class GitInsightsController {
         return content.listFullTree(
             guard.requireProjectScope(principal.userId(), workspaceId, projectId, Permissions.PGIT_READ),
             branch
+        );
+    }
+
+    @GetMapping("/git/account")
+    public InspectGitTokenResponse workspaceConnectedAccount(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+        @PathVariable UUID workspaceId
+    ) {
+        return repoService.inspectConnectedAccount(
+            guard.requireWorkspaceScope(principal.userId(), workspaceId, Permissions.GIT_MANAGE)
+        );
+    }
+
+    @GetMapping("/projects/{projectId}/git/account")
+    public InspectGitTokenResponse projectConnectedAccount(
+        @AuthenticationPrincipal AuthenticatedUserPrincipal principal,
+        @PathVariable UUID workspaceId,
+        @PathVariable UUID projectId
+    ) {
+        return repoService.inspectConnectedAccount(
+            guard.requireProjectScope(principal.userId(), workspaceId, projectId, Permissions.PGIT_MANAGE)
         );
     }
 }

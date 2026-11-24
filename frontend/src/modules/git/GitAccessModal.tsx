@@ -1,15 +1,17 @@
-import { useState } from 'react';
-import { AlertTriangle, ExternalLink, Github, RefreshCw, Settings, Unplug, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AlertTriangle, CheckCircle2, ExternalLink, Github, RefreshCw, Settings, Unplug, X } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import type { ConnectGitRepoRequest, GitRepositoryDto, InspectGitTokenResponse } from '../../types/git.types';
 import { formatGitTimestamp } from './gitFormat';
+import { getCachedGitOAuthSession, setCachedGitOAuthSession } from './gitWorkspaceCache';
 
 interface GitAccessModalProps {
   repo: GitRepositoryDto;
   canManage: boolean;
   onClose: () => void;
   onAutoFetchToken?: () => Promise<string>;
+  onLoadConnectedAccount?: () => Promise<InspectGitTokenResponse>;
   onInspectToken: (accessToken: string) => Promise<InspectGitTokenResponse>;
   onUpdateToken: (accessToken: string) => Promise<void>;
   onSwitchRepo: (req: ConnectGitRepoRequest) => Promise<void>;
@@ -17,19 +19,32 @@ interface GitAccessModalProps {
 }
 
 export function GitAccessModal({
-  repo, canManage, onClose, onAutoFetchToken, onInspectToken, onUpdateToken, onSwitchRepo, onDisconnect,
+  repo, canManage, onClose, onAutoFetchToken, onLoadConnectedAccount, onInspectToken, onUpdateToken, onSwitchRepo, onDisconnect,
 }: GitAccessModalProps) {
-  const [fetchedToken, setFetchedToken] = useState<string | null>(null);
-  const [tokenInfo, setTokenInfo] = useState<InspectGitTokenResponse | null>(null);
+  const initialSession = getCachedGitOAuthSession();
+  const [fetchedToken, setFetchedToken] = useState<string | null>(initialSession?.token ?? null);
+  const [tokenInfo, setTokenInfo] = useState<InspectGitTokenResponse | null>(initialSession?.info ?? null);
+  const [loadingAccount, setLoadingAccount] = useState(Boolean(canManage && !initialSession && onLoadConnectedAccount));
   const [selectedSlug, setSelectedSlug] = useState(repo.slug);
   const [saving, setSaving] = useState(false);
   const [autoFetching, setAutoFetching] = useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!canManage || tokenInfo || !onLoadConnectedAccount) return;
+    let active = true;
+    setLoadingAccount(true);
+    onLoadConnectedAccount()
+      .then((info) => { if (!active) return; setTokenInfo(info); setCachedGitOAuthSession({ token: '', info }); })
+      .catch(() => {})
+      .finally(() => { if (active) setLoadingAccount(false); });
+    return () => { active = false; };
+  }, [canManage, onLoadConnectedAccount, tokenInfo]);
+
   const selectedRemote = tokenInfo?.repositories.find((r) => r.fullName === selectedSlug) ?? null;
   const isSwitchingRepo = Boolean(selectedRemote && selectedRemote.fullName.toLowerCase() !== repo.slug.toLowerCase());
-  const busy = saving || autoFetching;
+  const busy = saving || autoFetching || loadingAccount;
   const ownerUrl = `https://github.com/${encodeURIComponent(repo.repoOwner)}`;
 
   async function handleLoginGitHub() {
@@ -38,6 +53,7 @@ export function GitAccessModal({
     try {
       const token = (await onAutoFetchToken()).trim();
       const info = await onInspectToken(token);
+      setCachedGitOAuthSession({ token, info });
       setFetchedToken(token); setTokenInfo(info); setSelectedSlug(repo.slug);
     } catch (err) { setLocalError(err instanceof Error ? err.message : 'Failed to authorize with GitHub'); }
     finally { setAutoFetching(false); }
@@ -52,13 +68,10 @@ export function GitAccessModal({
   }
 
   async function handleConfirmSwitch() {
-    if (!fetchedToken || !selectedRemote) return;
+    if (!selectedRemote) return;
     setSaving(true); setLocalError(null);
     try {
-      await onSwitchRepo({
-        accessToken: fetchedToken, repoOwner: selectedRemote.owner,
-        repoName: selectedRemote.name, defaultBranch: selectedRemote.defaultBranch || 'main',
-      });
+      await onSwitchRepo({ accessToken: fetchedToken ?? '', repoOwner: selectedRemote.owner, repoName: selectedRemote.name, defaultBranch: selectedRemote.defaultBranch || 'main' });
       onClose();
     } catch (err) { setLocalError(err instanceof Error ? err.message : 'Failed to switch repository'); }
     finally { setSaving(false); }
@@ -66,7 +79,7 @@ export function GitAccessModal({
 
   async function handleDisconnect() {
     setSaving(true); setLocalError(null);
-    try { await onDisconnect(); onClose(); }
+    try { await onDisconnect(); setCachedGitOAuthSession(null); onClose(); }
     catch (err) { setLocalError(err instanceof Error ? err.message : 'Failed to disconnect repository'); }
     finally { setSaving(false); }
   }
@@ -87,27 +100,21 @@ export function GitAccessModal({
         <div className="space-y-4 p-5">
           {localError && <div className="border border-[#EF4444] bg-[#0D1117] px-3 py-2 text-xs text-[#EF4444]">{localError}</div>}
 
-          <div className="space-y-2.5 border border-[#30363D] bg-[#0D1117] p-4 text-xs">
+          <div className="space-y-2 border border-[#30363D] bg-[#0D1117] p-4 text-xs">
             <div className="flex items-center justify-between gap-2">
               <span className="text-[#8A8A8A]">Repository Owner</span>
               <a href={ownerUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 font-mono font-semibold text-[#E6EDF3] hover:text-[#4ADE80]">
                 <img src={`https://github.com/${encodeURIComponent(repo.repoOwner)}.png?size=32`} alt={repo.repoOwner} className="h-4 w-4 border border-[#30363D] object-cover" />
-                <span>@{repo.repoOwner}</span>
-                <ExternalLink className="h-3 w-3 text-[#8A8A8A]" strokeWidth={1.5} />
+                <span>@{repo.repoOwner}</span><ExternalLink className="h-3 w-3 text-[#8A8A8A]" strokeWidth={1.5} />
               </a>
             </div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-[#8A8A8A]">Repository</span>
-              <a href={repo.htmlUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-mono font-semibold text-[#4ADE80] hover:underline">
-                {repo.slug}<ExternalLink className="h-3 w-3" strokeWidth={1.5} />
-              </a>
+              <a href={repo.htmlUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-mono font-semibold text-[#4ADE80] hover:underline">{repo.slug}<ExternalLink className="h-3 w-3" strokeWidth={1.5} /></a>
             </div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-[#8A8A8A]">Default Branch / Visibility</span>
-              <div className="flex items-center gap-1.5">
-                <Badge tone="green">{repo.defaultBranch}</Badge>
-                <Badge tone="neutral">{repo.visibility.toLowerCase()}</Badge>
-              </div>
+              <div className="flex items-center gap-1.5"><Badge tone="green">{repo.defaultBranch}</Badge><Badge tone="neutral">{repo.visibility.toLowerCase()}</Badge></div>
             </div>
             <div className="flex items-center justify-between gap-2">
               <span className="text-[#8A8A8A]">Connected / Synced</span>
@@ -120,15 +127,15 @@ export function GitAccessModal({
               <div className="space-y-3 border border-[#30363D] bg-[#0D1117] p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <p className="text-xs font-semibold text-[#E6EDF3]">GitHub OAuth & Switch Repository</p>
-                    <p className="mt-0.5 text-[11px] text-[#8A8A8A]">
-                      {tokenInfo ? `Signed in as @${tokenInfo.username} (${tokenInfo.repositories.length} repos available).` : 'Login with GitHub to refresh authorization or switch to another repository.'}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-xs font-semibold text-[#E6EDF3]">GitHub OAuth & Switch Repository</p>
+                      {tokenInfo && <span className="inline-flex items-center gap-1 border border-[#1E5631] bg-[#052E16] px-1.5 py-0.5 font-mono text-[10px] text-[#4ADE80]"><CheckCircle2 className="h-3 w-3" strokeWidth={1.75} />Connected</span>}
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-[#8A8A8A]">{loadingAccount ? 'Checking connected GitHub account...' : tokenInfo ? `Signed in as @${tokenInfo.username} (${tokenInfo.repositories.length} repos available).` : 'Login with GitHub to refresh authorization or switch to another repository.'}</p>
                   </div>
                   {onAutoFetchToken && (
                     <Button type="button" variant={tokenInfo ? 'secondary' : 'primary'} disabled={busy} onClick={() => void handleLoginGitHub()}>
-                      <Github className="h-3.5 w-3.5" strokeWidth={1.5} />
-                      {autoFetching ? 'Authorizing GitHub...' : tokenInfo ? 'Re-login GitHub' : 'Login with GitHub'}
+                      <Github className="h-3.5 w-3.5" strokeWidth={1.5} />{autoFetching ? 'Authorizing GitHub...' : loadingAccount ? 'Checking...' : tokenInfo ? 'Switch Account' : 'Login with GitHub'}
                     </Button>
                   )}
                 </div>
@@ -139,21 +146,16 @@ export function GitAccessModal({
                       <label htmlFor="switch-repo-select" className="block text-[11px] font-medium text-[#BDBDBD]">Target Repository</label>
                       <select id="switch-repo-select" value={selectedSlug} onChange={(e) => setSelectedSlug(e.target.value)} className="w-full border border-[#30363D] bg-[#161B22] px-2.5 py-1.5 font-mono text-xs text-[#E6EDF3] focus:border-[#22C55E] focus:outline-none">
                         {!tokenInfo.repositories.some((r) => r.fullName === repo.slug) && <option value={repo.slug}>{repo.slug} (current)</option>}
-                        {tokenInfo.repositories.map((r) => (
-                          <option key={r.fullName} value={r.fullName}>{r.fullName}{r.fullName.toLowerCase() === repo.slug.toLowerCase() ? ' (current)' : ''} — {r.privateRepo ? 'private' : 'public'}</option>
-                        ))}
+                        {tokenInfo.repositories.map((r) => <option key={r.fullName} value={r.fullName}>{r.fullName}{r.fullName.toLowerCase() === repo.slug.toLowerCase() ? ' (current)' : ''} — {r.privateRepo ? 'private' : 'public'}</option>)}
                       </select>
                     </div>
-
                     {isSwitchingRepo && selectedRemote ? (
                       <div className="space-y-2.5 border border-[#EAB308] bg-[#422006]/30 p-3 text-xs">
                         <div className="flex items-start gap-2 text-[#FACC15]">
                           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.75} />
                           <div>
                             <p className="font-semibold">Warning: Switching Repository</p>
-                            <p className="mt-0.5 text-[11px] text-[#E6EDF3]">
-                              Switching from <span className="font-mono text-[#FACC15]">{repo.slug}</span> to <span className="font-mono text-[#4ADE80]">{selectedRemote.fullName}</span> (owner <span className="font-mono">@{selectedRemote.owner}</span>) will replace the linked repository for all members, clear cached commit history, branches, and code views, and reset sync state.
-                            </p>
+                            <p className="mt-0.5 text-[11px] text-[#E6EDF3]">Switching from <span className="font-mono text-[#FACC15]">{repo.slug}</span> to <span className="font-mono text-[#4ADE80]">{selectedRemote.fullName}</span> (owner <span className="font-mono">@{selectedRemote.owner}</span>) will replace the linked repository for all members, clear cached commit history, branches, and code views, and reset sync state.</p>
                           </div>
                         </div>
                         <div className="flex justify-end gap-2">
@@ -161,20 +163,16 @@ export function GitAccessModal({
                           <Button type="button" variant="primary" disabled={busy} onClick={() => void handleConfirmSwitch()}>{saving ? 'Switching...' : 'Confirm Switch Repository'}</Button>
                         </div>
                       </div>
-                    ) : (
-                      <Button type="button" variant="primary" disabled={busy} onClick={() => void handleRefreshToken()}>
-                        <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} />{saving ? 'Updating...' : 'Refresh Repository Authorization'}
-                      </Button>
-                    )}
+                    ) : fetchedToken ? (
+                      <Button type="button" variant="primary" disabled={busy} onClick={() => void handleRefreshToken()}><RefreshCw className="h-3.5 w-3.5" strokeWidth={1.5} />{saving ? 'Updating...' : 'Refresh Repository Authorization'}</Button>
+                    ) : null}
                   </div>
                 )}
               </div>
 
               <div className="border-t border-[#30363D] pt-3">
                 {!confirmDisconnect ? (
-                  <button type="button" onClick={() => setConfirmDisconnect(true)} className="inline-flex items-center gap-1.5 border border-[#EF4444] bg-[#0D1117] px-3 py-1.5 text-xs font-medium text-[#EF4444] hover:bg-[#21262D]">
-                    <Unplug className="h-3.5 w-3.5" strokeWidth={1.5} />Disconnect Repository
-                  </button>
+                  <button type="button" onClick={() => setConfirmDisconnect(true)} className="inline-flex items-center gap-1.5 border border-[#EF4444] bg-[#0D1117] px-3 py-1.5 text-xs font-medium text-[#EF4444] hover:bg-[#21262D]"><Unplug className="h-3.5 w-3.5" strokeWidth={1.5} />Disconnect Repository</button>
                 ) : (
                   <div className="flex flex-wrap items-center justify-between gap-2 border border-[#EF4444] bg-[#0D1117] p-3">
                     <span className="text-xs text-[#E6EDF3]">Disconnect {repo.slug} from Orbit?</span>

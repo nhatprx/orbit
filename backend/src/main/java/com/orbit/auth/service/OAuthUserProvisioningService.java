@@ -39,23 +39,30 @@ public class OAuthUserProvisioningService {
         String email = extractEmail(normalizedProvider, providerUserId, attrs);
         String displayName = extractDisplayName(attrs, email);
         String candidateUsername = extractUsernameCandidate(normalizedProvider, attrs, email);
+        String providerUsername = extractProviderUsername(normalizedProvider, attrs);
 
         Optional<OAuthAccountEntity> existingOAuth = oauthAccountRepository
             .findByProviderAndProviderUserId(normalizedProvider, providerUserId);
 
         if (existingOAuth.isPresent()) {
             OAuthAccountEntity account = existingOAuth.get();
+            boolean changed = false;
             if (account.getProviderDisplayName() == null || account.getProviderDisplayName().isBlank()) {
                 account.setProviderDisplayName(displayName);
-                oauthAccountRepository.save(account);
+                changed = true;
             }
+            if (providerUsername != null && !providerUsername.equals(account.getProviderUsername())) {
+                account.setProviderUsername(providerUsername);
+                changed = true;
+            }
+            if (changed) oauthAccountRepository.save(account);
             return account.getUser();
         }
 
         UserEntity user = userRepository.findByEmailIgnoreCase(email)
             .orElseGet(() -> createNewOAuthUser(email, displayName, candidateUsername));
 
-        saveOAuthLink(user, normalizedProvider, providerUserId, email, displayName);
+        saveOAuthLink(user, normalizedProvider, providerUserId, email, displayName, providerUsername);
         return user;
     }
 
@@ -70,6 +77,7 @@ public class OAuthUserProvisioningService {
         String providerUserId = extractProviderUserId(normalizedProvider, attrs);
         String email = extractEmail(normalizedProvider, providerUserId, attrs);
         String displayName = extractDisplayName(attrs, email);
+        String providerUsername = extractProviderUsername(normalizedProvider, attrs);
 
         Optional<OAuthAccountEntity> existingByProviderId = oauthAccountRepository
             .findByProviderAndProviderUserId(normalizedProvider, providerUserId);
@@ -84,6 +92,7 @@ public class OAuthUserProvisioningService {
             }
             existing.setProviderEmail(email);
             existing.setProviderDisplayName(displayName);
+            if (providerUsername != null) existing.setProviderUsername(providerUsername);
             return oauthAccountRepository.save(existing);
         }
 
@@ -95,7 +104,7 @@ public class OAuthUserProvisioningService {
             );
         }
 
-        return saveOAuthLink(user, normalizedProvider, providerUserId, email, displayName);
+        return saveOAuthLink(user, normalizedProvider, providerUserId, email, displayName, providerUsername);
     }
 
     private OAuthAccountEntity saveOAuthLink(
@@ -103,7 +112,8 @@ public class OAuthUserProvisioningService {
         String provider,
         String providerUserId,
         String email,
-        String displayName
+        String displayName,
+        String providerUsername
     ) {
         OAuthAccountEntity account = new OAuthAccountEntity();
         account.setUser(user);
@@ -111,7 +121,14 @@ public class OAuthUserProvisioningService {
         account.setProviderUserId(providerUserId);
         account.setProviderEmail(email);
         account.setProviderDisplayName(displayName);
+        account.setProviderUsername(providerUsername);
         return oauthAccountRepository.save(account);
+    }
+
+    private String extractProviderUsername(String provider, Map<String, Object> attrs) {
+        if (!"github".equals(provider)) return null;
+        Object login = attrs.get("login");
+        return (login != null && !login.toString().isBlank()) ? login.toString().trim() : null;
     }
 
     private UserEntity createNewOAuthUser(String email, String displayName, String candidateUsername) {

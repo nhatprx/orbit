@@ -1,3 +1,4 @@
+import type { GitOAuthCapabilitiesDto, GitOAuthScopeMode } from '../../types/git.types';
 import { API_BASE_URL } from '../auth.storage';
 import { apiRequest } from '../workspace/httpClient';
 
@@ -136,7 +137,11 @@ export function waitForGitOAuthPopup(popup: Window): Promise<GitOAuthPopupResult
   });
 }
 
-export async function fetchGitHubOAuthToken(): Promise<string> {
+export function fetchGitOAuthCapabilities(): Promise<GitOAuthCapabilitiesDto> {
+  return apiRequest<GitOAuthCapabilitiesDto>('GET', '/api/v1/git/oauth/capabilities');
+}
+
+export async function fetchGitHubOAuthToken(scopeMode: GitOAuthScopeMode = 'all'): Promise<string> {
   const popup = openGitOAuthPopup();
   if (!popup) {
     throw new Error('Popup was blocked by your browser. Allow popups for Orbit and try again.');
@@ -144,13 +149,18 @@ export async function fetchGitHubOAuthToken(): Promise<string> {
 
   let startRes: GitOAuthStartResponse;
   try {
-    startRes = await apiRequest<GitOAuthStartResponse>('POST', '/api/v1/git/oauth/start');
+    startRes = await apiRequest<GitOAuthStartResponse>('POST', '/api/v1/git/oauth/start', {
+      query: { scopeMode },
+    });
   } catch (err) {
     popup.close();
     throw err;
   }
 
-  popup.location.href = `${API_BASE_URL}${startRes.authorizeUrl}`;
+  const targetUrl = /^https?:\/\//i.test(startRes.authorizeUrl)
+    ? startRes.authorizeUrl
+    : `${API_BASE_URL}${startRes.authorizeUrl}`;
+  popup.location.href = targetUrl;
   popup.focus();
 
   const result = await waitForGitOAuthPopup(popup);

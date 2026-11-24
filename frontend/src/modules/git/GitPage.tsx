@@ -1,10 +1,8 @@
 import { useState } from 'react';
-import type { GitApi } from '../../services/git/gitApi';
+import { gitBasePath, type GitApi } from '../../services/git/gitApi';
+import { apiRequest } from '../../services/workspace/httpClient';
 import {
-  getGitPermissions,
-  type GitCommitDetailDto,
-  type GitFileContentDto,
-  type GitScope,
+  getGitPermissions, type GitCommitDetailDto, type GitFileContentDto, type GitScope, type InspectGitTokenResponse,
 } from '../../types/git.types';
 import { GitActionsView } from './GitActionsView';
 import { GitBranchCompareModal } from './GitBranchCompareModal';
@@ -16,6 +14,7 @@ import { GitModals } from './GitModals';
 import { GitOverviewView } from './GitOverviewView';
 import { GitPrDetailModal } from './GitPrDetailModal';
 import { GitPullRequestsView } from './GitPullRequestsView';
+import { GitQuickSetupPanel } from './GitQuickSetupPanel';
 import { GitShareToChatModal, type ShareToChatPayload } from './GitShareToChatModal';
 import { GitLoadErrorView, GitStatusBanners, GitTabBar, type GitTab } from './GitWorkspaceChrome';
 import { useGitInsights } from './useGitInsights';
@@ -42,6 +41,7 @@ export function GitPage({ scope, scopeLabel, api }: GitPageProps) {
   const [inspectPrNumber, setInspectPrNumber] = useState<number | null>(null);
   const [compareState, setCompareState] = useState<{ base: string; head: string } | null>(null);
   const [sharePayload, setSharePayload] = useState<ShareToChatPayload | null>(null);
+  const [showQuickSetup, setShowQuickSetup] = useState(false);
 
   async function handleInspectCommit(sha: string) {
     setCommitModal({ open: true, loading: true, detail: null });
@@ -70,12 +70,10 @@ export function GitPage({ scope, scopeLabel, api }: GitPageProps) {
       <div className="flex h-[calc(100vh-3rem)] items-start justify-center overflow-y-auto bg-[#0D1117] p-6">
         <div className="w-full max-w-2xl">
           <GitConnectPanel
-            scopeLabel={scopeLabel}
-            canManage={perms.canManage}
+            scopeLabel={scopeLabel} canManage={perms.canManage}
             onAutoFetchToken={() => ws.api.fetchOAuthToken()}
-            onInspectToken={(token) => ws.api.inspectToken(token)}
-            onConnectRepo={(req) => ws.connectRepo(req)}
-            onCreateRepo={(req) => ws.createRepo(req)}
+            onInspectToken={(token) => ws.api.inspectToken(token)} onConnectRepo={(req) => ws.connectRepo(req)}
+            onCreateRepo={async (req) => { const created = await ws.createRepo(req); setShowQuickSetup(true); return created; }}
           />
         </div>
       </div>
@@ -85,43 +83,32 @@ export function GitPage({ scope, scopeLabel, api }: GitPageProps) {
   return (
     <div className="flex h-[calc(100vh-3rem)] w-full flex-col overflow-hidden bg-[#0D1117]">
       <GitHeaderBar
-        repo={ws.repo}
-        scopeLabel={scopeLabel}
-        branches={ws.branches}
-        activeBranch={ws.activeBranch}
-        syncingCommits={ws.syncingCommits}
-        onOpenBranches={() => setShowBranches(true)}
-        onPullCommits={() => void ws.pullCommitHistory()}
-        onOpenSettings={() => setShowAccess(true)}
+        repo={ws.repo} scopeLabel={scopeLabel} branches={ws.branches} activeBranch={ws.activeBranch}
+        syncingCommits={ws.syncingCommits} onOpenBranches={() => setShowBranches(true)}
+        onPullCommits={() => void ws.pullCommitHistory()} onOpenSettings={() => setShowAccess(true)}
       />
 
-      <GitTabBar
-        tab={tab}
-        commitsCount={ws.commits.length}
-        actionsCount={insights.runs.length}
-        prsCount={ws.pullRequests.length}
-        onSelectTab={setTab}
-      />
+      <GitTabBar tab={tab} commitsCount={ws.commits.length} actionsCount={insights.runs.length} prsCount={ws.pullRequests.length} onSelectTab={setTab} />
 
       <div className="no-scrollbar min-h-0 min-w-0 flex-1 space-y-4 overflow-x-hidden overflow-y-auto p-4">
-        <GitStatusBanners
-          error={ws.error}
-          notice={ws.notice}
-          onClearError={ws.clearError}
-          onClearNotice={ws.clearNotice}
-        />
+        <GitStatusBanners error={ws.error} notice={ws.notice} onClearError={ws.clearError} onClearNotice={ws.clearNotice} />
 
-        {tab === 'overview' && (
-          <GitOverviewView
-            branches={ws.branches} activeBranch={ws.activeBranch} commits={ws.commits}
-            pullRequests={ws.pullRequests} runs={insights.runs} collaborators={insights.collaborators}
-            stats={insights.stats} canWrite={perms.canWrite} onSelectBranch={ws.setActiveBranch}
-            onManageBranches={() => setShowBranches(true)}
-            onCompareBranch={(base, head) => setCompareState({ base, head })}
-            onQuickPr={(head) => { ws.setActiveBranch(head); setShowCreatePr(true); }}
-            onInspectCommit={(sha) => void handleInspectCommit(sha)}
-            onInspectPr={setInspectPrNumber} onShareToChat={setSharePayload} onSwitchTab={setTab}
-          />
+        {showQuickSetup ? (
+          <GitQuickSetupPanel repo={ws.repo} scope={scope} canManage={perms.canManage} enableRemoteFetch={!api} onContinue={() => setShowQuickSetup(false)} />
+        ) : tab === 'overview' && (
+          <>
+            {ws.commits.length === 0 && <GitQuickSetupPanel repo={ws.repo} scope={scope} canManage={perms.canManage} enableRemoteFetch={!api} />}
+            <GitOverviewView
+              branches={ws.branches} activeBranch={ws.activeBranch} commits={ws.commits}
+              pullRequests={ws.pullRequests} runs={insights.runs} collaborators={insights.collaborators}
+              stats={insights.stats} canWrite={perms.canWrite} onSelectBranch={ws.setActiveBranch}
+              onManageBranches={() => setShowBranches(true)}
+              onCompareBranch={(base, head) => setCompareState({ base, head })}
+              onQuickPr={(head) => { ws.setActiveBranch(head); setShowCreatePr(true); }}
+              onInspectCommit={(sha) => void handleInspectCommit(sha)}
+              onInspectPr={setInspectPrNumber} onShareToChat={setSharePayload} onSwitchTab={setTab}
+            />
+          </>
         )}
 
         {tab === 'actions' && (
@@ -182,6 +169,7 @@ export function GitPage({ scope, scopeLabel, api }: GitPageProps) {
         onCloseCreatePr={() => setShowCreatePr(false)} onCloseFileEditor={() => setFileEditor(null)}
         onCloseCommitModal={() => setCommitModal(EMPTY_COMMIT_MODAL)}
         onSelectBranch={ws.setActiveBranch} onAutoFetchToken={() => ws.api.fetchOAuthToken()}
+        onLoadConnectedAccount={!api ? () => apiRequest<InspectGitTokenResponse>('GET', `${gitBasePath(scope)}/account`) : undefined}
         onInspectToken={(token) => ws.api.inspectToken(token)}
         onUpdateToken={ws.updateToken} onSwitchRepo={ws.connectRepo} onDisconnect={ws.disconnectRepo}
         onCreateBranch={ws.createBranch}

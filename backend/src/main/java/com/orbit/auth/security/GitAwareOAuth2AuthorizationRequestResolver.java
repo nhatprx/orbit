@@ -13,6 +13,7 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequ
 public class GitAwareOAuth2AuthorizationRequestResolver implements OAuth2AuthorizationRequestResolver {
 
     static final Set<String> GIT_REPO_SCOPES = Set.of("repo", "read:user", "user:email");
+    static final Set<String> GIT_PUBLIC_SCOPES = Set.of("public_repo", "read:user", "user:email");
 
     private final OAuth2AuthorizationRequestResolver delegate;
 
@@ -42,8 +43,11 @@ public class GitAwareOAuth2AuthorizationRequestResolver implements OAuth2Authori
         if (session == null || session.getAttribute(GitOAuthTokenStore.SESSION_USER_ID_ATTR) == null) {
             return authReq;
         }
+        Object scopeMode = session.getAttribute(GitOAuthTokenStore.SESSION_SCOPE_MODE_ATTR);
+        Set<String> scopes = "public".equals(scopeMode) ? GIT_PUBLIC_SCOPES : GIT_REPO_SCOPES;
         return OAuth2AuthorizationRequest.from(authReq)
-            .scopes(GIT_REPO_SCOPES)
+            .scopes(scopes)
+            .additionalParameters(params -> params.put("prompt", "select_account"))
             .build();
     }
 

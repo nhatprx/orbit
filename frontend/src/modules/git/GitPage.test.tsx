@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { GitPage } from './GitPage';
+import { setCachedGitOAuthSession } from './gitWorkspaceCache';
 import {
   createMockGitApi,
   FULL_SCOPE,
@@ -10,6 +11,7 @@ import {
 
 afterEach(() => {
   cleanup();
+  setCachedGitOAuthSession(null);
 });
 
 describe('GitPage', () => {
@@ -33,30 +35,34 @@ describe('GitPage', () => {
     expect(await screen.findByText('orbit-org/orbit-core')).toBeTruthy();
   });
 
-  it('creates a new GitHub repository from the connect panel', async () => {
+  it('creates a new GitHub repository with init options and shows Quick Setup', async () => {
     const api = createMockGitApi(null);
     render(<GitPage scope={FULL_SCOPE} api={api} />);
 
     fireEvent.click(await screen.findByRole('button', { name: /Connect GitHub/i }));
     expect(await screen.findByText('@octocat')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /Create New GitHub Repository/i }));
+    expect(screen.queryByLabelText(/Description/i)).toBeNull();
     fireEvent.change(screen.getByLabelText(/New Repository Name/i), {
       target: { value: 'orbit-new-repo' },
     });
-    fireEvent.change(screen.getByLabelText(/Description/i), {
-      target: { value: 'Created via Orbit' },
-    });
+    fireEvent.click(screen.getByRole('button', { name: /^Public$/i }));
+    fireEvent.change(screen.getByLabelText(/Add \.gitignore/i), { target: { value: 'Node' } });
+    fireEvent.change(screen.getByLabelText(/Choose a license/i), { target: { value: 'mit' } });
     fireEvent.click(screen.getByRole('button', { name: /Create & Connect Repository/i }));
 
     await waitFor(() => {
       expect(api.createRepository).toHaveBeenCalledWith({
         accessToken: 'gho_auto_fetched_12345',
         repoName: 'orbit-new-repo',
-        description: 'Created via Orbit',
-        privateRepo: true,
+        privateRepo: false,
+        autoInit: true,
+        gitignoreTemplate: 'Node',
+        licenseTemplate: 'mit',
       });
     });
-    expect(await screen.findByText('orbit-org/orbit-new-repo')).toBeTruthy();
+    expect(await screen.findByText(/Quick Setup/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Continue to Repository/i })).toBeTruthy();
   });
 
   it('browses directories, opens, creates, edits, and deletes files', async () => {

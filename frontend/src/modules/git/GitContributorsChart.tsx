@@ -1,18 +1,19 @@
 import { BarChart3 } from 'lucide-react';
 import { UserAvatar } from '../../components/ui/UserAvatar';
-import type { GitContributorStatDto } from '../../types/git-insights.types';
+import type { GitContributorDto } from '../../types/git-insights.types';
 
 interface GitContributorsChartProps {
-  contributors: GitContributorStatDto[];
+  contributors: GitContributorDto[];
+  className?: string;
 }
 
-export function GitContributorsChart({ contributors }: GitContributorsChartProps) {
+export function GitContributorsChart({ contributors, className = '' }: GitContributorsChartProps) {
   const visible = contributors.slice(0, 8);
   const maxContrib = Math.max(1, ...visible.map((c) => c.contributions));
   const totalCommits = visible.reduce((sum, c) => sum + c.contributions, 0);
 
   return (
-    <section className="flex flex-col border border-[#30363D] bg-[#161B22]">
+    <section className={`flex flex-col border border-[#30363D] bg-[#161B22] ${className}`}>
       <div className="flex items-center justify-between border-b border-[#30363D] px-4 py-2.5">
         <div className="flex items-center gap-2 text-xs font-semibold text-[#E6EDF3]">
           <BarChart3 className="h-3.5 w-3.5 text-[#22C55E]" strokeWidth={1.5} />

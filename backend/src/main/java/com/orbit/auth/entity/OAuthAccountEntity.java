@@ -34,6 +34,9 @@ public class OAuthAccountEntity {
     @Column(name = "provider_display_name", length = 255)
     private String providerDisplayName;
 
+    @Column(name = "provider_username", length = 191)
+    private String providerUsername;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -60,6 +63,9 @@ public class OAuthAccountEntity {
 
     public String getProviderDisplayName() { return providerDisplayName; }
     public void setProviderDisplayName(String providerDisplayName) { this.providerDisplayName = providerDisplayName; }
+
+    public String getProviderUsername() { return providerUsername; }
+    public void setProviderUsername(String providerUsername) { this.providerUsername = providerUsername; }
 
     public Instant getCreatedAt() { return createdAt; }
 }

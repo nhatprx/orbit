@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.orbit.common.ApiException;
 import com.orbit.git.dto.CreateGitPullRequest;
+import com.orbit.git.dto.CreateGitRepoRequest;
 import com.orbit.git.dto.DeleteGitFileRequest;
 import com.orbit.git.dto.MergeGitPullRequest;
 import com.orbit.git.dto.UpsertGitFileRequest;
@@ -28,11 +29,23 @@ public class GitHubPayloadBuilder {
     }
 
     public String createRepositoryPayload(String name, String description, boolean privateRepo) {
+        return createRepositoryPayload(new CreateGitRepoRequest(null, name, description, privateRepo, true, null, null));
+    }
+
+    public String createRepositoryPayload(CreateGitRepoRequest req) {
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("name", name);
-        body.put("description", description != null ? description : "");
-        body.put("private", privateRepo);
-        body.put("auto_init", true);
+        body.put("name", req.repoName().trim());
+        body.put("description", req.description() != null ? req.description() : "");
+        body.put("private", req.privateRepo());
+        boolean hasTemplate = (req.gitignoreTemplate() != null && !req.gitignoreTemplate().isBlank())
+            || (req.licenseTemplate() != null && !req.licenseTemplate().isBlank());
+        body.put("auto_init", Boolean.TRUE.equals(req.autoInit()) || hasTemplate);
+        if (req.gitignoreTemplate() != null && !req.gitignoreTemplate().isBlank()) {
+            body.put("gitignore_template", req.gitignoreTemplate().trim());
+        }
+        if (req.licenseTemplate() != null && !req.licenseTemplate().isBlank()) {
+            body.put("license_template", req.licenseTemplate().trim());
+        }
         return toJson(body);
     }
 

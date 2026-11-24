@@ -27,6 +27,8 @@ public interface WorkspaceMemberRepository
 
     boolean existsByIdWorkspaceIdAndIdUserId(UUID workspaceId, UUID userId);
 
+    List<WorkspaceMemberEntity> findByIdWorkspaceId(UUID workspaceId);
+
     @Query("""
         select new com.orbit.workspace.repository.KeyCount(m.id.workspaceId, count(m))
         from WorkspaceMemberEntity m

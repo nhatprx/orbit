@@ -5,7 +5,13 @@ import type {
   GitPullRequestDto,
   GitRepositoryDto,
   GitTreeEntryDto,
+  InspectGitTokenResponse,
 } from '../../types/git.types';
+
+export interface CachedGitOAuthSession {
+  token: string;
+  info: InspectGitTokenResponse;
+}
 
 export interface CachedGitWorkspace {
   repo: GitRepositoryDto | null;
@@ -24,6 +30,15 @@ export interface CachedGitInsights {
 
 const workspaceCache = new Map<string, CachedGitWorkspace>();
 const insightsCache = new Map<string, CachedGitInsights>();
+let oauthSessionCache: CachedGitOAuthSession | null = null;
+
+export function getCachedGitOAuthSession(): CachedGitOAuthSession | null {
+  return oauthSessionCache;
+}
+
+export function setCachedGitOAuthSession(session: CachedGitOAuthSession | null): void {
+  oauthSessionCache = session;
+}
 
 export function getCachedGitWorkspace(key: string): CachedGitWorkspace | null {
   return workspaceCache.get(key) ?? null;

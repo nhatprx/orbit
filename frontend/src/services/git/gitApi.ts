@@ -9,6 +9,7 @@ import type {
   GitCommitDto,
   GitFileContentDto,
   GitMutationResultDto,
+  GitOAuthScopeMode,
   GitPullRequestDto,
   GitRepositoryDto,
   GitScope,
@@ -21,7 +22,7 @@ import { ApiError, apiRequest, seg } from '../workspace/httpClient';
 import { fetchGitHubOAuthToken } from './gitOAuthPopup';
 
 export interface GitApi {
-  fetchOAuthToken(): Promise<string>;
+  fetchOAuthToken(scopeMode?: GitOAuthScopeMode): Promise<string>;
   inspectToken(accessToken: string): Promise<InspectGitTokenResponse>;
   getRepository(signal?: AbortSignal): Promise<GitRepositoryDto | null>;
   connectRepository(body: ConnectGitRepoRequest): Promise<GitRepositoryDto>;
@@ -65,8 +66,8 @@ export function createHttpGitApi(scope: GitScope): GitApi {
   const base = gitBasePath(scope);
 
   return {
-    fetchOAuthToken() {
-      return fetchGitHubOAuthToken();
+    fetchOAuthToken(scopeMode) {
+      return fetchGitHubOAuthToken(scopeMode);
     },
 
     inspectToken(accessToken) {

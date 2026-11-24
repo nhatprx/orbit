@@ -50,11 +50,21 @@ export interface ConnectGitRepoRequest {
   defaultBranch?: string;
 }
 
+export type {
+  GitOAuthCapabilitiesDto,
+  GitOAuthScopeMode,
+  GitWorkspaceMemberCandidateDto,
+  InviteGitCollaboratorResultDto,
+} from './git-insights.types';
+
 export interface CreateGitRepoRequest {
   accessToken: string;
   repoName: string;
   description?: string;
   privateRepo: boolean;
+  autoInit?: boolean;
+  gitignoreTemplate?: string;
+  licenseTemplate?: string;
 }
 
 export interface GitRepositoryDto {

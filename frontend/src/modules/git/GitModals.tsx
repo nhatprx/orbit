@@ -35,6 +35,7 @@ interface GitModalsProps {
   onCloseCommitModal: () => void;
   onSelectBranch: (branch: string) => void;
   onAutoFetchToken?: () => Promise<string>;
+  onLoadConnectedAccount?: () => Promise<InspectGitTokenResponse>;
   onInspectToken: (token: string) => Promise<InspectGitTokenResponse>;
   onUpdateToken: (token: string) => Promise<unknown>;
   onSwitchRepo: (req: ConnectGitRepoRequest) => Promise<unknown>;
@@ -50,7 +51,7 @@ export function GitModals({
   repo, branches, activeBranch, currentDir, canWrite, canDelete, canManage,
   showAccess, showBranches, showCreatePr, fileEditor, commitModal,
   onCloseAccess, onCloseBranches, onCloseCreatePr, onCloseFileEditor, onCloseCommitModal,
-  onSelectBranch, onAutoFetchToken, onInspectToken, onUpdateToken, onSwitchRepo, onDisconnect,
+  onSelectBranch, onAutoFetchToken, onLoadConnectedAccount, onInspectToken, onUpdateToken, onSwitchRepo, onDisconnect,
   onCreateBranch, onRenameBranch, onDeleteBranch, onSaveFile, onCreatePr,
 }: GitModalsProps) {
   return (
@@ -61,6 +62,7 @@ export function GitModals({
           canManage={canManage}
           onClose={onCloseAccess}
           onAutoFetchToken={onAutoFetchToken}
+          onLoadConnectedAccount={onLoadConnectedAccount}
           onInspectToken={onInspectToken}
           onUpdateToken={async (token) => { await onUpdateToken(token); }}
           onSwitchRepo={async (req) => { await onSwitchRepo(req); }}

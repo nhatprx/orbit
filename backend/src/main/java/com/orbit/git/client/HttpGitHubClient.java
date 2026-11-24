@@ -51,8 +51,12 @@ public class HttpGitHubClient implements GitHubClient {
 
     @Override
     public GitHubRemoteRepoDto createRepository(String token, String name, String description, boolean privateRepo) {
-        String body = payloads.createRepositoryPayload(name, description, privateRepo);
-        return parser.parseRemoteRepo(parseJson(send("POST", "/user/repos", token, body).body()));
+        return parser.parseRemoteRepo(parseJson(send("POST", "/user/repos", token, payloads.createRepositoryPayload(name, description, privateRepo)).body()));
+    }
+
+    @Override
+    public GitHubRemoteRepoDto createRepository(String token, CreateGitRepoRequest req) {
+        return parser.parseRemoteRepo(parseJson(send("POST", "/user/repos", token, payloads.createRepositoryPayload(req)).body()));
     }
 
     @Override

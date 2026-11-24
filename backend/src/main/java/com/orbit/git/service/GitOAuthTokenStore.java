@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 public class GitOAuthTokenStore {
 
     public static final String SESSION_USER_ID_ATTR = "ORBIT_GIT_OAUTH_USER_ID";
+    public static final String SESSION_SCOPE_MODE_ATTR = "ORBIT_GIT_OAUTH_SCOPE_MODE";
 
     private static final Logger log = LoggerFactory.getLogger(GitOAuthTokenStore.class);
     private static final String START_PREFIX = "orbit:git:oauth_start:";
